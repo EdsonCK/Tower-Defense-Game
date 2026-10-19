@@ -1,8 +1,9 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/board.gd" id="2_board"]
 [ext_resource type="Script" path="res://scripts/hud.gd" id="3_hud"]
+[ext_resource type="Script" path="res://scripts/wave_manager.gd" id="4_waves"]
 
 [sub_resource type="StyleBoxFlat" id="Style_panel"]
 bg_color = Color(0.07, 0.1, 0.14, 1)
@@ -28,6 +29,7 @@ script = ExtResource("2_board")
 [node name="Enemies" type="Node2D" parent="Board"]
 
 [node name="WaveManager" type="Node" parent="."]
+script = ExtResource("4_waves")
 
 [node name="HUD" type="CanvasLayer" parent="."]
 
