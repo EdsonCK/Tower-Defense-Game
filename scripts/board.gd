@@ -115,6 +115,11 @@ func set_build_preview(building: bool, currency: int) -> void:
 	queue_redraw()
 
 
+func invalidate_hover() -> void:
+	# Enemy spawn/arrival/resolution changes which cells can be purchased.
+	_hover_revision = -1
+
+
 func _process(_delta: float) -> void:
 	if not _building:
 		return
