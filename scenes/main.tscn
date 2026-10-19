@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/board.gd" id="2_board"]
@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://scripts/hud.gd" id="4_hud"]
 [ext_resource type="Script" path="res://scripts/window_fit.gd" id="5_window"]
 [ext_resource type="PackedScene" path="res://scenes/skill_tree_menu.tscn" id="6_skills"]
+[ext_resource type="Script" path="res://scripts/confirm_dialog.gd" id="7_confirm"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_main")
@@ -78,33 +79,46 @@ vertical_scroll_mode = 1
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-theme_override_constants/margin_left = 16
-theme_override_constants/margin_top = 8
-theme_override_constants/margin_right = 16
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 18
 theme_override_constants/margin_bottom = 8
 
 [node name="VBox" type="VBoxContainer" parent="HUD/UILayout/Root/LeftColumn/BottomPanel/Scroll/Margin"]
 layout_mode = 2
-theme_override_constants/separation = 4
+theme_override_constants/separation = 3
 
 [node name="ModeLabel" type="Label" parent="HUD/UILayout/Root/LeftColumn/BottomPanel/Scroll/Margin/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 18)
+theme_type_variation = "Caption"
+theme_override_font_sizes/font_size = 13
 text = "Build towers to make a maze."
-autowrap_mode = 3
+clip_text = true
+text_overrun_behavior = 3
 
 [node name="MessageLabel" type="Label" parent="HUD/UILayout/Root/LeftColumn/BottomPanel/Scroll/Margin/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 18
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 26)
+theme_override_font_sizes/font_size = 17
 text = ""
-autowrap_mode = 3
+clip_text = true
+text_overrun_behavior = 3
 
 [node name="InstructionsLabel" type="Label" parent="HUD/UILayout/Root/LeftColumn/BottomPanel/Scroll/Margin/VBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
-text = "Controls: Build Basic / Tesla -> left-click tile | Right-click / Esc: cancel | Start Wave: next wave | Click a tower: upgrade/sell | Skill Tree: spend diamonds (1 per wave) | Restart: new run | F11: fullscreen."
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 36)
+theme_type_variation = "Caption"
+theme_override_font_sizes/font_size = 12
+text = "Left-click: place / select  |  Right-click or Esc: cancel  |  F11: fullscreen.   Enemy bars: purple = shield (hit first), white = armor, green = health. Only the top bar takes damage."
 autowrap_mode = 3
+max_lines_visible = 2
+text_overrun_behavior = 3
 
 [node name="RightPanel" type="PanelContainer" parent="HUD/UILayout/Root"]
 unique_name_in_owner = true
@@ -121,187 +135,431 @@ vertical_scroll_mode = 1
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-theme_override_constants/margin_left = 16
-theme_override_constants/margin_top = 12
-theme_override_constants/margin_right = 16
-theme_override_constants/margin_bottom = 10
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 8
 
 [node name="VBox" type="VBoxContainer" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin"]
 layout_mode = 2
-theme_override_constants/separation = 6
+theme_override_constants/separation = 7
 
 [node name="TitleLabel" type="Label" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 22
-text = "Unnamed TD Game"
-autowrap_mode = 3
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 26)
+theme_type_variation = "Title"
+theme_override_font_sizes/font_size = 18
+text = "UNNAMED TD"
 horizontal_alignment = 1
+clip_text = true
+text_overrun_behavior = 3
 
-[node name="CurrencyLabel" type="Label" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox"]
+[node name="StatsCard" type="PanelContainer" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox"]
+layout_mode = 2
+theme_type_variation = "Card"
+
+[node name="VBox" type="VBoxContainer" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/StatsCard"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="StatsGrid" type="GridContainer" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/StatsCard/VBox"]
+layout_mode = 2
+theme_override_constants/h_separation = 10
+theme_override_constants/v_separation = 4
+columns = 2
+
+[node name="GoldTile" type="VBoxContainer" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/StatsCard/VBox/StatsGrid"]
+layout_mode = 2
+theme_override_constants/separation = 0
+size_flags_horizontal = 3
+
+[node name="GoldCaption" type="Label" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/StatsCard/VBox/StatsGrid/GoldTile"]
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 14)
+theme_type_variation = "Caption"
+text = "GOLD"
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="CurrencyLabel" type="Label" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/StatsCard/VBox/StatsGrid/GoldTile"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 18
-theme_override_colors/font_color = Color(1, 0.85, 0.35, 1)
-text = "Gold: 200"
-autowrap_mode = 3
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 26)
+theme_type_variation = "Value"
+theme_override_colors/font_color = Color(1, 0.8, 0.3, 1)
+text = "200"
+clip_text = true
+text_overrun_behavior = 3
 
-[node name="DiamondsLabel" type="Label" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox"]
+[node name="DiamondsTile" type="VBoxContainer" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/StatsCard/VBox/StatsGrid"]
+layout_mode = 2
+theme_override_constants/separation = 0
+size_flags_horizontal = 3
+
+[node name="DiamondsCaption" type="Label" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/StatsCard/VBox/StatsGrid/DiamondsTile"]
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 14)
+theme_type_variation = "Caption"
+text = "DIAMONDS"
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="DiamondsLabel" type="Label" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/StatsCard/VBox/StatsGrid/DiamondsTile"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 18
-theme_override_colors/font_color = Color(0.55, 0.9, 1, 1)
-text = "Diamonds: 0"
-autowrap_mode = 3
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 26)
+theme_type_variation = "Value"
+theme_override_colors/font_color = Color(0.45, 0.85, 1, 1)
+text = "0"
+clip_text = true
+text_overrun_behavior = 3
 
-[node name="LivesLabel" type="Label" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox"]
+[node name="LivesTile" type="VBoxContainer" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/StatsCard/VBox/StatsGrid"]
+layout_mode = 2
+theme_override_constants/separation = 0
+size_flags_horizontal = 3
+
+[node name="LivesCaption" type="Label" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/StatsCard/VBox/StatsGrid/LivesTile"]
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 14)
+theme_type_variation = "Caption"
+text = "LIVES"
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="LivesLabel" type="Label" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/StatsCard/VBox/StatsGrid/LivesTile"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 18
-text = "Lives: 10"
-autowrap_mode = 3
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 26)
+theme_type_variation = "Value"
+theme_override_colors/font_color = Color(1, 0.45, 0.5, 1)
+text = "10"
+clip_text = true
+text_overrun_behavior = 3
 
-[node name="WaveLabel" type="Label" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox"]
+[node name="WaveTile" type="VBoxContainer" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/StatsCard/VBox/StatsGrid"]
+layout_mode = 2
+theme_override_constants/separation = 0
+size_flags_horizontal = 3
+
+[node name="WaveCaption" type="Label" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/StatsCard/VBox/StatsGrid/WaveTile"]
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 14)
+theme_type_variation = "Caption"
+text = "WAVE"
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="WaveLabel" type="Label" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/StatsCard/VBox/StatsGrid/WaveTile"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 18
-text = "Wave: 0"
-autowrap_mode = 3
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 26)
+theme_type_variation = "Value"
+theme_override_colors/font_color = Color(0.9, 0.92, 0.96, 1)
+text = "0"
+clip_text = true
+text_overrun_behavior = 3
 
-[node name="StateLabel" type="Label" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox"]
+[node name="WaveCard" type="PanelContainer" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox"]
+layout_mode = 2
+theme_type_variation = "Card"
+
+[node name="VBox" type="VBoxContainer" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/WaveCard"]
+layout_mode = 2
+theme_override_constants/separation = 3
+
+[node name="StateLabel" type="Label" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/WaveCard/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 18
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 20)
+theme_type_variation = "Value"
+theme_override_font_sizes/font_size = 15
 theme_override_colors/font_color = Color(1, 0.85, 0.4, 1)
 text = "READY"
-autowrap_mode = 3
-
-[node name="EnemiesLabel" type="Label" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_font_sizes/font_size = 14
-text = "Enemies: 0 active, 0 to spawn"
-autowrap_mode = 3
-
-[node name="NextWaveLabel" type="Label" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_font_sizes/font_size = 14
-text = "Next (wave 1):"
-autowrap_mode = 3
-
-[node name="ControlsSeparator" type="HSeparator" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox"]
-layout_mode = 2
-
-[node name="BuildButton" type="Button" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 36)
-layout_mode = 2
-focus_mode = 0
-text = "Build Basic (60)"
 clip_text = true
+text_overrun_behavior = 3
 
-[node name="BuildTeslaButton" type="Button" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox"]
+[node name="EnemiesLabel" type="Label" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/WaveCard/VBox"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
-focus_mode = 0
-disabled = true
-text = "Tesla (Skill Tree)"
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 16)
+theme_type_variation = "Caption"
+theme_override_font_sizes/font_size = 12
+text = "0 active  |  0 to spawn"
 clip_text = true
+text_overrun_behavior = 3
 
-[node name="CancelButton" type="Button" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox"]
+[node name="NextWaveLabel" type="Label" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/WaveCard/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 34)
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.75, 0.78, 0.85, 1)
+text = "Next: -"
+autowrap_mode = 3
+max_lines_visible = 2
+text_overrun_behavior = 3
+
+[node name="BuildCard" type="PanelContainer" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox"]
+layout_mode = 2
+theme_type_variation = "Card"
+
+[node name="VBox" type="VBoxContainer" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/BuildCard"]
+layout_mode = 2
+theme_override_constants/separation = 5
+
+[node name="BuildCaption" type="Label" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/BuildCard/VBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 14)
+theme_type_variation = "Caption"
+text = "BUILD"
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="BuildButton" type="Button" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/BuildCard/VBox"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 30)
 layout_mode = 2
+size_flags_horizontal = 3
 focus_mode = 0
-disabled = true
-text = "Cancel Build"
+text = "Basic Tower   60"
 clip_text = true
 
-[node name="StartWaveButton" type="Button" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox"]
+[node name="BuildTeslaButton" type="Button" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/BuildCard/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 30)
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+disabled = true
+text = "Tesla (locked)"
+clip_text = true
+
+[node name="BuildCannonButton" type="Button" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/BuildCard/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 30)
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+disabled = true
+text = "Cannon (locked)"
+clip_text = true
+
+[node name="CancelButton" type="Button" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/BuildCard/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 26)
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+disabled = true
+text = "Cancel build"
+clip_text = true
+
+[node name="WaveControlsCard" type="PanelContainer" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox"]
+layout_mode = 2
+theme_type_variation = "Card"
+
+[node name="VBox" type="VBoxContainer" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/WaveControlsCard"]
+layout_mode = 2
+theme_override_constants/separation = 5
+
+[node name="StartWaveButton" type="Button" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/WaveControlsCard/VBox"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 38)
 layout_mode = 2
+size_flags_horizontal = 3
 focus_mode = 0
+theme_type_variation = "SuccessButton"
 text = "Start Wave"
 clip_text = true
 
-[node name="AutoStartCheck" type="CheckButton" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox"]
+[node name="AutoStartCheck" type="CheckButton" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/WaveControlsCard/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
 focus_mode = 0
 text = "Auto-start waves"
 clip_text = true
 
-[node name="SkillsButton" type="Button" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox"]
+[node name="SkillsButton" type="Button" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/WaveControlsCard/VBox"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
+size_flags_horizontal = 3
 focus_mode = 0
+theme_type_variation = "AccentButton"
 text = "Skill Tree"
 clip_text = true
 
-[node name="RestartButton" type="Button" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 30)
-layout_mode = 2
-focus_mode = 0
-text = "Restart"
-clip_text = true
-
-[node name="SelectionBox" type="VBoxContainer" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox"]
+[node name="SelectionBox" type="PanelContainer" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_constants/separation = 5
+theme_type_variation = "Card"
 
-[node name="SelectionSeparator" type="HSeparator" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/SelectionBox"]
+[node name="VBox" type="VBoxContainer" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/SelectionBox"]
 layout_mode = 2
+theme_override_constants/separation = 4
 
-[node name="SelectionLabel" type="Label" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/SelectionBox"]
-unique_name_in_owner = true
+[node name="SelectionCaption" type="Label" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/SelectionBox/VBox"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 14
-theme_override_colors/font_color = Color(1, 1, 0.55, 1)
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 14)
+theme_type_variation = "Caption"
 text = "SELECTED TOWER"
-autowrap_mode = 3
+clip_text = true
+text_overrun_behavior = 3
 
-[node name="UpgradeDamageButton" type="Button" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/SelectionBox"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 30)
+[node name="SelectionTitleRow" type="HBoxContainer" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/SelectionBox/VBox"]
 layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="SelectionLabel" type="Label" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/SelectionBox/VBox/SelectionTitleRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 22)
+theme_type_variation = "Value"
+theme_override_font_sizes/font_size = 16
+text = "No tower selected"
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="SelectionLevelLabel" type="Label" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/SelectionBox/VBox/SelectionTitleRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 22)
+theme_type_variation = "Caption"
+theme_override_font_sizes/font_size = 12
+text = ""
+horizontal_alignment = 2
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="DamageRow" type="HBoxContainer" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/SelectionBox/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="DamageHealthLabel" type="Label" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/SelectionBox/VBox/DamageRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 16)
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.35, 0.92, 0.4, 1)
+text = "Health -"
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="DamageArmorLabel" type="Label" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/SelectionBox/VBox/DamageRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 16)
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.93, 0.95, 1, 1)
+text = "Armor -"
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="DamageShieldLabel" type="Label" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/SelectionBox/VBox/DamageRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 16)
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.75, 0.45, 1, 1)
+text = "Shield -"
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="SelectionStatsLabel" type="Label" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/SelectionBox/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 16)
+theme_type_variation = "Caption"
+theme_override_font_sizes/font_size = 12
+text = "Click a tower to inspect, upgrade or sell it."
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="SelectionNoteLabel" type="Label" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/SelectionBox/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 16)
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(1, 0.8, 0.3, 1)
+text = ""
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="UpgradeGrid" type="GridContainer" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/SelectionBox/VBox"]
+layout_mode = 2
+theme_override_constants/h_separation = 5
+theme_override_constants/v_separation = 5
+columns = 2
+
+[node name="UpgradeDamageButton" type="Button" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/SelectionBox/VBox/UpgradeGrid"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 28)
+layout_mode = 2
+size_flags_horizontal = 3
 focus_mode = 0
-text = "Upgrade Damage"
+disabled = true
+text = "Damage"
 clip_text = true
 
-[node name="UpgradeRangeButton" type="Button" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/SelectionBox"]
+[node name="UpgradeRangeButton" type="Button" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/SelectionBox/VBox/UpgradeGrid"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 30)
+custom_minimum_size = Vector2(0, 28)
 layout_mode = 2
+size_flags_horizontal = 3
 focus_mode = 0
-text = "Upgrade Range"
+disabled = true
+text = "Range"
 clip_text = true
 
-[node name="UpgradeSpeedButton" type="Button" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/SelectionBox"]
+[node name="UpgradeSpeedButton" type="Button" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/SelectionBox/VBox/UpgradeGrid"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 30)
+custom_minimum_size = Vector2(0, 28)
 layout_mode = 2
+size_flags_horizontal = 3
 focus_mode = 0
-text = "Upgrade Hit speed"
+disabled = true
+text = "Hit speed"
 clip_text = true
 
-[node name="UpgradeUniqueButton" type="Button" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/SelectionBox"]
+[node name="UpgradeUniqueButton" type="Button" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/SelectionBox/VBox/UpgradeGrid"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 30)
+custom_minimum_size = Vector2(0, 28)
 layout_mode = 2
+size_flags_horizontal = 3
 focus_mode = 0
-text = "Upgrade Unique"
+disabled = true
+text = "Special"
 clip_text = true
 
-[node name="SellButton" type="Button" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/SelectionBox"]
+[node name="SellButton" type="Button" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/SelectionBox/VBox"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 30)
+custom_minimum_size = Vector2(0, 28)
 layout_mode = 2
+size_flags_horizontal = 3
 focus_mode = 0
+disabled = true
 text = "Sell"
 clip_text = true
 
@@ -310,15 +568,42 @@ layout_mode = 2
 size_flags_vertical = 3
 mouse_filter = 2
 
-[node name="SeedLabel" type="Label" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox"]
+[node name="FooterRow" type="HBoxContainer" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="SeedLabel" type="Label" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/FooterRow"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 12
-theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
-text = "Run seed: 0"
-autowrap_mode = 3
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 26)
+theme_type_variation = "Caption"
+theme_override_font_sizes/font_size = 11
+text = "Seed 0"
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="RestartButton" type="Button" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/FooterRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(120, 26)
+layout_mode = 2
+focus_mode = 0
+theme_type_variation = "DangerButton"
+text = "Restart"
+clip_text = true
 
 [node name="SkillTreeMenu" parent="HUD/UILayout" instance=ExtResource("6_skills") groups=["hud_modal"]]
 unique_name_in_owner = true
 visible = false
 layout_mode = 1
+
+[node name="ConfirmDialog" type="Control" parent="HUD/UILayout" groups=["hud_modal"]]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("7_confirm")

@@ -2,7 +2,7 @@
 
 As-of-yet unnamed maze-building tower defense made in Godot, mostly written with AI. It draws on Rogue Tower and Sir, We Have an Orc Problem.
 
-A maze-building tower defense prototype for **Godot 4.7.2 stable**, written in GDScript. It has one open 40 × 24 map. Towers block tiles, so you build the maze yourself, and you can never fully seal the route. Waves are endless and generated per run, with seven enemy types. Clearing waves earns **diamonds**, which unlock a permanent skill tree: the Tesla Tower, tower upgrades, gold boosts, enemy nerfs and global buffs.
+A maze-building tower defense prototype for **Godot 4.7.2 stable**, written in GDScript. It has one open 40 × 24 map. Towers block tiles, so you build the maze yourself, and you can never fully seal the route. Waves are endless and generated per run, with eight enemy types. Enemies carry stacked **shield, armor and health** layers, and three tower types each deal different damage to each layer. Clearing waves earns **diamonds**, which unlock a permanent 33-skill tree.
 
 ## Running
 
@@ -26,8 +26,9 @@ The game draws at a fixed 1600×900 logical resolution and scales to whatever si
 The screen is a fixed 1600×900 layout: the 1280×768 board in the top-left, a 320 px panel on the right and a 132 px strip below. **UI never covers the board.** This is guaranteed by the structure:
 
 - **The board sits inside the UI layout.** The Board node lives inside `BoardArea`, a fixed 1280×768 slot in the same HBox/VBox containers as the panels. Containers can't overlap their siblings, so a panel can't land on a tile.
+- **Nothing moves between waves.** Every HUD element is a fixed-size slot: one-line labels end with "…" instead of wrapping, multi-line labels have a fixed line count, and nothing is shown or hidden during play. The selection card is always present, with a placeholder when no tower is selected, and unavailable upgrades are disabled in place rather than hidden. `test_layout.gd` checks that no HUD control moves or resizes across 14 states.
 - **Panels scroll, never grow.** Each panel's content is inside a `ScrollContainer`. Too much content, or content too wide, gets a scrollbar instead of pushing into the board.
-- **One exception: full-screen modal menus** (the skill tree, group `hud_modal`). They pause the game and swallow all input while open, so nothing behind them can be played.
+- **One exception: full-screen modal menus** (the skill tree and the "Are you sure?" dialog, group `hud_modal`). They pause the game and swallow all input while open, so nothing behind them can be played.
 - **Scripts find HUD nodes by unique name** (`%CurrencyLabel`, `%Board`, …), so moving nodes around in the scene doesn't break code.
 - **Guards:**
   - `tests/test_layout.gd` fails if any visible UI element overlaps the board or leaves the 1600×900 view. It checks extreme states and simulates 40 extra rows of future UI.
@@ -43,98 +44,111 @@ When adding UI:
 
 | Action | Control |
 |---|---|
-| Enter build mode | **Build Basic (60)** or **Build Tesla (80)**. Tesla shows "(Skill Tree)" until unlocked. |
-| Place tower | **Left-click** a highlighted tile (green = valid, red = invalid). Build mode stays on after placing, until you cancel or can't afford another tower. |
-| Select a tower | **Left-click** a tower (outside build mode). Its range is shown and the upgrade/sell panel appears on the right. |
-| Upgrade / sell | Upgrade and **Sell** buttons in the selection panel (upgrades appear once unlocked in the skill tree) |
-| Cancel build mode / deselect | **Right-click**, **Esc**, the **Cancel Build** button, or click empty ground |
-| Launch next wave | **Start Wave** (disabled while a wave is running) |
-| Auto-start | **Auto-start waves** toggle: the next wave starts 3 s after the previous one is cleared. The countdown is shown on the toggle and pauses while the skill tree is open. Wave 1 is always started by you. The setting is saved. |
-| Skill tree | **Skill Tree** button (any time). It also opens automatically after every 5th wave. Opening it pauses the game; **Continue** or **Esc** closes it. |
-| New run | **Restart** (any time; picks a new run seed; diamonds and skills are kept) |
+| Enter build mode | **Basic Tower / Tesla Tower / Cannon** buttons in the BUILD card. Locked towers say "(Skill Tree)". The active build button is highlighted gold. |
+| Place tower | **Left-click** a highlighted tile (green = valid, red = invalid). Build mode stays on until you cancel or can't afford another tower. |
+| Select a tower | **Left-click** a tower (outside build mode). The SELECTED TOWER card shows its damage per layer and its upgrades. |
+| Upgrade / sell | The four upgrade buttons and **Sell** in the SELECTED TOWER card |
+| Cancel build mode / deselect | **Right-click**, **Esc**, **Cancel build**, or click empty ground |
+| Launch next wave | **Start Wave** |
+| Auto-start | **Auto-start waves** toggle: the next wave starts 3 s after the previous one is cleared. The countdown is shown on the toggle and pauses while any menu is open. Wave 1 is always started by you. The setting is saved. |
+| Skill tree | **Skill Tree** button (any time). It also opens after every 5th wave. The game pauses while it's open; **Continue** or **Esc** closes it. |
+| New run | **Restart** asks "Are you sure?" first; **Esc** or **Cancel** backs out. Diamonds and skills are kept. |
 | Toggle fullscreen | **F11** |
 
 ## Rules
 
 Tuning lives in:
-- `scripts/game_config.gd`: economy, upgrades, wave sizes, health scaling, diamonds;
-- `scripts/tower_types.gd`: tower stats;
-- `scripts/enemy_types.gd`: enemy stats;
+- `scripts/game_config.gd`: economy, upgrades, wave sizes and speed, health scaling, diamonds;
+- `scripts/tower_types.gd`: tower stats and damage per layer;
+- `scripts/enemy_types.gd`: enemy stats and layers;
 - `scripts/skill_tree.gd`: skills.
 
-- Start with 200 gold and 10 lives (+5 with Fortify).
+- Start with 200 gold and 10 lives (more with skills).
 - Kills pay gold. Each cleared wave pays a gold bonus (30 + 5 per wave number) and **1 diamond**. Escaped enemies cost lives and pay nothing.
-- **Endless:** there's no final wave. The run ends when lives reach 0; spawning then stops and only Restart works.
+- **Endless:** the run ends when lives reach 0.
 - A placement is rejected, at no charge, if it would:
   - go on the entrance or exit, an occupied tile, or a tile an enemy is on or walking into;
   - cut off the spawn → exit route;
   - cut off any in-flight enemy's next waypoint from the exit.
 
-### Towers
+### Health layers and damage types
 
-| Tower | Look | Cost | Attack | Unique upgrade path |
-|---|---|---|---|---|
-| Basic | blue square | 60 | 15 damage to the **nearest** enemy within 112 px, every 0.8 s | **Armor piercing:** ignores armor, +4 damage per level |
-| Tesla | purple hexagon | 80 | 12 damage to **every** enemy within 80 px, every 1.0 s (electric bolts) | **Static field:** bolts slow enemies 15% per level for 1.5 s |
+Enemies have up to three stacked bars above them:
+- **purple shield** on top;
+- **white armor** below it;
+- **green health** at the bottom.
 
-### Diamonds and the skill tree (permanent)
+**Only the top non-empty bar takes damage**, and damage beyond what that bar has left is lost; it never spills into the next bar. An enemy dies when its health bar is empty. Every tower has a separate damage value against each layer, so mixing towers matters.
 
-Diamonds and unlocked skills are **saved** (`user://progress.json`) and carry over to every future run and every relaunch, so each run builds on the last. **Reset progress** in the skill tree wipes them; it needs a second click to confirm.
-
-| Branch | Skills (diamond cost) |
-|---|---|
-| Root | **Tesla Tower (3)**: the first and only skill available at the start |
-| Basic Tower | Basic Upgrades (3): Damage/Range/Hit speed paths → Armor Piercing (5): unique path |
-| Tesla Tower | Tesla Upgrades (4): Damage/Range/Hit speed paths → Static Field (5): unique path |
-| Gold | Bounty Hunter (3): +20% kill gold → Master Hunter (5): another +20%; War Chest (4): +50% wave bonus |
-| Enemy nerfs | Frailty (4): enemies -10% health → Decay (6): another -10%; Cripple (5): enemies -10% speed |
-| Permanent | Fortify (3): +5 lives → Sharpened Arsenal (5): towers +15% damage → Overclock (6): towers attack 15% faster |
-
-**No tower can be upgraded until its type's upgrade skill is unlocked.** Each unique path needs its own skill on top of that.
-
-### Waves
-
-- Each wave is generated from the **run seed** (shown at the bottom of the right panel) and the wave number. Every run differs slightly, while the **Next** preview always matches the wave you get.
-- Enemy count starts around 8 and grows by about 2 per wave, with ±10% variation, capped at 70.
-- Enemy health grows **exponentially**: (1 + 0.1·(w-1)) × 1.10^(w-1), which is ×4.5 at wave 10, ×18 at 20 and ×62 at 30. Bounties grow 3% per wave. Every run eventually ends; a better maze, plus skills, pushes that point much further out.
-- New types unlock as waves progress. A **Warlord** boss joins every 10th wave (1 at wave 10, 2 at 20, up to 3), with half the usual escort.
-
-### Balance targets (checked by `tests/test_balance.gd`)
-
-Scripted strategies in `tests/bots.gd` play real waves on fixed seeds:
-
-| Strategy | Typical result |
-|---|---|
-| Random tower placement | defeated by wave 2-3 (test: by wave 5) |
-| Towers lining the straight route, no maze, no skills | defeated around wave 19-20 (test: by wave 25) |
-| Tight serpentine maze (1-wide corridors) with skills and upgrades | survives to about wave 36-37 (test: survives 30) |
-
-To print these numbers after tuning, run `tests/balance_report.gd` (see Tests).
-
-### Enemy types
-
-| Enemy | Look | Speed | Base HP | Bounty | Trait | From wave |
-|---|---|---|---|---|---|---|
-| Grunt | red diamond | 60 | 45 | 12 | Baseline walker | 1 |
-| Runner | yellow triangle | 100 | 28 | 10 | Fast but fragile | 3 |
-| Swarmling | small green dot | 78 | 14 | 4 | Arrives in packs of 3-5 | 4 |
-| Tank | purple square, grey ring | 36 | 150 | 28 | Armor: every hit does 4 less (minimum 1); costs 2 lives | 5 |
-| Mender | teal hexagon, cyan health bar | 55 | 70 | 18 | Regenerates 5% of max HP per second | 7 |
-| Splitter | orange ring | 50 | 80 | 15 | Splits into 3 Swarmlings where it dies | 8 |
-| Warlord (boss) | large dark-red star, grey ring | 34 | 250 | 150 | Armor 3, slow regeneration, costs **5 lives** | every 10th |
-
-Slowed enemies show a blue ring.
+| Tower | Look | Cost | Attack | Damage (health / armor / shield) | Unique upgrade path |
+|---|---|---|---|---|---|
+| Basic | blue square | 60 | nearest enemy within 112 px, every 0.8 s | 15 / 8 / 6 (all-rounder) | **Piercing:** +100% armor damage per level |
+| Tesla | purple hexagon | 80 | **every** enemy within 80 px, every 1.0 s | 10 / 3 / **24** (shield shredder) | **Static field:** slows 15% per level for 1.5 s |
+| Cannon | orange turret | 110 | nearest enemy within 128 px, every 1.6 s | 20 / **48** / 4 (armor cracker) | **Shrapnel:** 50% splash damage, radius 40 → 72 px |
 
 ### Upgrades and selling
 
-- Upgrades must first be unlocked per tower type in the skill tree.
-- Each tower can take **one** upgrade path, then level it up to 3 times. The other paths disappear from its panel once one is chosen.
-  - **Damage:** Basic +9 per level (15 → 42); Tesla +5 per level (12 → 27).
-  - **Range:** Basic +24 px per level (112 → 184); Tesla +16 px per level (80 → 128).
-  - **Hit speed:** cooldown ×0.75 per level.
-  - **Unique:** Armor piercing (Basic) or Static field (Tesla).
-- Upgrades cost 50, then 80, then 120. Upgraded towers show colored pips and fire colored beams.
-- **Selling** refunds 50% of everything spent on the tower, build plus upgrades. It works mid-wave; enemies immediately re-route through the freed tile.
+- **Unlocking:** a tower type's upgrades unlock in the skill tree, and each unique path needs its own skill.
+- **One path per tower:** each tower takes one path, up to level 3, or level 4 with that type's Mastery skill. Upgrades cost 50, 80, 120, then 180.
+- **What each path does:**
+  - **Damage:** every damage type +60% per level.
+  - **Range:** +24 px per level (+16 px for Tesla).
+  - **Speed:** cooldown ×0.75 per level.
+  - **Unique:** Piercing, Static field or Shrapnel (see the tower table).
+- **Selling** refunds 50% of everything spent on the tower (75% with Salvage). It works mid-wave; enemies re-route through the freed tile immediately.
+
+### Diamonds and the skill tree (permanent)
+
+Diamonds and unlocked skills are **saved** (`user://progress.json`) and carry over to every future run and relaunch. **Reset progress** in the skill tree wipes them after an "Are you sure?" dialog. If a future update reorganizes the tree, any saved skill that no longer fits is **refunded** rather than lost.
+
+There are 33 skills in 7 branches. **Costs rise with each tier**, roughly 3-5 → 6-7 → 10 → 15-16 → 22-24 diamonds. The root is the **Tesla Tower (3)**, the only skill available at the start.
+
+| Branch | Skills, in tier order (cost) |
+|---|---|
+| Basic | Basic Upgrades (3) → Armor Piercing (6) → Veteran Crews: Basic +25% damage (10) → Basic Mastery: level 4 (16) |
+| Tesla | Tesla Upgrades (4) → Static Field (6) → Capacitors: Tesla +25% damage (10) → Tesla Mastery (16) |
+| Cannon | **Cannon tower (5)** → Cannon Upgrades (6) → Shrapnel (10) → Cannon Mastery (16) |
+| Gold | Bounty Hunter: +20% kill gold (3) → War Chest: +50% wave bonus (6) → Master Hunter: +20% (10) → Salvage: 75% refunds (15) → Head Start: +150 starting gold (22) |
+| Damage Types | Hollow Points: +20% vs health (4) → Armor Breaker: +30% vs armor (7) → Shield Breaker: +30% vs shields (10) → Focus Fire: +15% all (16) → Annihilator: +25% all (24) |
+| Enemy Nerfs | Frailty: -10% health (4) → Cripple: -10% speed (6) → Decay: -10% health (10) → Rust: -25% armor (15) → Dampening Field: -25% shield (22) |
+| Permanent | Fortify: +5 lives (3) → Sharpened Arsenal: +15% damage (6) → Overclock: +15% attack speed (10) → Bastion: +5 lives (15) → Diamond Mine: +1 diamond every 5th wave (22) |
+
+### Waves
+
+- Each wave is generated from the **run seed** and the wave number. The **Next wave** preview always matches what you get.
+- **Enemy count:** starts around 8 and grows about 2 per wave. **Past wave 30 it grows much faster**, adding 0.15 × (wave - 30)², up to 320 per wave. On average: wave 40 has 57, wave 60 has 142, wave 80 has 282.
+- **Spawn speed** rises every wave (intervals × 1/(1 + 0.03·(wave-1))). Counts grow faster still, so **later waves still last longer**: about 29 s of spawning at wave 40, 53 s at 60, 83 s at 80.
+- **Enemy health:** every layer grows exponentially, (1 + 0.1·(w-1)) × 1.10^(w-1).
+- **Unlocks:** new types unlock as waves progress. A **Warlord** boss (shield + armor + health) joins every 10th wave, with half the usual escort.
+
+### Enemy types
+
+| Enemy | Look | Speed | Layers (base) | Bounty | Trait | From wave |
+|---|---|---|---|---|---|---|
+| Grunt | red diamond | 60 | health 45 | 12 | Baseline walker | 1 |
+| Runner | yellow triangle | 100 | health 28 | 10 | Fast but fragile | 3 |
+| Swarmling | small green dot | 78 | health 14 | 4 | Arrives in packs of 3-5 | 4 |
+| Tank | purple square | 36 | armor 60 + health 90 | 28 | Heavy armor: bring Cannons; costs 2 lives | 5 |
+| Mender | teal hexagon | 55 | health 70 | 18 | Regenerates 5% health per second | 7 |
+| Splitter | orange ring | 50 | health 80 | 15 | Splits into 3 Swarmlings | 8 |
+| Aegis | blue pentagon | 56 | shield 75 + health 50 | 20 | Energy shield: bring Teslas | 11 |
+| Warlord (boss) | large dark-red star | 34 | shield 120 + armor 120 + health 180 | 150 | Slow regeneration; costs **5 lives** | every 10th |
+
+Slowed enemies show a blue ring.
+
+### Balance targets (checked by `tests/test_balance.gd`)
+
+| Strategy (scripted bots in `tests/bots.gd`) | Typical result |
+|---|---|
+| Random tower placement | defeated on wave 2 (test: by wave 5) |
+| Towers lining the straight route, no maze, no skills | defeated on waves 16-17 by shields and armor (test: by wave 25) |
+| Tight serpentine maze with Teslas, Cannons, skills and upgrades (fresh save) | reaches waves 31-35, where the late-wave swarm begins (test: survives 30) |
+
+Permanent skills from earlier runs push this further. Run `tests/balance_report.gd` to print these numbers after tuning.
+
+### Performance
+
+With a 414-tower maze on wave 70, the game logic takes about 7 ms per frame (measured headless). Tower target scans are staggered by tile, and the HUD refreshes at most once per frame.
 
 ## Project layout
 
@@ -145,9 +159,11 @@ scenes/enemy.tscn         Node2D + enemy.gd (drawn in code)
 scenes/tower.tscn         Node2D + tower.gd (drawn in code)
 scenes/skill_tree_menu.tscn  Control + skill_tree_menu.gd (full-screen modal)
 scripts/game_config.gd    tuning constants only (class_name GameConfig)
-scripts/tower_types.gd    tower type definitions: Basic, Tesla
+scripts/tower_types.gd    tower type definitions: Basic, Tesla, Cannon (damage per layer)
 scripts/skill_tree.gd     skill definitions, prerequisites, unlocked state and summed effects
 scripts/skill_tree_menu.gd  modal skill tree UI built from the skill data
+scripts/confirm_dialog.gd "Are you sure?" modal (Restart, Reset progress)
+scripts/ui_theme.gd       shared visual theme: colors, card/button/label styles
 scripts/progress_store.gd permanent progress + settings saved as JSON (user://progress.json)
 scripts/enemy_types.gd    enemy type definitions: stats, looks, traits, unlock wave
 scripts/wave_generator.gd seeded endless wave generation and scaling formulas
@@ -202,7 +218,8 @@ Tests never touch your real save file.
   - window-fit sizing.
 - **test_gameplay:**
   - **generator:** reproducible per seed, varies between seeds; 300 waves × 3 seeds have valid sizes, unlocked types, finite stats and rising difficulty; boss schedule;
-  - **enemy types:** distinct looks and stats, every trait;
+  - **late waves:** past wave 30 they get much bigger, spawn faster, and still last longer;
+  - **enemy types and layers:** distinct looks and stats; only the top layer takes damage and nothing spills over; the boss peels shield → armor → health; every trait;
   - **flow:** 30 consecutive waves with exact gold accounting and the 5-wave skill popup;
   - **towers:** upgrade rules, 50% refunds, mid-wave sell rerouting, selection UI.
 - **test_skills:**
@@ -211,12 +228,14 @@ Tests never touch your real save file.
   - **persistence:** survives Restart and relaunch, corrupt or tampered save files are handled safely, progress reset with a confirm click;
   - **towers:** Tesla locked/unlocked, hits every enemy in its small radius, respects armor; per-type upgrade gating; unique paths; Armor Piercing; Static Field slow;
   - **boosts and nerfs:** gold boosts, enemy nerfs, permanent buffs;
-  - **auto-start:** off by default, chains waves, waits for the skill tree, never runs after defeat, setting saved.
+  - **auto-start:** off by default, chains waves, waits for the skill tree, never runs after defeat, setting saved;
+  - **expanded tree:** 30+ skills with costs rising by tier; Restart and Reset progress require confirmation (Cancel and Esc back out); Cannon armor damage and Shrapnel splash; damage-type and per-tower skills; Mastery level 4; Salvage, Head Start, Diamond Mine; armor and shield nerfs; refunds for skills a tree change made unreachable.
 - **test_layout:**
   - the board area is exactly 1280×768;
   - no visible HUD element covers the board or leaves the view, in 11 extreme HUD states, real gameplay and the defeat screen;
   - panels scroll when overloaded;
-  - the skill tree is the only allowed full-screen overlay.
+  - full-screen modals (skill tree, confirmations) are the only allowed overlays;
+  - **no HUD button or label moves or resizes** across 14 states (selecting each tower type, upgrading, build mode, waves, auto-start countdown, huge numbers, long messages, defeat, restart).
 - **test_stability:**
   - 6,000 randomized steps (both tower types, sells, every upgrade path, skill unlocks, opening and closing the skill tree, auto-start toggling, waves), checking every game invariant every 5 steps;
   - a 20-wave run by the good bot with invariant checks;

@@ -9,9 +9,10 @@ func get_tests() -> Array[Callable]:
 		test_generator_varies_between_runs,
 		test_generator_long_run_sanity,
 		test_generator_boss_waves,
+		test_late_waves_bigger_faster_and_longer,
 		test_enemy_types_are_distinct,
 		test_enemy_stats_follow_type,
-		test_armor_reduces_damage_but_never_below_one,
+		test_layers_only_top_takes_damage,
 		test_mender_regenerates_up_to_max,
 		test_splitter_spawns_children_and_wave_waits,
 		test_boss_escape_costs_five_lives,
@@ -76,7 +77,7 @@ func test_generator_long_run_sanity() -> void:
 				var health: float = entry["health"]
 				if not is_finite(health) or health < 1.0:
 					problems.append("bad health %s on wave %d" % [health, wave])
-				if entry["reward"] < 1 or entry["lives"] < 1 or entry["interval"] < 0.2:
+				if entry["reward"] < 1 or entry["lives"] < 1 or entry["interval"] < 0.08:
 					problems.append("bad reward/lives/interval on wave %d" % wave)
 				window_hp += health
 			if wave % 10 == 0:
@@ -109,6 +110,41 @@ func test_generator_boss_waves() -> void:
 	_check(ok, "Warlord bosses appear only every 10th wave (1 on wave 10, 2 on wave 20, capped at 3)")
 
 
+func test_late_waves_bigger_faster_and_longer() -> void:
+	var stats: Dictionary = {}
+	for wave: int in [10, 20, 30, 40, 50, 60, 80]:
+		var counts: Array[float] = []
+		var durations: Array[float] = []
+		for seed_value in 8:
+			var entries: Array[Dictionary] = WaveGenerator.new(seed_value).generate(wave)
+			var duration: float = 0.0
+			for entry: Dictionary in entries:
+				duration += entry["interval"]
+			counts.append(entries.size())
+			durations.append(duration)
+		var avg_count: float = 0.0
+		var avg_duration: float = 0.0
+		for i in counts.size():
+			avg_count += counts[i] / counts.size()
+			avg_duration += durations[i] / durations.size()
+		stats[wave] = {"count": avg_count, "duration": avg_duration, "rate": avg_count / avg_duration}
+	print("  ..   [%s] %s" % [_current_test, stats])
+	_check(stats[60]["count"] >= stats[30]["count"] * 2.5, "far more enemies past wave 30 (wave 30: %d, wave 60: %d)" % [stats[30]["count"], stats[60]["count"]])
+	_check(stats[80]["count"] > stats[60]["count"] and stats[80]["count"] <= GameConfig.MAX_ENEMIES_PER_WAVE, "counts keep growing up to the %d cap" % GameConfig.MAX_ENEMIES_PER_WAVE)
+	var faster: bool = true
+	var longer: bool = true
+	var previous: int = 0
+	for wave: int in [10, 20, 30, 40, 50, 60, 80]:
+		if previous > 0:
+			if stats[wave]["rate"] <= stats[previous]["rate"]:
+				faster = false
+			if stats[wave]["duration"] <= stats[previous]["duration"]:
+				longer = false
+		previous = wave
+	_check(faster, "spawns per second rise every 10 waves")
+	_check(longer, "yet every later wave still takes longer to spawn")
+
+
 # --- Enemy types -----------------------------------------------------------------------
 
 func test_enemy_types_are_distinct() -> void:
@@ -137,10 +173,10 @@ func test_enemy_stats_follow_type() -> void:
 		var enemy: Enemy = ENEMY_SCENE.instantiate() as Enemy
 		enemy.setup(board, entry, 12)
 		board.enemies.add_child(enemy)
-		if enemy.speed != def["speed"] or enemy.armor != def["armor"] or enemy.lives_cost != def["lives"] \
+		if enemy.speed != def["speed"] or enemy.max_armor != entry["armor"] or enemy.max_shield != entry["shield"] or enemy.lives_cost != def["lives"] \
 				or enemy.shape != def["shape"] or enemy.max_health != entry["health"] or enemy.reward != entry["reward"]:
 			ok = false
-	_check(ok, "spawned enemies take speed, armor, lives, shape, health and reward from their type/wave")
+	_check(ok, "spawned enemies take speed, health/armor/shield pools, lives, shape and reward from their type/wave")
 	_check(WaveGenerator.make_entry(EnemyTypes.GRUNT, 20)["health"] > WaveGenerator.make_entry(EnemyTypes.GRUNT, 1)["health"], "health scales up with wave number")
 	_check(WaveGenerator.make_entry(EnemyTypes.GRUNT, 20)["reward"] > WaveGenerator.make_entry(EnemyTypes.GRUNT, 1)["reward"], "rewards scale up with wave number")
 	var runner: Enemy = _spawn_enemy(board, 100.0, EnemyTypes.RUNNER)
@@ -150,14 +186,28 @@ func test_enemy_stats_follow_type() -> void:
 	_check(runner.position.x - 16.0 > (tank.position.x - 16.0) * 2.0, "Runner covers more ground than Tank in the same time")
 
 
-func test_armor_reduces_damage_but_never_below_one() -> void:
+func test_layers_only_top_takes_damage() -> void:
 	var board: Board = _make_board()
 	var tank: Enemy = _spawn_enemy(board, 100.0, EnemyTypes.TANK)
-	tank.take_damage(15)
-	_check(tank.health == 100.0 - (15 - tank.armor), "Tank armor %d reduces a 15 hit to %d (HP %s)" % [tank.armor, 15 - tank.armor, tank.health])
-	var before: float = tank.health
-	tank.take_damage(tank.armor - 1)
-	_check(tank.health == before - 1.0, "hits weaker than armor still deal 1 (HP %s)" % tank.health)
+	var armor_before: float = tank.armor
+	_check(tank.top_layer() == "armor" and armor_before > 0.0, "a Tank's white armor sits on top of its health")
+	tank.take_hit({"health": 999, "armor": 15, "shield": 999})
+	_check(tank.armor == armor_before - 15.0 and tank.health == 100.0, "only the armor layer takes the hit, using the armor damage stat")
+	tank.take_damage(1.0e9)
+	_check(tank.armor == 0.0 and tank.health == 100.0 and tank.is_active(), "excess damage never spills into the next layer")
+	tank.take_hit({"health": 15, "armor": 999, "shield": 999})
+	_check(tank.health == 85.0, "with armor gone, health takes the health damage stat")
+	var aegis: Enemy = _spawn_enemy(board, 50.0, EnemyTypes.AEGIS)
+	_check(aegis.top_layer() == "shield" and aegis.shield > 0.0, "an Aegis's purple shield is on top")
+	aegis.take_hit({"health": 999, "armor": 999, "shield": 0})
+	_check(aegis.health == 50.0, "zero shield damage does nothing to a shielded enemy")
+	var boss: Enemy = _spawn_enemy(board, 100.0, EnemyTypes.BOSS)
+	var order: Array[String] = [boss.top_layer()]
+	boss.take_damage(1.0e9)
+	order.append(boss.top_layer())
+	boss.take_damage(1.0e9)
+	order.append(boss.top_layer())
+	_check(order == ["shield", "armor", "health"], "the boss peels shield, then armor, then health (%s)" % [order])
 
 
 func test_mender_regenerates_up_to_max() -> void:
@@ -280,7 +330,7 @@ func test_upgrade_one_path_per_tower() -> void:
 	_check(not main.try_upgrade_tower(tower, Tower.UpgradePath.SPEED), "Speed upgrade rejected once Damage was chosen")
 	_check(main.currency == before and tower.upgrade_path == Tower.UpgradePath.DAMAGE and tower.upgrade_level == 1, "rejected upgrades cost nothing and change nothing")
 	_check(main.try_upgrade_tower(tower, Tower.UpgradePath.DAMAGE) and main.try_upgrade_tower(tower, Tower.UpgradePath.DAMAGE), "Damage levels 2 and 3 succeed")
-	_check(tower.upgrade_level == 3 and tower.damage == GameConfig.TOWER_DAMAGE + 3 * GameConfig.UPGRADE_DAMAGE_PER_LEVEL, "level 3 Damage tower deals %d" % tower.damage)
+	_check(tower.upgrade_level == 3 and tower.damage["health"] == roundi(GameConfig.TOWER_DAMAGE * (1.0 + 3 * GameConfig.UPGRADE_DAMAGE_FACTOR_PER_LEVEL)), "level 3 Damage tower deals %s" % [tower.damage])
 	before = main.currency
 	_check(not main.try_upgrade_tower(tower, Tower.UpgradePath.DAMAGE) and main.currency == before, "no upgrades past max level")
 	_check(main.hud.get_message() == "Tower is fully upgraded", "max-level message shown")
@@ -298,8 +348,8 @@ func test_upgrade_effects() -> void:
 	var fast: Tower = main.get_tower_at(Vector2i(12, 5))
 	main.try_upgrade_tower(ranged, Tower.UpgradePath.RANGE)
 	main.try_upgrade_tower(fast, Tower.UpgradePath.SPEED)
-	_check(ranged.attack_range == GameConfig.TOWER_RANGE + GameConfig.UPGRADE_RANGE_PER_LEVEL and ranged.damage == GameConfig.TOWER_DAMAGE, "Range upgrade only increases range (%s)" % ranged.attack_range)
-	_check(is_equal_approx(fast.cooldown, GameConfig.TOWER_COOLDOWN * GameConfig.UPGRADE_COOLDOWN_FACTOR) and fast.damage == GameConfig.TOWER_DAMAGE, "Speed upgrade only shortens the cooldown (%s s)" % fast.cooldown)
+	_check(ranged.attack_range == GameConfig.TOWER_RANGE + GameConfig.UPGRADE_RANGE_PER_LEVEL and ranged.damage["health"] == GameConfig.TOWER_DAMAGE, "Range upgrade only increases range (%s)" % ranged.attack_range)
+	_check(is_equal_approx(fast.cooldown, GameConfig.TOWER_COOLDOWN * GameConfig.UPGRADE_COOLDOWN_FACTOR) and fast.damage["health"] == GameConfig.TOWER_DAMAGE, "Speed upgrade only shortens the cooldown (%s s)" % fast.cooldown)
 	# A Range-upgraded tower hits an enemy the base range cannot reach.
 	var board: Board = main.board
 	var enemy: Enemy = _spawn_enemy(board, 1000.0)
@@ -328,7 +378,7 @@ func test_upgrade_rejections_change_nothing() -> void:
 	var tower: Tower = main.get_tower_at(Vector2i(10, 5))
 	_check(main.currency == 20, "20 currency left after 3 towers")
 	_check(not main.try_upgrade_tower(tower, Tower.UpgradePath.DAMAGE), "upgrade rejected with insufficient currency")
-	_check(main.currency == 20 and tower.upgrade_level == 0 and tower.damage == GameConfig.TOWER_DAMAGE, "rejected upgrade changes nothing")
+	_check(main.currency == 20 and tower.upgrade_level == 0 and tower.damage["health"] == GameConfig.TOWER_DAMAGE, "rejected upgrade changes nothing")
 	_check(not main.try_upgrade_tower(null, Tower.UpgradePath.DAMAGE), "upgrading nothing is rejected safely")
 	_check(not main.try_upgrade_tower(tower, Tower.UpgradePath.NONE), "the NONE path is not an upgrade")
 
@@ -390,8 +440,12 @@ func test_selection_and_hud() -> void:
 	main._on_upgrade_pressed(Tower.UpgradePath.SPEED)
 	_check(tower.upgrade_path == Tower.UpgradePath.SPEED, "upgrade button applies to the selected tower")
 	var hud: Hud = main.hud
-	_check(not hud.get_upgrade_button(Tower.UpgradePath.DAMAGE).visible and not hud.get_upgrade_button(Tower.UpgradePath.RANGE).visible \
-			and not hud.get_upgrade_button(Tower.UpgradePath.PIERCE).visible and hud.get_upgrade_button(Tower.UpgradePath.SPEED).visible, "other upgrade paths (incl. the unique one) are hidden once one is chosen")
+	var others_closed: bool = true
+	for path: int in [Tower.UpgradePath.DAMAGE, Tower.UpgradePath.RANGE, Tower.UpgradePath.PIERCE]:
+		var button: Button = hud.get_upgrade_button(path)
+		if not button.visible or not button.disabled or not button.text.contains("n/a"):
+			others_closed = false
+	_check(others_closed and not hud.get_upgrade_button(Tower.UpgradePath.SPEED).disabled, "other paths (incl. the unique one) stay in place but are disabled as n/a once one is chosen")
 	main._on_board_cell_clicked(Vector2i(30, 20))
 	_check(main.selected_tower == null and not tower.selected and not main.hud.is_selection_visible(), "clicking empty ground deselects")
 	main._on_board_cell_clicked(Vector2i(10, 5))

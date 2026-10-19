@@ -12,6 +12,7 @@ func get_tests() -> Array[Callable]:
 		test_hud_never_covers_board_in_stress_states,
 		test_overflowing_panels_scroll_instead_of_growing,
 		test_layout_holds_after_real_gameplay,
+		test_hud_elements_never_move,
 	]
 
 
@@ -78,15 +79,18 @@ func _stress_states(main: Node2D) -> Array[Callable]:
 	for type_id: String in EnemyTypes.DEFS:
 		huge_counts[type_id] = 9999
 	var selection: Dictionary = {
-		"title": "TESLA TOWER - LEVEL 999/999 (ARMOR PIERCING)", "stats": "Damage 999999 to all in range, range 99999 px, every 0.01 s",
-		"note": "Upgrades locked - unlock Tesla Upgrades in the Skill Tree. " + LONG_TEXT,
+		"title": "CANNON CANNON CANNON CANNON", "level": "Lv 999/999 Armor piercing piercing",
+		"damage": {"health": 9999999, "armor": 9999999, "shield": 9999999},
+		"stats": "Area  |  99999 px  |  0.01 s  |  splash 9999 " + LONG_TEXT,
+		"note": "Unlock Cannon Upgrades in the Skill Tree. " + LONG_TEXT,
 		"buttons": {
-			Tower.UpgradePath.DAMAGE: {"visible": true, "enabled": true, "text": "Upgrade Damage (999999)"},
-			Tower.UpgradePath.RANGE: {"visible": true, "enabled": true, "text": "Upgrade Range (999999)"},
-			Tower.UpgradePath.SPEED: {"visible": true, "enabled": true, "text": "Upgrade Hit speed (999999)"},
-			Tower.UpgradePath.STATIC: {"visible": true, "enabled": true, "text": "Upgrade Static field (999999)"},
+			Tower.UpgradePath.DAMAGE: {"text": "Damage 999999999", "enabled": true, "chosen": true},
+			Tower.UpgradePath.RANGE: {"text": "Range locked locked locked", "enabled": false, "chosen": false},
+			Tower.UpgradePath.SPEED: {"text": "Speed n/a n/a n/a n/a", "enabled": false, "chosen": false},
+			Tower.UpgradePath.SHRAPNEL: {"text": "Shrapnel 999999999", "enabled": true, "chosen": false},
 		},
-		"sell_value": 999999, "can_sell": true,
+		"unique_path": Tower.UpgradePath.SHRAPNEL,
+		"sell_value": 999999999, "can_sell": true,
 	}
 	return [
 		func() -> void: pass,
@@ -176,3 +180,76 @@ func test_layout_holds_after_real_gameplay() -> void:
 	main._on_enemy_escaped(_active_enemies(main)[0])
 	await _wait_frames(3)
 	_check(main.is_game_over() and _layout_violation(main) == "", "layout clean on the defeat screen: %s" % _layout_violation(main))
+
+
+## Every visible, non-modal HUD control keyed by path -> its global rect.
+func _hud_rects(main: Node2D) -> Dictionary:
+	var rects: Dictionary = {}
+	for node: Node in main.hud.find_children("*", "Control", true, false):
+		var control: Control = node as Control
+		if control.is_visible_in_tree() and not _in_modal(control):
+			rects[str(main.hud.get_path_to(control))] = control.get_global_rect()
+	return rects
+
+
+## Buttons and text must not move or resize between waves, selections, build modes,
+## messages or defeat: the HUD is built from fixed-size slots.
+func test_hud_elements_never_move() -> void:
+	var main: Node2D = _make_main()
+	main.diamonds = 200
+	for id: String in ["tesla", "cannon", "basic_upgrades", "tesla_upgrades", "cannon_upgrades", "basic_pierce"]:
+		main.try_unlock_skill(id)
+	main.currency = 100000
+	main.try_buy_tower(Vector2i(10, 12), TowerTypes.BASIC)
+	main.try_buy_tower(Vector2i(12, 3), TowerTypes.TESLA)
+	main.try_buy_tower(Vector2i(14, 3), TowerTypes.CANNON)
+	await _wait_frames(3)
+	var baseline: Dictionary = _hud_rects(main)
+	var states: Array = [
+		["select Basic", func() -> void: main._on_board_cell_clicked(Vector2i(10, 12))],
+		["upgrade it", func() -> void: main.try_upgrade_tower(main.selected_tower, Tower.UpgradePath.PIERCE)],
+		["select Tesla", func() -> void: main._on_board_cell_clicked(Vector2i(12, 3))],
+		["select Cannon", func() -> void: main._on_board_cell_clicked(Vector2i(14, 3))],
+		["deselect", func() -> void: main._on_board_cell_clicked(Vector2i(30, 20))],
+		["build mode", func() -> void: main._on_build_pressed(TowerTypes.CANNON)],
+		["cancel build", func() -> void: main._on_cancel_pressed()],
+		["wave active", func() -> void: main._on_start_wave_pressed()],
+		["mid wave", func() -> void: _simulate(main, 0.05, 60)],
+		["long message", func() -> void: main.hud.show_error(LONG_TEXT + LONG_TEXT)],
+		["auto-start countdown", func() -> void:
+			main.set_auto_start(true)
+			_kill_all_active(main)
+			while main.wave_manager.is_wave_active():
+				_simulate(main, 0.05, 1)
+				_kill_all_active(main)],
+		["huge numbers", func() -> void:
+			main.currency = 1234567890
+			main.diamonds = 99999
+			main._refresh_hud()],
+		["defeat", func() -> void:
+			main._on_start_wave_pressed()
+			_simulate(main, 0.05, 5)
+			main.lives = 1
+			main._on_enemy_escaped(_active_enemies(main)[0])],
+		["restart", func() -> void: main.restart_game()],
+	]
+	var moved: String = ""
+	for state: Array in states:
+		state[1].call()
+		await _wait_frames(2)
+		var now: Dictionary = _hud_rects(main)
+		for key: String in baseline:
+			if not now.has(key):
+				moved = "%s: %s disappeared" % [state[0], key]
+				break
+			if now[key] != baseline[key]:
+				moved = "%s: %s moved %s -> %s" % [state[0], key, baseline[key], now[key]]
+				break
+		if moved == "":
+			for key: String in now:
+				if not baseline.has(key):
+					moved = "%s: %s appeared" % [state[0], key]
+					break
+		if moved != "":
+			break
+	_check(moved == "", "no HUD button or label moves or resizes across %d states (%d controls)%s" % [states.size(), baseline.size(), "" if moved == "" else " - " + moved])

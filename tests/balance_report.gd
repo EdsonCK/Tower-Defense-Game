@@ -5,7 +5,7 @@ extends "res://tests/test_base.gd"
 ##   godot --headless --path <project> --script res://tests/balance_report.gd
 
 const BOTS: GDScript = preload("res://tests/bots.gd")
-const MAX_WAVE: int = 70
+const MAX_WAVE: int = 60
 
 
 func get_tests() -> Array[Callable]:

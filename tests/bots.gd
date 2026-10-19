@@ -4,14 +4,19 @@ extends RefCounted
 ## player clicking the UI. A run is simulated deterministically by manual stepping.
 ##   good    - builds a serpentine maze (walls every 2 columns = 1-wide corridors, gaps at
 ##             alternating ends)
-##             one wall at a time from the spawn side, puts Teslas at the turns, buys
-##             skills, then upgrades the towers that see the most of the route.
+##             one wall at a time from the spawn side, puts Teslas at the turns and Cannons
+##             every third wall cell, buys skills, then upgrades the towers that see the
+##             most of the route.
 ##   random  - Basic towers on random valid tiles, no skills, no upgrades.
 ##   nomaze  - Basic towers lining the straight route, never forcing a detour.
 
 const SKILL_PRIORITY: Array[String] = [
-	"tesla", "fortify", "basic_upgrades", "bounty_1", "weaken_1", "tesla_upgrades", "sharpen",
-	"basic_pierce", "war_chest", "bounty_2", "weaken_2", "overclock", "cripple", "tesla_static",
+	"tesla", "cannon", "fortify", "basic_upgrades", "bounty_1", "hollow_point", "weaken_1",
+	"cannon_upgrades", "sharpen", "tesla_upgrades", "war_chest", "armor_breaker", "cripple",
+	"basic_pierce", "overclock", "weaken_2", "shield_breaker", "bounty_2", "tesla_static",
+	"cannon_shrapnel", "basic_veteran", "tesla_capacitor", "fortify_2", "rust", "focus_fire",
+	"salvage", "basic_mastery", "cannon_mastery", "tesla_mastery", "dampen", "head_start",
+	"diamond_mine", "annihilator",
 ]
 
 var kind: String
@@ -103,6 +108,8 @@ func _spend_good(main: Node2D) -> void:
 		var type_id: String = TowerTypes.BASIC
 		if use_tesla and main.skills.is_tower_unlocked(TowerTypes.TESLA) and _is_turn_cell(cell):
 			type_id = TowerTypes.TESLA
+		elif main.skills.is_tower_unlocked(TowerTypes.CANNON) and cell.y % 3 == 0:
+			type_id = TowerTypes.CANNON
 		if main.currency < TowerTypes.cost(type_id):
 			return
 		if main.try_buy_tower(cell, type_id):
@@ -168,8 +175,6 @@ func _try_best_upgrade(main: Node2D) -> bool:
 func _preferred_path(main: Node2D, tower: Tower) -> Tower.UpgradePath:
 	if tower.upgrade_path != Tower.UpgradePath.NONE:
 		return tower.upgrade_path
-	if tower.tower_type == TowerTypes.BASIC:
-		return Tower.UpgradePath.PIERCE if main.is_path_unlocked(TowerTypes.BASIC, Tower.UpgradePath.PIERCE) else Tower.UpgradePath.DAMAGE
 	return Tower.UpgradePath.DAMAGE
 
 

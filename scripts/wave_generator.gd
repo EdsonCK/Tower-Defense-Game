@@ -30,6 +30,20 @@ static func wave_clear_bonus(wave: int) -> int:
 	return GameConfig.WAVE_CLEAR_BONUS_BASE + GameConfig.WAVE_CLEAR_BONUS_PER_WAVE * (maxi(wave, 1) - 1)
 
 
+## Expected enemy count before random variation and boss-wave escort reduction.
+static func base_enemy_count(wave: int) -> float:
+	var count: float = GameConfig.WAVE_BASE_ENEMY_COUNT + GameConfig.WAVE_ENEMY_COUNT_PER_WAVE * wave
+	if wave > GameConfig.LATE_WAVE_START:
+		var late: float = float(wave - GameConfig.LATE_WAVE_START)
+		count += GameConfig.LATE_WAVE_EXTRA * late * late
+	return count
+
+
+## Multiplier on spawn intervals: spawns get steadily faster as waves progress.
+static func interval_scale(wave: int) -> float:
+	return maxf(GameConfig.MIN_INTERVAL_SCALE, 1.0 / (1.0 + GameConfig.SPAWN_RATE_GROWTH * float(maxi(wave, 1) - 1)))
+
+
 static func is_boss_wave(wave: int) -> bool:
 	return wave > 0 and wave % GameConfig.BOSS_WAVE_INTERVAL == 0
 
@@ -40,15 +54,18 @@ static func boss_count(wave: int) -> int:
 	return mini(floori(float(wave) / GameConfig.BOSS_WAVE_INTERVAL), GameConfig.MAX_BOSSES_PER_WAVE)
 
 
-## Builds a spawn entry for `type_id` scaled to `wave`. `health_jitter` multiplies health.
-static func make_entry(type_id: String, wave: int, health_jitter: float = 1.0, interval_scale: float = 1.0) -> Dictionary:
+## Builds a spawn entry for `type_id` scaled to `wave`. `health_jitter` multiplies every
+## pool (health, armor, shield); `interval_mult` scales the delay before the next spawn.
+static func make_entry(type_id: String, wave: int, health_jitter: float = 1.0, interval_mult: float = 1.0) -> Dictionary:
 	var def: Dictionary = EnemyTypes.get_def(type_id)
 	return {
 		"type": type_id,
 		"health": maxf(1.0, def["health"] * health_scale(wave) * health_jitter),
+		"armor": maxf(0.0, def["armor"] * health_scale(wave) * health_jitter),
+		"shield": maxf(0.0, def["shield"] * health_scale(wave) * health_jitter),
 		"reward": maxi(1, roundi(def["reward"] * reward_scale(wave))),
 		"lives": int(def["lives"]),
-		"interval": maxf(0.2, def["interval"] * interval_scale),
+		"interval": maxf(0.08, def["interval"] * interval_mult),
 	}
 
 
@@ -56,12 +73,11 @@ func generate(wave: int) -> Array[Dictionary]:
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = hash([run_seed, wave])
 	var bosses: int = boss_count(wave)
-	var target: float = (GameConfig.WAVE_BASE_ENEMY_COUNT + GameConfig.WAVE_ENEMY_COUNT_PER_WAVE * wave) * rng.randf_range(0.9, 1.1)
+	var target: float = base_enemy_count(wave) * rng.randf_range(0.9, 1.1)
 	if bosses > 0:
 		target *= GameConfig.BOSS_WAVE_ESCORT_FACTOR  # bosses soak fire, so bring a smaller escort
 	var count: int = clampi(roundi(target), 1, GameConfig.MAX_ENEMIES_PER_WAVE - bosses)
-	# Later waves spawn a little more densely.
-	var density: float = maxf(0.6, 1.0 - 0.01 * (wave - 1))
+	var density: float = interval_scale(wave)
 	var pool: Array[String] = EnemyTypes.random_pool(wave)
 
 	var entries: Array[Dictionary] = []

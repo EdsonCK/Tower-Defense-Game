@@ -19,7 +19,7 @@ func get_tests() -> Array[Callable]:
 		test_tesla_hits_every_enemy_in_small_range,
 		test_upgrades_locked_per_tower_type,
 		test_unique_paths_need_their_own_skill,
-		test_armor_piercing_ignores_armor,
+		test_armor_piercing_boosts_armor_damage,
 		test_static_field_slows,
 		test_gold_boosts,
 		test_enemy_nerfs_apply_to_new_spawns,
@@ -28,6 +28,14 @@ func get_tests() -> Array[Callable]:
 		test_auto_start_runs_waves_back_to_back,
 		test_auto_start_waits_for_skill_menu,
 		test_auto_start_setting_is_saved,
+		test_skill_costs_rise_by_tier,
+		test_restart_asks_for_confirmation,
+		test_cannon_cracks_armor,
+		test_shrapnel_splashes_neighbours,
+		test_damage_type_skills,
+		test_mastery_raises_max_level,
+		test_salvage_head_start_and_diamond_mine,
+		test_armor_and_shield_nerfs,
 	]
 
 
@@ -128,7 +136,7 @@ func test_skill_menu_buttons_unlock_skills() -> void:
 	_check(menu.get_skill_button("fortify").disabled, "skills behind the root are disabled")
 	menu.get_skill_button("tesla").pressed.emit()
 	_check(main.skills.is_unlocked("tesla") and main.diamonds == 0, "pressing the Tesla button unlocks it for 3 diamonds")
-	_check(menu.get_skill_button("tesla").disabled and menu.get_skill_button("tesla").text.contains("UNLOCKED"), "button now shows UNLOCKED")
+	_check(menu.get_skill_button("tesla").disabled and menu.get_skill_button("tesla").text.contains("OWNED"), "button now shows OWNED")
 	_check(menu.get_skill_button("fortify").disabled, "next skills visible but unaffordable with 0 diamonds")
 	main.diamonds = 3
 	main.hud.refresh_skill_menu(main.diamonds, main.skills)
@@ -183,8 +191,9 @@ func test_corrupt_or_tampered_save_is_safe() -> void:
 	tampered.store_string(JSON.stringify({"diamonds": -50, "unlocked": ["overclock", "bogus", 42, "fortify"], "auto_start": "yes"}))
 	tampered.close()
 	var main: Node2D = _make_main()
-	_check(main.diamonds == 0, "negative diamonds clamp to 0")
 	_check(main.skills.unlocked_ids().is_empty(), "skills whose prerequisites are missing (or unknown ids) are ignored")
+	var refunded: int = SkillTree.SKILLS["overclock"]["cost"] + SkillTree.SKILLS["fortify"]["cost"]
+	_check(main.diamonds == refunded, "negative diamonds clamp to 0 and known-but-unreachable skills are refunded (%d)" % main.diamonds)
 	_check(main.auto_start == false, "non-boolean settings are ignored")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 	ProgressStore.save_path = ""
@@ -199,15 +208,16 @@ func test_reset_progress() -> void:
 	main.reset_progress()
 	_check(main.diamonds == 0 and main.skills.unlocked_ids().is_empty(), "reset wipes diamonds and unlocks")
 	_check(main.lives == GameConfig.STARTING_LIVES and main.currency == GameConfig.STARTING_CURRENCY, "and starts a fresh run")
-	var menu: SkillTreeMenu = main.hud.get_skill_menu()
-	main.diamonds = 5
+	main.diamonds = 7
+	main.try_unlock_skill("tesla")
 	main.open_skill_menu("test")
-	var resets: Array[int] = [0]
-	menu.reset_requested.connect(func() -> void: resets[0] += 1)
-	menu._on_reset_pressed()
-	_check(resets[0] == 0, "first Reset click only arms the confirmation")
-	menu._on_reset_pressed()
-	_check(resets[0] == 1, "second click confirms")
+	main.hud.get_skill_menu().reset_requested.emit()  # the menu's Reset progress button
+	_check(main.hud.is_confirm_open() and main.is_skill_menu_open(), "Reset progress asks for confirmation on top of the skill tree")
+	main.hud.get_confirm_dialog().get_cancel_button().pressed.emit()
+	_check(main.diamonds == 4 and main.skills.is_unlocked("tesla"), "cancelling keeps all progress")
+	main.request_reset_progress()
+	main.hud.get_confirm_dialog().get_confirm_button().pressed.emit()
+	_check(main.diamonds == 0 and main.skills.unlocked_ids().is_empty() and not main.is_modal_open(), "confirming wipes progress and closes every menu")
 
 
 func test_tesla_locked_until_unlocked() -> void:
@@ -239,17 +249,19 @@ func test_tesla_hits_every_enemy_in_small_range() -> void:
 	tesla.step(0.1)
 	var all_hit: bool = true
 	for enemy: Enemy in near:
-		if enemy.health != 100.0 - tesla.damage:
+		if enemy.health != 100.0 - tesla.damage["health"]:
 			all_hit = false
 	_check(all_hit, "one Tesla bolt hits all 3 enemies within %d px" % int(tesla.attack_range))
 	_check(far.health == 100.0, "enemies outside the small radius are not hit")
 	_check(tesla.attack_range < GameConfig.TOWER_RANGE, "Tesla range (%d) is smaller than the Basic tower's" % int(tesla.attack_range))
 	tesla.step(0.5)
-	_check(near[0].health == 100.0 - tesla.damage, "Tesla respects its cooldown")
+	_check(near[0].health == 100.0 - tesla.damage["health"], "Tesla respects its cooldown")
 	var tank: Enemy = _spawn_enemy(board, 100.0, EnemyTypes.TANK)
 	tank.position = tesla.position + Vector2(10, 10)
+	var armor_before: float = tank.armor
 	tesla.step(1.0)
-	_check(tank.health == 100.0 - maxi(tesla.damage - tank.armor, 1), "armor reduces each Tesla bolt")
+	_check(tank.armor == armor_before - tesla.damage["armor"] and tank.health == 100.0, "Tesla bolts barely scratch armor (%d armor damage)" % tesla.damage["armor"])
+	_check(tesla.damage["shield"] > tesla.damage["health"] * 2, "Tesla is a shield specialist (%s)" % [tesla.damage])
 
 
 func test_upgrades_locked_per_tower_type() -> void:
@@ -265,8 +277,8 @@ func test_upgrades_locked_per_tower_type() -> void:
 	_check(not main.try_upgrade_tower(basic, Tower.UpgradePath.DAMAGE) and not main.try_upgrade_tower(tesla, Tower.UpgradePath.DAMAGE), "no tower can be upgraded before its upgrade skill")
 	_check(main.currency == gold and basic.upgrade_level == 0 and tesla.upgrade_level == 0, "locked upgrade attempts change nothing")
 	main._on_board_cell_clicked(Vector2i(10, 5))
-	_check(main.hud._selection_label.text.contains("locked"), "selection panel explains upgrades are locked")
-	_check(not main.hud.get_upgrade_button(Tower.UpgradePath.DAMAGE).visible, "no upgrade buttons are shown while locked")
+	_check(main.hud.get_selection_note().contains("Unlock"), "selection card explains upgrades are locked (%s)" % main.hud.get_selection_note())
+	_check(main.hud.get_upgrade_button(Tower.UpgradePath.DAMAGE).disabled and main.hud.get_upgrade_button(Tower.UpgradePath.DAMAGE).text.contains("locked"), "upgrade buttons stay in place but are disabled and marked locked")
 	main.try_unlock_skill("basic_upgrades")
 	_check(main.try_upgrade_tower(basic, Tower.UpgradePath.DAMAGE), "Basic Upgrades unlocks Basic tower upgrades")
 	_check(not main.try_upgrade_tower(tesla, Tower.UpgradePath.DAMAGE), "...but not Tesla upgrades")
@@ -296,7 +308,7 @@ func test_unique_paths_need_their_own_skill() -> void:
 	_check(unique_button != null and unique_button.visible and unique_button.text.contains("Static"), "Tesla's selection panel shows its Static field button")
 
 
-func test_armor_piercing_ignores_armor() -> void:
+func test_armor_piercing_boosts_armor_damage() -> void:
 	var board: Board = _make_board()
 	var tower: Tower = TOWER_SCENE.instantiate() as Tower
 	tower.configure(TowerTypes.BASIC)
@@ -306,8 +318,10 @@ func test_armor_piercing_ignores_armor() -> void:
 	var tank: Enemy = _spawn_enemy(board, 200.0, EnemyTypes.TANK)
 	tank.position = tower.position + Vector2(20, 0)
 	tower.step(0.1)
-	_check(tower.damage == GameConfig.TOWER_DAMAGE + Tower.PIERCE_DAMAGE_PER_LEVEL and tower.armor_piercing, "Armor Piercing level 1: +4 damage, ignores armor")
-	_check(tank.health == 200.0 - tower.damage, "full damage lands on an armored Tank (HP %s)" % tank.health)
+	var base_armor_damage: int = TowerTypes.get_def(TowerTypes.BASIC)["damage"]["armor"]
+	_check(tower.damage["armor"] == roundi(base_armor_damage * (1.0 + Tower.PIERCE_ARMOR_FACTOR_PER_LEVEL)), "Armor Piercing level 1 doubles armor damage (%s)" % [tower.damage])
+	_check(tower.damage["health"] == GameConfig.TOWER_DAMAGE, "...without changing health damage")
+	_check(tank.armor == tank.max_armor - tower.damage["armor"], "the boosted armor damage lands on the Tank's armor")
 
 
 func test_static_field_slows() -> void:
@@ -349,7 +363,7 @@ func test_gold_boosts() -> void:
 func test_enemy_nerfs_apply_to_new_spawns() -> void:
 	var main: Node2D = _make_main()
 	main.diamonds = 100
-	for id: String in ["tesla", "weaken_1", "weaken_2", "cripple"]:
+	for id: String in ["tesla", "weaken_1", "cripple", "weaken_2"]:
 		main.try_unlock_skill(id)
 	main._on_start_wave_pressed()
 	_simulate(main, 0.05, 1)
@@ -368,7 +382,7 @@ func test_permanent_tower_buffs_and_lives() -> void:
 		main.try_unlock_skill(id)
 	_check(main.lives == GameConfig.STARTING_LIVES + 5, "Fortify adds 5 lives immediately")
 	main.try_unlock_skill("sharpen")
-	_check(tower.damage == roundi(GameConfig.TOWER_DAMAGE * 1.15), "Sharpened Arsenal raises existing towers' damage (%d)" % tower.damage)
+	_check(tower.damage["health"] == roundi(GameConfig.TOWER_DAMAGE * 1.15), "Sharpened Arsenal raises existing towers' damage (%s)" % [tower.damage])
 	main.try_unlock_skill("overclock")
 	_check(is_equal_approx(tower.cooldown, GameConfig.TOWER_COOLDOWN / 1.15), "Overclock makes towers attack 15%% faster (%s s)" % tower.cooldown)
 	main.try_buy_tower(Vector2i(12, 5), TowerTypes.BASIC)
@@ -448,3 +462,154 @@ func test_auto_start_setting_is_saved() -> void:
 	_check(relaunched.auto_start and relaunched.hud._auto_start_check.button_pressed, "auto-start choice survives a relaunch")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 	ProgressStore.save_path = ""
+
+
+# --- Expanded skill tree, confirmations, Cannon -------------------------------------------
+
+func test_skill_costs_rise_by_tier() -> void:
+	_check(SkillTree.SKILLS.size() >= 30, "the skill tree has %d skills" % SkillTree.SKILLS.size())
+	var rising: bool = true
+	var row_costs: Dictionary = {}
+	for id: String in SkillTree.SKILLS:
+		var skill: Dictionary = SkillTree.SKILLS[id]
+		row_costs[skill["pos"].y] = row_costs.get(skill["pos"].y, []) + [skill["cost"]]
+		for required: String in skill["requires"]:
+			if SkillTree.SKILLS[required]["pos"].y > 0 and skill["cost"] <= SkillTree.SKILLS[required]["cost"]:
+				rising = false
+	_check(rising, "every skill costs more than the skill it requires")
+	var previous_max: int = 0
+	var tiers_ok: bool = true
+	for row in range(1, 6):
+		var costs: Array = row_costs.get(row, [])
+		if costs.is_empty() or costs.min() <= previous_max - 4:
+			tiers_ok = false
+		previous_max = costs.max()
+	_check(tiers_ok, "each tier is more expensive than the one before (%s)" % row_costs)
+
+
+func test_restart_asks_for_confirmation() -> void:
+	var main: Node2D = _make_main()
+	main.try_buy_tower(Vector2i(10, 5))
+	main._on_start_wave_pressed()
+	var gold: int = main.currency
+	main.hud.restart_pressed.emit()  # the HUD Restart button
+	_check(main.hud.is_confirm_open() and paused, "Restart opens an 'Are you sure?' dialog and pauses the game")
+	_check(main.get_tower_count() == 1 and main.wave_manager.current_wave == 1, "nothing is reset yet")
+	main._on_start_wave_pressed()
+	_check(not main.try_buy_tower(Vector2i(12, 5)), "the board is blocked while the dialog is open")
+	main.hud.get_confirm_dialog().get_cancel_button().pressed.emit()
+	_check(not main.hud.is_confirm_open() and not paused and main.get_tower_count() == 1 and main.currency == gold, "Cancel keeps the run exactly as it was")
+	main.request_restart()
+	var esc: InputEventKey = InputEventKey.new()
+	esc.keycode = KEY_ESCAPE
+	esc.physical_keycode = KEY_ESCAPE
+	esc.pressed = true
+	root.push_input(esc)
+	await process_frame
+	_check(not main.hud.is_confirm_open() and main.get_tower_count() == 1, "Esc also cancels")
+	main.request_restart()
+	main.hud.get_confirm_dialog().get_confirm_button().pressed.emit()
+	_check(main.get_tower_count() == 0 and main.wave_manager.current_wave == 0 and main.currency == GameConfig.STARTING_CURRENCY and not paused, "confirming restarts the run")
+
+
+func test_cannon_cracks_armor() -> void:
+	var main: Node2D = _make_main()
+	main.currency = 1000
+	main.diamonds = 100
+	_check(not main.try_buy_tower(Vector2i(10, 5), TowerTypes.CANNON), "Cannon is locked at first")
+	main.try_unlock_skill("tesla")
+	main.try_unlock_skill("cannon")
+	_check(main.try_buy_tower(Vector2i(10, 5), TowerTypes.CANNON), "the Cannon skill unlocks it")
+	var cannon: Tower = main.get_tower_at(Vector2i(10, 5))
+	var basic: Dictionary = TowerTypes.get_def(TowerTypes.BASIC)["damage"]
+	_check(cannon.damage["armor"] >= basic["armor"] * 5, "Cannon armor damage dwarfs the Basic tower's (%s vs %s)" % [cannon.damage, basic])
+	_check(cannon.attack_range > GameConfig.TOWER_RANGE and cannon.cooldown > GameConfig.TOWER_COOLDOWN, "long range, slow fire")
+	var tank: Enemy = _spawn_enemy(main.board, 100.0, EnemyTypes.TANK)
+	tank.position = cannon.position + Vector2(40, 0)
+	cannon.step(0.1)
+	_check(tank.armor == tank.max_armor - cannon.damage["armor"], "a shell takes %d off the Tank's armor" % cannon.damage["armor"])
+
+
+func test_shrapnel_splashes_neighbours() -> void:
+	var board: Board = _make_board()
+	var cannon: Tower = TOWER_SCENE.instantiate() as Tower
+	cannon.configure(TowerTypes.CANNON)
+	cannon.apply_upgrade(Tower.UpgradePath.SHRAPNEL)
+	cannon.position = Board.cell_to_world(Vector2i(10, 10))
+	board.towers.add_child(cannon)
+	var target: Enemy = _spawn_enemy(board, 500.0)
+	target.position = cannon.position + Vector2(60, 0)
+	var neighbour: Enemy = _spawn_enemy(board, 500.0)
+	neighbour.position = target.position + Vector2(0, 20)
+	var far: Enemy = _spawn_enemy(board, 500.0)
+	far.position = target.position + Vector2(0, 100)
+	cannon.step(0.1)
+	_check(target.health == 500.0 - cannon.damage["health"], "the target takes a full shell")
+	_check(is_equal_approx(neighbour.health, 500.0 - cannon.damage["health"] * Tower.SHRAPNEL_DAMAGE_FACTOR), "a neighbour within %d px takes 50%% splash" % int(cannon.splash_radius))
+	_check(far.health == 500.0, "enemies outside the splash are untouched")
+
+
+func test_damage_type_skills() -> void:
+	var main: Node2D = _make_main()
+	main.currency = 1000
+	main.diamonds = 200
+	main.try_unlock_skill("tesla")
+	main.try_buy_tower(Vector2i(10, 5), TowerTypes.BASIC)
+	main.try_buy_tower(Vector2i(12, 5), TowerTypes.TESLA)
+	var basic: Tower = main.get_tower_at(Vector2i(10, 5))
+	var tesla: Tower = main.get_tower_at(Vector2i(12, 5))
+	var b0: Dictionary = basic.damage.duplicate()
+	main.try_unlock_skill("hollow_point")
+	_check(basic.damage["health"] == roundi(b0["health"] * 1.2) and basic.damage["armor"] == b0["armor"], "Hollow Points: +20%% health damage only (%s)" % [basic.damage])
+	main.try_unlock_skill("armor_breaker")
+	main.try_unlock_skill("shield_breaker")
+	_check(basic.damage["armor"] == roundi(b0["armor"] * 1.3) and basic.damage["shield"] == roundi(b0["shield"] * 1.3), "Armor/Shield Breaker: +30%% against those layers")
+	var t0: Dictionary = tesla.damage.duplicate()
+	for id: String in ["basic_upgrades", "basic_pierce", "basic_veteran"]:
+		main.try_unlock_skill(id)
+	_check(basic.damage["health"] == roundi(b0["health"] * 1.45) and tesla.damage == t0, "Veteran Crews boosts only Basic towers (%s)" % [basic.damage])
+
+
+func test_mastery_raises_max_level() -> void:
+	var main: Node2D = _make_main()
+	main.currency = 10000
+	main.diamonds = 200
+	for id: String in ["tesla", "basic_upgrades"]:
+		main.try_unlock_skill(id)
+	main.try_buy_tower(Vector2i(10, 5))
+	var tower: Tower = main.get_tower_at(Vector2i(10, 5))
+	for i in 3:
+		main.try_upgrade_tower(tower, Tower.UpgradePath.DAMAGE)
+	_check(tower.upgrade_level == 3 and not main.try_upgrade_tower(tower, Tower.UpgradePath.DAMAGE), "level 3 is the cap without Mastery")
+	for id: String in ["basic_pierce", "basic_veteran", "basic_mastery"]:
+		main.try_unlock_skill(id)
+	var gold: int = main.currency
+	_check(main.try_upgrade_tower(tower, Tower.UpgradePath.DAMAGE) and tower.upgrade_level == 4, "Basic Mastery allows level 4 on existing towers")
+	_check(main.currency == gold - GameConfig.UPGRADE_COSTS[3], "level 4 costs %d" % GameConfig.UPGRADE_COSTS[3])
+	_check(tower.next_upgrade_cost() < 0, "level 4 is the new cap")
+
+
+func test_salvage_head_start_and_diamond_mine() -> void:
+	var main: Node2D = _make_main()
+	main.diamonds = 500
+	for id: String in ["tesla", "bounty_1", "war_chest", "bounty_2", "salvage", "head_start", "fortify", "sharpen", "overclock", "fortify_2", "diamond_mine"]:
+		main.try_unlock_skill(id)
+	main.restart_game()
+	_check(main.currency == GameConfig.STARTING_CURRENCY + 150, "Head Start: every run begins with +150 gold (%d)" % main.currency)
+	_check(main.lives == GameConfig.STARTING_LIVES + 10, "Fortify + Bastion: +10 lives every run")
+	main.try_buy_tower(Vector2i(10, 5))
+	var gold: int = main.currency
+	main.try_sell_tower(Vector2i(10, 5))
+	_check(main.currency == gold + floori(GameConfig.TOWER_COST * 0.75), "Salvage: selling refunds 75%")
+	_check(main.diamonds_for_wave(4) == 1 and main.diamonds_for_wave(5) == 2, "Diamond Mine: +1 bonus diamond on every 5th wave")
+
+
+func test_armor_and_shield_nerfs() -> void:
+	var main: Node2D = _make_main()
+	main.diamonds = 500
+	for id: String in ["tesla", "weaken_1", "cripple", "weaken_2", "rust", "dampen"]:
+		main.try_unlock_skill(id)
+	var nerfed: Dictionary = main.wave_manager._apply_nerfs(WaveGenerator.make_entry(EnemyTypes.BOSS, 20))
+	var plain: Dictionary = WaveGenerator.make_entry(EnemyTypes.BOSS, 20)
+	_check(is_equal_approx(nerfed["armor"], plain["armor"] * 0.75) and is_equal_approx(nerfed["shield"], plain["shield"] * 0.75), "Rust and Dampening Field: -25% armor and shield")
+	_check(is_equal_approx(nerfed["health"], plain["health"] * 0.8), "health nerfs still apply")

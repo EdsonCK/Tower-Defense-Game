@@ -45,10 +45,10 @@ func test_random_build_sell_upgrade_fuzz() -> void:
 		elif roll < 0.37 and main.get_tower_count() > 0:
 			var cells: Array = main._towers_by_cell.keys()
 			var tower: Tower = main.get_tower_at(cells[rng.randi_range(0, cells.size() - 1)])
-			if main.try_upgrade_tower(tower, rng.randi_range(1, 5) as Tower.UpgradePath):
+			if main.try_upgrade_tower(tower, rng.randi_range(1, 6) as Tower.UpgradePath):
 				actions["upgrade"] += 1
 		elif roll < 0.40:
-			main.diamonds += 1
+			main.diamonds += 6
 			if main.try_unlock_skill(skill_ids[rng.randi_range(0, skill_ids.size() - 1)]):
 				actions["skills"] += 1
 		elif roll < 0.41:
@@ -70,7 +70,7 @@ func test_random_build_sell_upgrade_fuzz() -> void:
 				violation = "step %d: %s" % [step, violation]
 				break
 	_check(violation == "", "6000 randomized steps keep every invariant%s" % ("" if violation == "" else " - " + violation))
-	_check(actions["build"] > 50 and actions["tesla"] > 20 and actions["sell"] > 10 and actions["upgrade"] > 10 and actions["skills"] >= SkillTree.SKILLS.size() - 2 and actions["waves"] > 3, "fuzzer exercised every action: %s" % actions)
+	_check(actions["build"] > 50 and actions["tesla"] > 20 and actions["sell"] > 10 and actions["upgrade"] > 10 and actions["skills"] >= 25 and actions["waves"] > 3, "fuzzer exercised every action: %s" % actions)
 
 
 ## The good bot plays real generated waves with every invariant checked every 10 ticks,

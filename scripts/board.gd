@@ -252,6 +252,8 @@ func _bump_revision() -> void:
 
 ## Called by Main whenever build mode, affordability or the build type changes.
 func set_build_state(active: bool, can_afford: bool, preview_range: float = GameConfig.TOWER_RANGE) -> void:
+	if active == _build_mode and can_afford == _can_afford and preview_range == _preview_range:
+		return  # called on every HUD refresh; only redraw on a real change
 	_build_mode = active
 	_can_afford = can_afford
 	_preview_range = preview_range

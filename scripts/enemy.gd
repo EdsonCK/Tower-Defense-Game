@@ -1,8 +1,11 @@
 class_name Enemy
 extends Node2D
 ## Walks cell center to cell center (cardinal only) toward the exit at constant speed.
-## Stats, appearance and traits (armor, regeneration, splitting, lives cost) come from
-## an EnemyTypes definition. Emits `died` or `reached_exit` exactly once, then frees itself.
+## Stats, appearance and traits (layers, regeneration, splitting, lives cost) come from
+## an EnemyTypes definition. Hit points come in up to three stacked layers: shield on
+## top, then armor, then health. A hit only damages the top non-empty layer, using the
+## attacker's damage against that layer; excess damage is lost. The enemy dies when its
+## health layer is empty. Emits `died` or `reached_exit` exactly once, then frees itself.
 ## Route changes are applied only on arriving at a cell center, so the current
 ## segment always finishes and the enemy never teleports.
 
@@ -10,15 +13,24 @@ signal died(enemy: Enemy)
 signal reached_exit(enemy: Enemy)
 
 const COLOR_OUTLINE: Color = Color(0.1, 0.05, 0.05)
-const HEALTH_BAR_WIDTH: float = 24.0
-const HEALTH_BAR_HEIGHT: float = 4.0
+const HEALTH_BAR_WIDTH: float = 26.0
+const HEALTH_BAR_HEIGHT: float = 3.0
+const HEALTH_BAR_GAP: float = 1.0
+const LAYER_COLORS: Dictionary = {
+	"shield": Color(0.72, 0.4, 1.0),
+	"armor": Color(0.92, 0.94, 0.98),
+	"health": Color(0.3, 0.95, 0.35),
+}
 
 var type_id: String = EnemyTypes.GRUNT
 var max_health: float = 1.0
 var health: float = 1.0
+var max_armor: float = 0.0
+var armor: float = 0.0
+var max_shield: float = 0.0
+var shield: float = 0.0
 var speed: float = 60.0
 var reward: int = 0
-var armor: int = 0
 var regen_rate: float = 0.0
 var lives_cost: int = 1
 var radius: float = 10.0
@@ -74,10 +86,13 @@ func _apply_type(entry: Dictionary, wave_number: int) -> void:
 	wave = wave_number
 	max_health = entry["health"]
 	health = max_health
+	max_armor = entry.get("armor", 0.0)
+	armor = max_armor
+	max_shield = entry.get("shield", 0.0)
+	shield = max_shield
 	reward = entry["reward"]
 	lives_cost = entry["lives"]
 	speed = def["speed"]
-	armor = def["armor"]
 	regen_rate = def["regen"]
 	radius = def["radius"]
 	color = def["color"]
@@ -125,17 +140,41 @@ func advance(delta: float) -> void:
 			remaining = 0.0
 
 
-## Applies a hit after armor (unless `ignore_armor`). Every hit deals at least 1 damage.
-func take_damage(amount: int, ignore_armor: bool = false) -> void:
+## The layer that currently takes damage: "shield", then "armor", then "health".
+func top_layer() -> String:
+	if shield > 0.0:
+		return "shield"
+	if armor > 0.0:
+		return "armor"
+	return "health"
+
+
+## Applies one hit. `damage` maps layer -> damage against that layer; only the top
+## non-empty layer is damaged and any excess is lost.
+func take_hit(damage: Dictionary) -> void:
 	if _resolved:
 		return
-	var effective: int = amount if ignore_armor else amount - armor
-	health = maxf(health - maxi(effective, 1), 0.0)
+	var layer: String = top_layer()
+	var amount: float = float(damage.get(layer, 0))
+	if amount <= 0.0:
+		return
+	match layer:
+		"shield":
+			shield = maxf(shield - amount, 0.0)
+		"armor":
+			armor = maxf(armor - amount, 0.0)
+		_:
+			health = maxf(health - amount, 0.0)
 	queue_redraw()
 	if health <= 0.0:
 		_resolve()
 		died.emit(self)
 		queue_free()
+
+
+## Convenience hit dealing `amount` to whichever layer is on top.
+func take_damage(amount: float) -> void:
+	take_hit({"health": amount, "armor": amount, "shield": amount})
 
 
 ## Slows the enemy by `amount` (0-1) for `duration` seconds; the strongest slow wins.
@@ -245,15 +284,35 @@ func _draw() -> void:
 		draw_colored_polygon(points, color)
 		points.append(points[0])
 		draw_polyline(points, COLOR_OUTLINE, 1.5)
-	if armor > 0:
-		draw_arc(_draw_offset, radius + 3.0, 0.0, TAU, 24, Color(0.8, 0.8, 0.85), 2.0)
+	if armor > 0.0:
+		draw_arc(_draw_offset, radius + 3.0, 0.0, TAU, 24, LAYER_COLORS["armor"], 2.0)
+	if shield > 0.0:
+		draw_arc(_draw_offset, radius + 5.5, 0.0, TAU, 28, Color(LAYER_COLORS["shield"], 0.85), 2.0)
 	if _slow > 0.0:
-		draw_arc(_draw_offset, radius + 5.0, 0.0, TAU, 24, Color(0.45, 0.75, 1.0, 0.9), 2.0)
-	var bar_origin: Vector2 = _draw_offset + Vector2(-HEALTH_BAR_WIDTH / 2.0, -radius - 9.0)
-	draw_rect(Rect2(bar_origin, Vector2(HEALTH_BAR_WIDTH, HEALTH_BAR_HEIGHT)), Color(0.1, 0.1, 0.1))
-	var ratio: float = clampf(health / max_health, 0.0, 1.0) if max_health > 0.0 else 0.0
-	var bar_color: Color = Color(0.3, 0.95, 0.9) if regen_rate > 0.0 else Color(0.3, 0.95, 0.3)
-	draw_rect(Rect2(bar_origin, Vector2(HEALTH_BAR_WIDTH * ratio, HEALTH_BAR_HEIGHT)), bar_color)
+		draw_arc(_draw_offset, radius + 8.0, 0.0, TAU, 28, Color(0.45, 0.75, 1.0, 0.9), 1.5)
+	_draw_layer_bars()
+
+
+## Stacked bars, one per layer the enemy has: shield on top, armor, then health.
+func _draw_layer_bars() -> void:
+	var layers: Array = []
+	if max_shield > 0.0:
+		layers.append(["shield", shield, max_shield])
+	if max_armor > 0.0:
+		layers.append(["armor", armor, max_armor])
+	layers.append(["health", health, max_health])
+	var stack_height: float = layers.size() * (HEALTH_BAR_HEIGHT + HEALTH_BAR_GAP)
+	var origin: Vector2 = _draw_offset + Vector2(-HEALTH_BAR_WIDTH / 2.0, -radius - 6.0 - stack_height)
+	draw_rect(Rect2(origin - Vector2(1, 1), Vector2(HEALTH_BAR_WIDTH + 2, stack_height + 1)), Color(0.05, 0.05, 0.07, 0.85))
+	for i in layers.size():
+		var layer: Array = layers[i]
+		var ratio: float = clampf(layer[1] / layer[2], 0.0, 1.0) if layer[2] > 0.0 else 0.0
+		var row: Vector2 = origin + Vector2(0, i * (HEALTH_BAR_HEIGHT + HEALTH_BAR_GAP))
+		var color: Color = LAYER_COLORS[layer[0]]
+		if layer[0] == "health" and regen_rate > 0.0:
+			color = Color(0.3, 0.95, 0.75)
+		draw_rect(Rect2(row, Vector2(HEALTH_BAR_WIDTH, HEALTH_BAR_HEIGHT)), Color(color, 0.18))
+		draw_rect(Rect2(row, Vector2(HEALTH_BAR_WIDTH * ratio, HEALTH_BAR_HEIGHT)), color)
 
 
 func _shape_points() -> PackedVector2Array:
@@ -266,6 +325,8 @@ func _shape_points() -> PackedVector2Array:
 			return PackedVector2Array([o + Vector2(-r, -r), o + Vector2(r, -r), o + Vector2(r, r), o + Vector2(-r, r)])
 		"hexagon":
 			return _regular_polygon(6, r, 0.0)
+		"pentagon":
+			return _regular_polygon(5, r, -PI / 2.0)
 		"star":
 			var star: PackedVector2Array = PackedVector2Array()
 			for i in 10:

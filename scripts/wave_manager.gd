@@ -18,6 +18,8 @@ var run_seed: int = 0
 ## Skill-tree nerfs applied to every enemy at spawn (set by Main).
 var enemy_health_multiplier: float = 1.0
 var enemy_speed_multiplier: float = 1.0
+var enemy_armor_multiplier: float = 1.0
+var enemy_shield_multiplier: float = 1.0
 
 var _board: Board
 var _generator: WaveGenerator
@@ -137,6 +139,8 @@ func _spawn_split_children(parent: Enemy) -> void:
 func _apply_nerfs(entry: Dictionary) -> Dictionary:
 	var nerfed: Dictionary = entry.duplicate()
 	nerfed["health"] = maxf(1.0, entry["health"] * enemy_health_multiplier)
+	nerfed["armor"] = maxf(0.0, entry.get("armor", 0.0) * enemy_armor_multiplier)
+	nerfed["shield"] = maxf(0.0, entry.get("shield", 0.0) * enemy_shield_multiplier)
 	return nerfed
 
 

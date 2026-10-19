@@ -26,16 +26,24 @@ const TOWER_FLASH_DURATION: float = 0.1
 const SELL_REFUND_RATIO: float = 0.5
 
 # --- Tower upgrades (each tower commits to one path, up to UPGRADE_MAX_LEVEL levels) ---
-const UPGRADE_MAX_LEVEL: int = 3
-const UPGRADE_COSTS: Array[int] = [50, 80, 120]
-const UPGRADE_DAMAGE_PER_LEVEL: int = 9          # 15 -> 24 -> 33 -> 42
-const UPGRADE_RANGE_PER_LEVEL: float = 24.0      # 112 -> 136 -> 160 -> 184 px
+const UPGRADE_MAX_LEVEL: int = 3                 # +1 per tower type with its Mastery skill
+const UPGRADE_COSTS: Array[int] = [50, 80, 120, 180]
+const UPGRADE_DAMAGE_FACTOR_PER_LEVEL: float = 0.6  # Damage path: every damage type +60% per level
+const UPGRADE_RANGE_PER_LEVEL: float = 24.0      # Basic: 112 -> 136 -> 160 -> 184 px
 const UPGRADE_COOLDOWN_FACTOR: float = 0.75      # 0.8 -> 0.6 -> 0.45 -> 0.34 s
 
 # --- Waves (endless; see WaveGenerator) ---
 const WAVE_BASE_ENEMY_COUNT: float = 6.0
 const WAVE_ENEMY_COUNT_PER_WAVE: float = 2.2
-const MAX_ENEMIES_PER_WAVE: int = 70
+## Past this wave the enemy count also grows quadratically: + LATE_WAVE_EXTRA * (w - start)^2.
+const LATE_WAVE_START: int = 30
+const LATE_WAVE_EXTRA: float = 0.15
+const MAX_ENEMIES_PER_WAVE: int = 320
+## Spawn intervals shrink over time: interval x 1 / (1 + SPAWN_RATE_GROWTH * (w - 1)),
+## never below MIN_INTERVAL_SCALE. Counts grow faster than intervals shrink, so later
+## waves still last longer.
+const SPAWN_RATE_GROWTH: float = 0.03
+const MIN_INTERVAL_SCALE: float = 0.22
 const BOSS_WAVE_INTERVAL: int = 10
 const MAX_BOSSES_PER_WAVE: int = 3
 ## Regular-enemy count multiplier on boss waves.
