@@ -5,6 +5,7 @@ extends Control
 signal build_requested
 signal cancel_requested
 signal start_wave_requested
+signal auto_start_changed(enabled: bool)
 signal restart_requested
 signal upgrade_requested(track: int)
 signal tesla_requested
@@ -31,11 +32,13 @@ var _currency := 0
 @onready var build_button: Button = $RightPanel/Margin/Items/BuildTower
 @onready var cancel_button: Button = $RightPanel/Margin/Items/Cancel
 @onready var start_button: Button = $RightPanel/Margin/Items/StartWave
+@onready var auto_start_button: CheckButton = $RightPanel/Margin/Items/AutoStart
 @onready var selection_label: Label = $BottomPanel/Margin/Items/Selection
 @onready var message_label: Label = $BottomPanel/Margin/Items/Message
 
 
 func _ready() -> void:
+	auto_start_button.toggled.connect(func(enabled: bool) -> void: auto_start_changed.emit(enabled))
 	tesla_button.pressed.connect(func() -> void: tesla_requested.emit())
 	skills_button.pressed.connect(func() -> void: skills_requested.emit())
 	special_button.pressed.connect(func() -> void: upgrade_requested.emit(Tower.Upgrade.SPECIAL))

@@ -14,6 +14,7 @@ var building := false
 var selected_tower: Tower
 var build_kind := Tower.Kind.BASIC
 var progression: Progression
+var auto_start_waves := false
 var _run_id := ""
 var _restart_pending := false
 @export var profile_path := "user://progression.json"
@@ -41,6 +42,7 @@ func _ready() -> void:
 	hud.cancel_requested.connect(cancel_build)
 	hud.restart_requested.connect(restart)
 	hud.start_wave_requested.connect(start_wave)
+	hud.auto_start_changed.connect(set_auto_start_waves)
 	hud.upgrade_requested.connect(upgrade_selected_tower)
 	hud.remove_requested.connect(remove_selected_tower)
 	waves.spawn_requested.connect(_spawn_enemy)
@@ -224,6 +226,21 @@ func start_wave() -> void:
 		_refresh_hud()
 
 
+func set_auto_start_waves(enabled: bool) -> void:
+	if is_finished() or _restart_pending:
+		return
+	auto_start_waves = enabled
+	_refresh_hud()
+	call_deferred("_try_auto_start_wave")
+
+
+func _try_auto_start_wave() -> void:
+	# Recheck after signal dispatch: menus, cancellation, defeat or restart may
+	# have intervened. start_wave() also prevents duplicate queued requests.
+	if auto_start_waves and not _restart_pending and phase == Phase.BETWEEN_WAVES and not skill_tree.visible:
+		start_wave()
+
+
 func _spawn_enemy(profile: EnemyProfile) -> void:
 	var enemy := ENEMY_SCENE.instantiate() as Enemy
 	enemy.died.connect(_on_enemy_died)
@@ -265,6 +282,8 @@ func _on_wave_completed(wave: int) -> void:
 	if wave % GameConfig.SKILL_MENU_INTERVAL == 0:
 		open_skill_tree()
 	_refresh_hud()
+	if auto_start_waves:
+		call_deferred("_try_auto_start_wave")
 
 
 func open_skill_tree() -> void:
@@ -279,6 +298,8 @@ func open_skill_tree() -> void:
 func close_skill_tree() -> void:
 	skill_tree.hide()
 	_refresh_hud()
+	if auto_start_waves:
+		call_deferred("_try_auto_start_wave")
 
 
 func purchase_skill(id: String) -> bool:
@@ -327,6 +348,8 @@ func _refresh_hud() -> void:
 		status += "\n%d active • %d to spawn" % [waves.active_count, waves.remaining_to_spawn]
 	hud.display(currency, lives, waves.current_wave, status, building, waves.can_start() and not skill_tree.visible, is_finished() or skill_tree.visible)
 	hud.display_progression(progression, phase != Phase.WAVE_ACTIVE and not is_finished(), build_kind)
+	hud.auto_start_button.set_pressed_no_signal(auto_start_waves)
+	hud.auto_start_button.disabled = is_finished() or skill_tree.visible or _restart_pending
 	var cost := GameConfig.TESLA_COST if build_kind == Tower.Kind.TESLA else GameConfig.TOWER_COST
 	var radius := GameConfig.TESLA_RANGE if build_kind == Tower.Kind.TESLA else GameConfig.TOWER_RANGE
 	board.set_build_preview(building and not skill_tree.visible, currency, cost, radius)

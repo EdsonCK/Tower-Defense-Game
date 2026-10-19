@@ -113,6 +113,12 @@ layout_mode = 2
 custom_minimum_size = Vector2(0, 36)
 text = "Start Wave"
 
+[node name="AutoStart" type="CheckButton" parent="HUD/UILayout/RightPanel/Margin/Items"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "Auto-start Waves"
+tooltip_text = "Start the first wave manually. Following waves start automatically, waiting for the skill menu to close. Resets off on Restart."
+
 [node name="Skills" type="Button" parent="HUD/UILayout/RightPanel/Margin/Items"]
 layout_mode = 2
 custom_minimum_size = Vector2(0, 36)
