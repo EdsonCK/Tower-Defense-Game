@@ -39,6 +39,7 @@ func _run_all() -> void:
 		test_tower_attack_range_and_cooldown,
 		test_wave_flow_defeat_and_restart,
 		test_wave_flow_victory,
+		test_window_fit_sizes,
 	]
 	for test: Callable in tests:
 		_current_test = test.get_method()
@@ -400,3 +401,16 @@ func test_wave_flow_victory() -> void:
 	_check(main.state == main.GameState.VICTORY, "clearing wave 3 with lives left triggers VICTORY")
 	_check(main.lives == 10, "no lives lost")
 	_check(main.currency == expected_currency, "each kill paid 12 once plus two wave bonuses (currency %d, expected %d)" % [main.currency, expected_currency])
+
+
+# --- Window fitting --------------------------------------------------------------------
+
+func test_window_fit_sizes() -> void:
+	_check(WindowFit.fitted_size(Vector2i(1920, 1040)) == Vector2i(1600, 900), "large screens keep the 1600x900 base size")
+	var laptop: Vector2i = WindowFit.fitted_size(Vector2i(1256, 706))
+	_check(laptop.x <= 1256 and laptop.y <= 706, "1366x768-class screen: window fits (%s)" % laptop)
+	_check(absf(float(laptop.x) / laptop.y - 16.0 / 9.0) < 0.01, "fitted window keeps 16:9")
+	# 1920x1080 at 150% Windows scaling without HiDPI awareness: ~1280x680 usable, 92% fill.
+	var scaled: Vector2i = WindowFit.fitted_size(Vector2i(1177, 625))
+	_check(scaled.x <= 1177 and scaled.y <= 625, "1080p at 150%% scaling: window fits (%s)" % scaled)
+	_check(WindowFit.fitted_size(Vector2i(300, 200)) == WindowFit.MIN_SIZE, "tiny screens fall back to the minimum size")

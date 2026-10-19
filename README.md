@@ -9,6 +9,18 @@ v0.1 is a gameplay-systems prototype for **Godot 4.7.2 stable**, written in GDSc
 1. Open `project.godot` in Godot 4.7.2 (Project Manager → Import). Let the editor finish importing.
 2. Press **F5**. The main scene is `res://scenes/main.tscn`.
 
+### Window size and resizing
+
+The game draws at a fixed 1600×900 logical resolution and scales to whatever size the window is. If the window isn't 16:9, you get black bars, and the whole game always stays visible and centered.
+
+- **On startup** the window shrinks to fit your screen if needed (up to 92% of the usable area, never bigger than 1600×900) and is centered.
+- **You can resize** the window freely; the minimum is 800×450. When you finish dragging, the window shrinks if it no longer fits the screen and re-centers.
+- **F11** toggles fullscreen.
+
+**If the game looks cropped or shifted left when you press F5:** Godot 4.4+ can run the game *embedded* in the editor's **Game** tab, and the editor controls that size. Either:
+- in the Game tab's toolbar, set the embedded size mode to **Keep Aspect** (or **Stretch**) rather than the fixed project-settings size, or
+- turn off **Embed Game on Next Play** in the Game tab so the game opens in its own window, where the automatic fitting above applies.
+
 ## Controls
 
 | Action | Control |
@@ -18,6 +30,7 @@ v0.1 is a gameplay-systems prototype for **Godot 4.7.2 stable**, written in GDSc
 | Cancel build mode | **Right-click**, **Esc**, or the **Cancel Build** button |
 | Launch next wave | **Start Wave** (disabled while a wave is running) |
 | New game | **Restart** (works at any time, including after victory/defeat) |
+| Toggle fullscreen | **F11** |
 
 ## Rules (defaults in `scripts/game_config.gd`)
 
@@ -36,7 +49,7 @@ v0.1 is a gameplay-systems prototype for **Godot 4.7.2 stable**, written in GDSc
 
 ```text
 project.godot          main scene, 1600x900 window, canvas_items stretch, Compatibility renderer
-scenes/main.tscn       Main → Board(Towers, Enemies), WaveManager, HUD/UILayout(RightPanel, BottomPanel)
+scenes/main.tscn       Main → Board(Towers, Enemies), WaveManager, WindowFit, HUD/UILayout(RightPanel, BottomPanel)
 scenes/enemy.tscn      Node2D + enemy.gd (drawn in code)
 scenes/tower.tscn      Node2D + tower.gd (drawn in code)
 scripts/game_config.gd tuning constants only (class_name GameConfig)
@@ -46,6 +59,7 @@ scripts/enemy.gd       cell-center movement, safe rerouting, health, died/reache
 scripts/tower.gd       targeting, cooldown, immediate-hit attack, beam flash
 scripts/wave_manager.gd wave progress, spawn timer, unresolved-enemy count, completion signal
 scripts/hud.gd         labels, buttons → intent signals, messages
+scripts/window_fit.gd  fits/centers the OS window on its screen, re-centers after resize, F11 fullscreen
 tests/test_pathfinding.gd headless SceneTree test suite
 ```
 
@@ -66,4 +80,5 @@ The test script prints `ok` / `FAIL` per check and exits with code 0 only if eve
 - mid-wave rerouting with no teleporting and no walking into towers;
 - the exactly-once death signal;
 - tower range and cooldown;
-- a full defeat → restart flow and a three-wave victory flow.
+- a full defeat → restart flow and a three-wave victory flow;
+- window-fit sizing for large, laptop and display-scaled screens.

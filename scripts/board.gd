@@ -249,7 +249,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	if mouse_event == null or not mouse_event.pressed or mouse_event.button_index != MOUSE_BUTTON_LEFT:
 		return
 	# UI panels consume their own clicks before _unhandled_input; this guards everything else.
-	var local: Vector2 = get_local_mouse_position()
+	# make_input_local applies the window stretch/letterbox transform, so this works at any window size.
+	var local: Vector2 = (make_input_local(mouse_event) as InputEventMouseButton).position
 	if not is_inside_board_pixels(local):
 		return
 	get_viewport().set_input_as_handled()
