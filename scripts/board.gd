@@ -187,10 +187,14 @@ func get_enemy_occupied_cells() -> Array[Vector2i]:
 	return cells
 
 
+## Distinct committed waypoints of living enemies (duplicates are skipped so crowded
+## waves don't repeat identical route checks).
 func get_enemy_committed_waypoints() -> Array[Vector2i]:
 	var cells: Array[Vector2i] = []
 	for enemy: Enemy in _active_enemies():
-		cells.append(enemy.get_committed_waypoint())
+		var waypoint: Vector2i = enemy.get_committed_waypoint()
+		if not cells.has(waypoint):
+			cells.append(waypoint)
 	return cells
 
 

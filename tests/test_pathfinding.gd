@@ -1,29 +1,13 @@
-extends SceneTree
-## Headless logic tests (no external framework). Import the project once first, then run:
+extends "res://tests/test_base.gd"
+## Pathfinding, placement, movement, combat and basic game-flow tests.
 ##   godot --headless --path <project> --script res://tests/test_pathfinding.gd
-## Exits with code 0 when every check passes, 1 otherwise.
-## Frames are never iterated here: enemies, towers and waves are stepped manually so
-## every scenario is deterministic.
-
-const MAIN_SCENE: PackedScene = preload("res://scenes/main.tscn")
-const ENEMY_SCENE: PackedScene = preload("res://scenes/enemy.tscn")
-const TOWER_SCENE: PackedScene = preload("res://scenes/tower.tscn")
-const SPAWN: Vector2i = GameConfig.SPAWN_CELL
-const EXIT: Vector2i = GameConfig.EXIT_CELL
-const NONE: Array[Vector2i] = []
-
-var _checks: int = 0
-var _failures: int = 0
-var _current_test: String = ""
 
 
-func _initialize() -> void:
-	# Nodes added to root only receive _ready() once the tree is running, so start on the first frame.
-	process_frame.connect(_run_all, CONNECT_ONE_SHOT)
+const GRUNT_SPEED: float = 60.0
 
 
-func _run_all() -> void:
-	var tests: Array[Callable] = [
+func get_tests() -> Array[Callable]:
+	return [
 		test_empty_board_has_cardinal_path,
 		test_block_cell_with_alternative_route,
 		test_paths_avoid_solid_cells_and_diagonals,
@@ -38,96 +22,8 @@ func _run_all() -> void:
 		test_enemy_resolves_exactly_once,
 		test_tower_attack_range_and_cooldown,
 		test_wave_flow_defeat_and_restart,
-		test_wave_flow_victory,
 		test_window_fit_sizes,
 	]
-	for test: Callable in tests:
-		_current_test = test.get_method()
-		test.call()
-		_cleanup_root()
-	print("")
-	if _failures == 0:
-		print("ALL TESTS PASSED (%d checks, %d tests)" % [_checks, tests.size()])
-	else:
-		print("FAILED: %d of %d checks failed" % [_failures, _checks])
-	quit(1 if _failures > 0 else 0)
-
-
-# --- Helpers ------------------------------------------------------------------
-
-func _check(condition: bool, description: String) -> void:
-	_checks += 1
-	if condition:
-		print("  ok   [%s] %s" % [_current_test, description])
-	else:
-		_failures += 1
-		printerr("  FAIL [%s] %s" % [_current_test, description])
-
-
-func _make_board() -> Board:
-	var board: Board = Board.new()
-	var towers: Node2D = Node2D.new()
-	towers.name = "Towers"
-	board.add_child(towers)
-	var enemies: Node2D = Node2D.new()
-	enemies.name = "Enemies"
-	board.add_child(enemies)
-	root.add_child(board)
-	return board
-
-
-func _make_main() -> Node2D:
-	var main: Node2D = MAIN_SCENE.instantiate() as Node2D
-	root.add_child(main)
-	return main
-
-
-func _spawn_enemy(board: Board, health: int) -> Enemy:
-	var enemy: Enemy = ENEMY_SCENE.instantiate() as Enemy
-	enemy.setup(board, health)
-	board.enemies.add_child(enemy)
-	return enemy
-
-
-func _cleanup_root() -> void:
-	for child: Node in root.get_children():
-		root.remove_child(child)
-		child.free()
-
-
-func _solid_snapshot(board: Board) -> Array[Vector2i]:
-	var cells: Array[Vector2i] = []
-	for y in GameConfig.GRID_ROWS:
-		for x in GameConfig.GRID_COLUMNS:
-			if board.is_solid(Vector2i(x, y)):
-				cells.append(Vector2i(x, y))
-	return cells
-
-
-func _route_is_clean(board: Board, path: Array[Vector2i], from: Vector2i, to: Vector2i) -> bool:
-	if path.is_empty() or path[0] != from or path[path.size() - 1] != to:
-		return false
-	for i in path.size():
-		if board.is_solid(path[i]) or not Board.is_in_bounds(path[i]):
-			return false
-		if i > 0 and absi(path[i].x - path[i - 1].x) + absi(path[i].y - path[i - 1].y) != 1:
-			return false
-	return true
-
-
-## Steps every live enemy, tower and the wave manager by `dt`, `steps` times.
-func _simulate(main: Node2D, dt: float, steps: int) -> void:
-	for i in steps:
-		if main.is_game_over():
-			return
-		main.wave_manager.step(dt)
-		for node: Node in main.board.enemies.get_children():
-			var enemy: Enemy = node as Enemy
-			if enemy.is_active():
-				enemy.advance(dt)
-		for node: Node in main.board.towers.get_children():
-			if not node.is_queued_for_deletion():
-				(node as Tower).step(dt)
 
 
 # --- Spec section 10, tests 1-7 ---------------------------------------------------
@@ -230,7 +126,7 @@ func test_live_enemy_waypoint_isolation_is_rejected() -> void:
 	var board: Board = _make_board()
 	var enemy: Enemy = _spawn_enemy(board, 45)
 	# 80 px of travel: halfway between (2,12) and (3,12).
-	enemy.advance(80.0 / GameConfig.ENEMY_SPEED)
+	enemy.advance(80.0 / GRUNT_SPEED)
 	_check(enemy.current_cell == Vector2i(2, 12) and enemy.next_cell == Vector2i(3, 12), "enemy is between (2,12) and (3,12)")
 	for cell: Vector2i in [Vector2i(1, 12), Vector2i(2, 11), Vector2i(2, 13), Vector2i(3, 11), Vector2i(3, 13)]:
 		_check(board.try_block_cell_live(cell) == "", "pocket wall %s accepted with live enemy" % cell)
@@ -305,7 +201,7 @@ func test_enemy_reroutes_without_entering_towers() -> void:
 	_check(wall_built, "wall was built while the enemy was moving")
 	_check(escaped[0], "enemy reached the exit after rerouting")
 	_check(not walked_into_tower, "enemy never stood on a solid tile")
-	_check(max_jump <= GameConfig.ENEMY_SPEED * dt + 0.01, "no teleporting (max per-step move %.3f px)" % max_jump)
+	_check(max_jump <= GRUNT_SPEED * dt + 0.01, "no teleporting (max per-step move %.3f px)" % max_jump)
 	var cardinal: bool = true
 	for i in range(1, visited.size()):
 		var step: Vector2i = visited[i] - visited[i - 1]
@@ -353,54 +249,37 @@ func test_tower_attack_range_and_cooldown() -> void:
 func test_wave_flow_defeat_and_restart() -> void:
 	var main: Node2D = _make_main()
 	var wm: WaveManager = main.wave_manager
+	var lives_lost: Array[int] = [0]
+	wm.enemy_escaped.connect(func(e: Enemy) -> void: lives_lost[0] += e.lives_cost)
 	main._on_start_wave_pressed()
 	_check(main.state == main.GameState.WAVE_ACTIVE and wm.current_wave == 1, "Start Wave launches wave 1")
 	main._on_start_wave_pressed()
 	_check(wm.current_wave == 1, "pressing Start Wave again does not stack waves")
-	_simulate(main, 0.05, 20 * 60 * 2)
-	_check(main.lives == 2, "8 escaped enemies cost 8 lives (lives %d)" % main.lives)
-	_check(main.currency == 230, "no bounty for escapes; 30 wave-clear bonus (currency %d)" % main.currency)
-	_check(main.state == main.GameState.BETWEEN_WAVES and not wm.is_wave_active(), "wave 1 complete -> BETWEEN_WAVES")
-	main._on_start_wave_pressed()
-	_check(wm.current_wave == 2, "wave 2 starts")
-	_simulate(main, 0.05, 20 * 60 * 2)
-	_check(main.state == main.GameState.DEFEAT and main.lives == 0, "reaching zero lives triggers DEFEAT")
+	# No towers: keep starting waves until every life is gone.
+	var guard: int = 0
+	while not main.is_game_over() and guard < 50:
+		guard += 1
+		_simulate(main, 0.05, 20 * 60 * 3)
+		if main.state == main.GameState.BETWEEN_WAVES:
+			_check(main.lives == GameConfig.STARTING_LIVES - lives_lost[0], "wave %d: lives reduced exactly by escaped enemies' lives cost" % wm.current_wave)
+			main._on_start_wave_pressed()
+	_check(main.state == main.GameState.DEFEAT and main.lives == 0, "reaching zero lives triggers DEFEAT (wave %d)" % wm.current_wave)
+	_check(main.currency >= GameConfig.STARTING_CURRENCY, "escapes pay no bounty and never cost currency")
 	var spawned_before: int = main.board.enemies.get_child_count()
 	_check(wm.get_remaining_to_spawn() == 0 and not wm.is_wave_active(), "spawning stopped on defeat")
 	wm.step(10.0)
 	_check(main.board.enemies.get_child_count() == spawned_before, "no further spawns after defeat")
 	_check(not main.try_buy_tower(Vector2i(10, 5)), "building is disabled after defeat")
+	var defeat_wave: int = wm.current_wave
 	main._on_start_wave_pressed()
-	_check(wm.current_wave == 2, "Start Wave ignored after defeat")
+	_check(wm.current_wave == defeat_wave, "Start Wave ignored after defeat")
+	var old_seed: int = wm.run_seed
 	main.restart_game()
 	_check(main.currency == 200 and main.lives == 10 and main.state == main.GameState.READY, "Restart restores 200 currency, 10 lives, READY")
 	_check(wm.current_wave == 0 and main.board.get_blocked_cells().is_empty(), "Restart resets waves and board occupancy")
+	_check(wm.run_seed != old_seed, "Restart picks a new run seed")
 	main._on_start_wave_pressed()
 	_check(wm.current_wave == 1 and main.state == main.GameState.WAVE_ACTIVE, "wave 1 can be started again after restart")
-
-
-func test_wave_flow_victory() -> void:
-	var main: Node2D = _make_main()
-	var wm: WaveManager = main.wave_manager
-	var expected_currency: int = GameConfig.STARTING_CURRENCY
-	for wave in 3:
-		main._on_start_wave_pressed()
-		_check(wm.current_wave == wave + 1, "wave %d started" % (wave + 1))
-		var guard: int = 0
-		while wm.is_wave_active() and guard < 10000:
-			guard += 1
-			_simulate(main, 0.05, 1)
-			# Kill every enemy shortly after it spawns.
-			for node: Node in main.board.enemies.get_children():
-				var enemy: Enemy = node as Enemy
-				if enemy.is_active():
-					enemy.take_damage(10000)
-		expected_currency += GameConfig.WAVES[wave]["count"] * GameConfig.ENEMY_BOUNTY
-		if wave < 2:
-			expected_currency += GameConfig.WAVE_CLEAR_BONUS
-	_check(main.state == main.GameState.VICTORY, "clearing wave 3 with lives left triggers VICTORY")
-	_check(main.lives == 10, "no lives lost")
-	_check(main.currency == expected_currency, "each kill paid 12 once plus two wave bonuses (currency %d, expected %d)" % [main.currency, expected_currency])
 
 
 # --- Window fitting --------------------------------------------------------------------

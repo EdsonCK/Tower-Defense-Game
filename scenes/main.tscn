@@ -50,74 +50,130 @@ theme_override_constants/margin_bottom = 16
 
 [node name="VBox" type="VBoxContainer" parent="HUD/UILayout/RightPanel/Margin"]
 layout_mode = 2
-theme_override_constants/separation = 10
+theme_override_constants/separation = 7
 
 [node name="TitleLabel" type="Label" parent="HUD/UILayout/RightPanel/Margin/VBox"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 24
+theme_override_font_sizes/font_size = 22
 text = "Unnamed TD Game"
 horizontal_alignment = 1
 
-[node name="TitleSeparator" type="HSeparator" parent="HUD/UILayout/RightPanel/Margin/VBox"]
-layout_mode = 2
-
 [node name="CurrencyLabel" type="Label" parent="HUD/UILayout/RightPanel/Margin/VBox"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 18
 text = "Currency: 200"
 
 [node name="LivesLabel" type="Label" parent="HUD/UILayout/RightPanel/Margin/VBox"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 18
 text = "Lives: 10"
 
 [node name="WaveLabel" type="Label" parent="HUD/UILayout/RightPanel/Margin/VBox"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 20
-text = "Wave: 0 / 3"
-
-[node name="EnemiesLabel" type="Label" parent="HUD/UILayout/RightPanel/Margin/VBox"]
-layout_mode = 2
-text = "Enemies: 0 active, 0 to spawn"
+theme_override_font_sizes/font_size = 18
+text = "Wave: 0"
 
 [node name="StateLabel" type="Label" parent="HUD/UILayout/RightPanel/Margin/VBox"]
 layout_mode = 2
+theme_override_font_sizes/font_size = 18
 theme_override_colors/font_color = Color(1, 0.85, 0.4, 1)
-theme_override_font_sizes/font_size = 20
 text = "READY"
+
+[node name="EnemiesLabel" type="Label" parent="HUD/UILayout/RightPanel/Margin/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "Enemies: 0 active, 0 to spawn"
+
+[node name="NextWaveLabel" type="Label" parent="HUD/UILayout/RightPanel/Margin/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+custom_minimum_size = Vector2(288, 0)
+autowrap_mode = 3
+text = "Next (wave 1):"
 
 [node name="ControlsSeparator" type="HSeparator" parent="HUD/UILayout/RightPanel/Margin/VBox"]
 layout_mode = 2
 
 [node name="TowerInfoLabel" type="Label" parent="HUD/UILayout/RightPanel/Margin/VBox"]
 layout_mode = 2
-text = "Tower: 60 currency"
+theme_override_font_sizes/font_size = 14
+custom_minimum_size = Vector2(288, 0)
 autowrap_mode = 3
+text = "Tower: 60 currency"
 
 [node name="BuildButton" type="Button" parent="HUD/UILayout/RightPanel/Margin/VBox"]
-custom_minimum_size = Vector2(0, 44)
+custom_minimum_size = Vector2(0, 40)
 layout_mode = 2
 focus_mode = 0
 text = "Build Tower (60)"
 
 [node name="CancelButton" type="Button" parent="HUD/UILayout/RightPanel/Margin/VBox"]
-custom_minimum_size = Vector2(0, 36)
+custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
 focus_mode = 0
 disabled = true
 text = "Cancel Build"
 
 [node name="StartWaveButton" type="Button" parent="HUD/UILayout/RightPanel/Margin/VBox"]
-custom_minimum_size = Vector2(0, 44)
+custom_minimum_size = Vector2(0, 40)
 layout_mode = 2
 focus_mode = 0
 text = "Start Wave"
 
 [node name="RestartButton" type="Button" parent="HUD/UILayout/RightPanel/Margin/VBox"]
-custom_minimum_size = Vector2(0, 36)
+custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
 focus_mode = 0
 text = "Restart"
+
+[node name="SelectionBox" type="VBoxContainer" parent="HUD/UILayout/RightPanel/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="SelectionSeparator" type="HSeparator" parent="HUD/UILayout/RightPanel/Margin/VBox/SelectionBox"]
+layout_mode = 2
+
+[node name="SelectionLabel" type="Label" parent="HUD/UILayout/RightPanel/Margin/VBox/SelectionBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+custom_minimum_size = Vector2(288, 0)
+theme_override_colors/font_color = Color(1, 1, 0.55, 1)
+autowrap_mode = 3
+text = "SELECTED TOWER"
+
+[node name="UpgradeDamageButton" type="Button" parent="HUD/UILayout/RightPanel/Margin/VBox/SelectionBox"]
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+focus_mode = 0
+text = "Upgrade Damage"
+
+[node name="UpgradeRangeButton" type="Button" parent="HUD/UILayout/RightPanel/Margin/VBox/SelectionBox"]
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+focus_mode = 0
+text = "Upgrade Range"
+
+[node name="UpgradeSpeedButton" type="Button" parent="HUD/UILayout/RightPanel/Margin/VBox/SelectionBox"]
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+focus_mode = 0
+text = "Upgrade Hit speed"
+
+[node name="SellButton" type="Button" parent="HUD/UILayout/RightPanel/Margin/VBox/SelectionBox"]
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+focus_mode = 0
+text = "Sell"
+
+[node name="Spacer" type="Control" parent="HUD/UILayout/RightPanel/Margin/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="SeedLabel" type="Label" parent="HUD/UILayout/RightPanel/Margin/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
+text = "Run seed: 0"
 
 [node name="BottomPanel" type="PanelContainer" parent="HUD/UILayout"]
 layout_mode = 0
@@ -149,5 +205,5 @@ text = ""
 [node name="InstructionsLabel" type="Label" parent="HUD/UILayout/BottomPanel/Margin/VBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
-text = "Controls: Build Tower -> left-click tile to place | Right-click / Esc: cancel | Start Wave: launch next wave | Restart: new game | F11: fullscreen. Keep a route open from IN (green) to OUT (orange)."
+text = "Controls: Build Tower -> left-click tile to place | Right-click / Esc: cancel | Start Wave: next wave | Click a tower: upgrade/sell | Restart: new run | F11: fullscreen. Keep a route open from IN (green) to OUT (orange)."
 autowrap_mode = 3
