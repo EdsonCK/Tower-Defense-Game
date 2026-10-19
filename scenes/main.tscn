@@ -1,0 +1,149 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
+[ext_resource type="Script" path="res://scripts/board.gd" id="2_board"]
+[ext_resource type="Script" path="res://scripts/hud.gd" id="3_hud"]
+
+[sub_resource type="StyleBoxFlat" id="Style_panel"]
+bg_color = Color(0.07, 0.1, 0.14, 1)
+border_width_left = 2
+border_color = Color(0.2, 0.35, 0.4, 1)
+
+[sub_resource type="StyleBoxFlat" id="Style_bottom"]
+bg_color = Color(0.07, 0.1, 0.14, 1)
+border_width_top = 2
+border_color = Color(0.2, 0.35, 0.4, 1)
+
+[sub_resource type="Theme" id="Theme_ui"]
+default_font_size = 20
+
+[node name="Main" type="Node2D"]
+script = ExtResource("1_main")
+
+[node name="Board" type="Node2D" parent="."]
+script = ExtResource("2_board")
+
+[node name="Towers" type="Node2D" parent="Board"]
+
+[node name="Enemies" type="Node2D" parent="Board"]
+
+[node name="WaveManager" type="Node" parent="."]
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="UILayout" type="Control" parent="HUD"]
+layout_mode = 0
+offset_right = 1600.0
+offset_bottom = 900.0
+mouse_filter = 2
+theme = SubResource("Theme_ui")
+script = ExtResource("3_hud")
+
+[node name="RightPanel" type="PanelContainer" parent="HUD/UILayout"]
+layout_mode = 0
+offset_left = 1280.0
+offset_right = 1600.0
+offset_bottom = 900.0
+mouse_filter = 0
+theme_override_styles/panel = SubResource("Style_panel")
+
+[node name="Margin" type="MarginContainer" parent="HUD/UILayout/RightPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 22
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 22
+theme_override_constants/margin_bottom = 24
+
+[node name="Items" type="VBoxContainer" parent="HUD/UILayout/RightPanel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="Title" type="Label" parent="HUD/UILayout/RightPanel/Margin/Items"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 30
+text = "UNNAMED TD"
+
+[node name="Subtitle" type="Label" parent="HUD/UILayout/RightPanel/Margin/Items"]
+layout_mode = 2
+text = "v0.1 • Maze defense"
+
+[node name="Currency" type="Label" parent="HUD/UILayout/RightPanel/Margin/Items"]
+layout_mode = 2
+text = "Currency: 200"
+
+[node name="Lives" type="Label" parent="HUD/UILayout/RightPanel/Margin/Items"]
+layout_mode = 2
+text = "Base lives: 10"
+
+[node name="Wave" type="Label" parent="HUD/UILayout/RightPanel/Margin/Items"]
+layout_mode = 2
+text = "Wave: 0 / 3"
+
+[node name="Status" type="Label" parent="HUD/UILayout/RightPanel/Margin/Items"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 0.9, 0.75, 1)
+autowrap_mode = 2
+text = "READY"
+
+[node name="BuildTower" type="Button" parent="HUD/UILayout/RightPanel/Margin/Items"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 48)
+text = "Build Tower • 60"
+
+[node name="Cancel" type="Button" parent="HUD/UILayout/RightPanel/Margin/Items"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 48)
+text = "Cancel (Esc / right-click)"
+
+[node name="StartWave" type="Button" parent="HUD/UILayout/RightPanel/Margin/Items"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 48)
+text = "Start Wave"
+
+[node name="Restart" type="Button" parent="HUD/UILayout/RightPanel/Margin/Items"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 48)
+text = "Restart"
+
+[node name="TowerStats" type="Label" parent="HUD/UILayout/RightPanel/Margin/Items"]
+layout_mode = 2
+autowrap_mode = 2
+text = "TOWER\nDamage: 15 • Range: 112 px\nCooldown: 0.8 seconds\nKill bounty: 12\nWave 1–2 bonus: 30"
+
+[node name="Goal" type="Label" parent="HUD/UILayout/RightPanel/Margin/Items"]
+layout_mode = 2
+autowrap_mode = 2
+text = "Keep a route open.\nClear 3 waves to win.\nEnemies at exit cost 1 life."
+
+[node name="BottomPanel" type="PanelContainer" parent="HUD/UILayout"]
+layout_mode = 0
+offset_top = 768.0
+offset_right = 1280.0
+offset_bottom = 900.0
+mouse_filter = 0
+theme_override_styles/panel = SubResource("Style_bottom")
+
+[node name="Margin" type="MarginContainer" parent="HUD/UILayout/BottomPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 14
+
+[node name="Items" type="VBoxContainer" parent="HUD/UILayout/BottomPanel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Selection" type="Label" parent="HUD/UILayout/BottomPanel/Margin/Items"]
+layout_mode = 2
+text = "No tower selected • Choose Build Tower to begin"
+
+[node name="Message" type="Label" parent="HUD/UILayout/BottomPanel/Margin/Items"]
+layout_mode = 2
+autowrap_mode = 2
+text = "Create a maze of towers. Keep a route open from the entrance to the exit."
+
+[node name="Legend" type="Label" parent="HUD/UILayout/BottomPanel/Margin/Items"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "GREEN: entrance    ORANGE: exit    CYAN: tower    RED: enemy • Build before or during waves. No selling."
