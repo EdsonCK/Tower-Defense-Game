@@ -21,6 +21,10 @@ const ARMOR_COLOR := Color("f1f5fc")
 const SHIELD_COLOR := Color("b987ff")
 var regeneration := 0.0
 var body_color := Color("f06464")
+var visual_seed := 0
+var _animation_time := 0.0
+var _hit_flash := 0.0
+var _freeze_remaining := 0.0
 var _slow_factor := 1.0
 var _slow_remaining := 0.0
 var _since_damage := 0.0
@@ -101,9 +105,15 @@ func _plan_at_center() -> bool:
 func _process(delta: float) -> void:
 	if not is_alive() or _board == null or _navigation_error:
 		return
+	_animation_time += delta
+	_hit_flash = maxf(0.0, _hit_flash - delta)
+	queue_redraw()
 	_tick_regeneration(delta)
-	var slowed_time := minf(delta, _slow_remaining)
-	var remaining := speed * (slowed_time * _slow_factor + delta - slowed_time)
+	var frozen_time := minf(delta, _freeze_remaining)
+	_freeze_remaining = maxf(0.0, _freeze_remaining - delta)
+	var moving_time := delta - frozen_time
+	var slowed_time := minf(moving_time, maxf(0.0, _slow_remaining - frozen_time))
+	var remaining := speed * (slowed_time * _slow_factor + moving_time - slowed_time)
 	_slow_remaining = maxf(0.0, _slow_remaining - delta)
 	if _slow_remaining == 0.0:
 		_slow_factor = 1.0
@@ -152,6 +162,7 @@ func take_damage(health_damage: int, armor_damage: int = -1, shield_damage: int 
 	if amount <= 0:
 		return
 	_since_damage = 0.0
+	_hit_flash = 0.12
 	if shield > 0:
 		shield = maxi(0, shield - amount)
 	elif armor > 0:
@@ -168,6 +179,20 @@ func apply_slow(factor: float, duration: float) -> void:
 		return
 	_slow_factor = minf(_slow_factor, clampf(factor, 0.25, 1.0))
 	_slow_remaining = maxf(_slow_remaining, minf(duration, 10.0))
+
+
+func apply_freeze(duration: float) -> void:
+	if is_alive() and is_finite(duration) and duration > 0:
+		_freeze_remaining = maxf(_freeze_remaining, minf(duration, 1.5))
+		queue_redraw()
+
+
+func visual_offset() -> Vector2:
+	# Render-only lanes keep crowds legible without altering any protected waypoint.
+	var direction := Vector2(_committed_cell - _current_cell)
+	if direction == Vector2.ZERO:
+		direction = Vector2.RIGHT
+	return direction.orthogonal() * (((visual_seed % 3) - 1) * 4.0)
 
 
 func _resolve(killed: bool) -> void:
@@ -206,31 +231,26 @@ func _tick_regeneration(delta: float) -> void:
 
 
 func _draw() -> void:
-	var color := body_color if not _navigation_error else Color.MAGENTA
-	match kind:
-		EnemyProfile.Kind.RUNNER:
-			draw_colored_polygon(PackedVector2Array([Vector2(12, 0), Vector2(-9, -8), Vector2(-9, 8)]), color)
-		EnemyProfile.Kind.ARMORED:
-			draw_rect(Rect2(-11, -11, 22, 22), color)
-			draw_rect(Rect2(-7, -7, 14, 14), Color("455866"), false, 2.0)
-		EnemyProfile.Kind.SHIELDED:
-			draw_colored_polygon(PackedVector2Array([Vector2(0, -12), Vector2(11, 0), Vector2(0, 12), Vector2(-11, 0)]), color)
-		_:
-			draw_circle(Vector2.ZERO, 10, color)
-	if kind == EnemyProfile.Kind.REGENERATOR:
-		draw_line(Vector2(-5, 0), Vector2(5, 0), Color.WHITE, 3.0)
-		draw_line(Vector2(0, -5), Vector2(0, 5), Color.WHITE, 3.0)
+	var offset := visual_offset()
+	draw_set_transform(offset)
+	MonsterArt.draw_monster(self, kind, _animation_time + visual_seed * 0.71, _hit_flash / 0.12)
+	if _navigation_error:
+		draw_arc(Vector2.ZERO, 16, 0, TAU, 24, Color.MAGENTA, 2)
 	if shield > 0:
-		draw_arc(Vector2.ZERO, 14, 0, TAU, 24, SHIELD_COLOR, 2.0)
-	# Fixed stack positions; depleted layers disappear without moving health.
-	_draw_bar(-18.0, health, max_health, HEALTH_COLOR)
+		draw_arc(Vector2.ZERO, 17, -0.4, 3.5, 28, Color(SHIELD_COLOR, 0.7), 1.3, true)
+	if _freeze_remaining > 0:
+		DrawKit.poly(self, PackedVector2Array([Vector2(0, -17), Vector2(13, -9), Vector2(13, 9), Vector2(0, 16), Vector2(-13, 9), Vector2(-13, -9)]), Color(0.6, 0.9, 1.0, 0.28), Color("bdf5ff"), 1.5)
+	elif _slow_remaining > 0:
+		draw_arc(Vector2(0, 9), 12, 0, PI, 16, Color("9cdff5"), 1.5, true)
+	_draw_bar(-22.0, health, max_health, HEALTH_COLOR)
 	if armor > 0:
-		_draw_bar(-23.0, armor, max_armor, ARMOR_COLOR)
+		_draw_bar(-27.0, armor, max_armor, ARMOR_COLOR)
 	if shield > 0:
-		_draw_bar(-28.0, shield, max_shield, SHIELD_COLOR)
+		_draw_bar(-32.0, shield, max_shield, SHIELD_COLOR)
+	draw_set_transform(Vector2.ZERO)
 
 
 func _draw_bar(y: float, current: int, maximum: int, color: Color) -> void:
-	draw_rect(Rect2(-13, y - 1, 26, 5), Color("101827"))
+	draw_rect(Rect2(-9, y - 1, 18, 5), Color("101827"))
 	if maximum > 0:
-		draw_rect(Rect2(-12, y, 24.0 * current / maximum, 3), color)
+		draw_rect(Rect2(-8, y, 16.0 * current / maximum, 3), color)

@@ -1,5 +1,6 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=4 format=3]
 [ext_resource type="Script" path="res://scripts/skill_tree_menu.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/research_graph.gd" id="2"]
 [sub_resource type="StyleBoxFlat" id="PanelStyle"]
 bg_color = Color(0.043, 0.065, 0.105, 1)
 border_width_left = 1
@@ -49,7 +50,7 @@ theme_override_constants/separation = 12
 [node name="Balance" type="Label" parent="Panel/Margin/Items"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 30
-text = "RESEARCH LAB"
+text = "THE ARCHIVE"
 
 [node name="Message" type="Label" parent="Panel/Margin/Items"]
 layout_mode = 2
@@ -57,18 +58,16 @@ custom_minimum_size = Vector2(0, 40)
 autowrap_mode = 2
 text = "Permanent research"
 
-[node name="Root" type="HBoxContainer" parent="Panel/Margin/Items"]
-layout_mode = 2
-
 [node name="Scroll" type="ScrollContainer" parent="Panel/Margin/Items"]
 layout_mode = 2
 size_flags_vertical = 3
-horizontal_scroll_mode = 0
+horizontal_scroll_mode = 1
+follow_focus = true
 
-[node name="Branches" type="HBoxContainer" parent="Panel/Margin/Items/Scroll"]
+[node name="Graph" type="Control" parent="Panel/Margin/Items/Scroll"]
 layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 16
+script = ExtResource("2")
+mouse_filter = 1
 
 [node name="Footer" type="HBoxContainer" parent="Panel/Margin/Items"]
 layout_mode = 2
@@ -84,3 +83,18 @@ text = "Continue building    →"
 layout_mode = 2
 custom_minimum_size = Vector2(0, 42)
 text = "Retry Save"
+
+[node name="HoverCard" type="PanelContainer" parent="."]
+visible = false
+layout_mode = 0
+custom_minimum_size = Vector2(340, 0)
+offset_right = 340.0
+mouse_filter = 2
+z_index = 100
+
+[node name="Info" type="Label" parent="HoverCard"]
+layout_mode = 2
+custom_minimum_size = Vector2(316, 0)
+mouse_filter = 2
+autowrap_mode = 2
+theme_override_font_sizes/font_size = 15

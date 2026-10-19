@@ -1,3 +1,5 @@
+> Historical v0.4 report and previews. The v0.5 overhaul replaces the artwork, card-style research and exclusive upgrade rules. See [current visuals and checks](../visual-overhaul/README.md).
+
 # v0.4 interface, layered defenses and denser waves
 
 The HUD has a fixed sidebar/footer layout, rounded shared styling, distinct build/management sections, colored resource labels and a separated Sell action. The research menu has four scrolling branches, 26 permanent upgrades, visible prerequisites, increasing prices and a fixed header/footer. Existing profile schema and skill IDs remain valid.

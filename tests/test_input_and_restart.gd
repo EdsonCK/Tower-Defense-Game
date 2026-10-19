@@ -72,7 +72,7 @@ func _run() -> void:
 	click(Vector2(144, 144))
 	check(game.selected_tower != null and not game.building and not game.hud.damage_button.disabled, "clicking existing tower opens management")
 	click(game.hud.damage_button.get_global_rect().get_center())
-	check(game.currency == 80 and game.selected_tower.damage() == 27 and game.hud.range_button.disabled and game.hud.speed_button.disabled, "damage upgrade button charges once and locks other tracks")
+	check(game.currency == 80 and game.selected_tower.damage() == 27 and game.hud.range_button.disabled and game.hud.speed_button.disabled, "damage upgrade button charges once; other categories reflect the next total cost")
 	click(game.hud.remove_button.get_global_rect().get_center())
 	check(game.currency == 110 and game.selected_tower == null and not game.board.is_blocked(Vector2i(4, 4)), "remove button refunds 30 and reopens cell")
 	click(game.hud.build_button.get_global_rect().get_center())

@@ -53,7 +53,7 @@ func _run() -> void:
 	tower = game.tower_at_cell(Vector2i(1, 11))
 	game.select_placed_tower(tower)
 	check(game.upgrade_selected_tower(Tower.Upgrade.SPECIAL), "Static Field track requires and uses its own skill unlock")
-	check(not game.upgrade_selected_tower(Tower.Upgrade.DAMAGE), "unique upgrade also locks competing tracks")
+	check(game.upgrade_selected_tower(Tower.Upgrade.RANGE) and tower.levels(Tower.Upgrade.SPECIAL) == 1 and tower.levels(Tower.Upgrade.RANGE) == 1, "unique and range purchases can share the same tower")
 	var slowed := preload("res://scenes/enemy.tscn").instantiate() as Enemy
 	game.board.get_node("Enemies").add_child(slowed)
 	slowed.setup(game.board, 200)

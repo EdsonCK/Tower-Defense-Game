@@ -23,52 +23,64 @@ func _run() -> void:
 	root.size = Vector2i(1600, 900)
 	var game := load("res://scenes/main.tscn").instantiate() as TDGame
 	game.progression = Progression.new("")
-	game.progression.unlocked.assign(["tesla", "basic_training", "tesla_training", "piercing", "salvage"])
-	game.progression.diamonds = 12
+	game.progression.unlocked.assign(SkillCatalog.IDS)
+	game.progression.diamonds = 24
 	root.add_child(game)
 	game.board.process_mode = Node.PROCESS_MODE_DISABLED
 	game.waves.set_process(false)
 	game.waves.set_run_seed(472)
 	game.currency = 10000
-	for x in [1, 3, 5]:
-		for y in range(1, 23):
-			game.purchase_tower(Vector2i(x, y))
-	for x in [8, 13, 18, 23, 28, 33]:
-		game.purchase_tower(Vector2i(x, 11))
-		game.build_kind = Tower.Kind.TESLA
-		game.purchase_tower(Vector2i(x, 13))
-		game.build_kind = Tower.Kind.BASIC
+	var towers: Array[Tower] = []
+	for kind in range(5):
+		game.select_tower(kind)
+		var cell := Vector2i(5 + kind * 7, 10)
+		game.purchase_tower(cell)
+		towers.append(game.tower_at_cell(cell))
 	game.currency = 1480
-	game.select_placed_tower(game.tower_at_cell(Vector2i(3, 12)))
-	game.upgrade_selected_tower(Tower.Upgrade.RANGE)
-	game.waves.current_wave = 39
-	game.start_wave()
-	game.waves._process(16.0)
-	var index := 0
-	for node in game.board.active_enemies():
-		var enemy := node as Enemy
-		enemy.position = Vector2(220 + index * 28, 400)
-		if index % 4 == 0:
-			enemy.shield = 28
-			enemy.max_shield = 40
-			enemy.armor = 34
-			enemy.max_armor = 45
-			enemy.health = roundi(enemy.max_health * 0.8)
-		enemy.queue_redraw()
-		index += 1
+	game.select_placed_tower(towers[2])
+	for category in [Tower.Upgrade.DAMAGE, Tower.Upgrade.RANGE, Tower.Upgrade.SPEED]:
+		game.upgrade_selected_tower(category)
+	var units: Array[Enemy] = []
+	for index in range(65):
+		var unit := Enemy.new()
+		unit.visual_seed = index
+		game.board.get_node("Enemies").add_child(unit)
+		var profile := EnemyProfile.base((index % 5) as EnemyProfile.Kind)
+		profile.hit_points = 5000
+		unit.setup_profile(game.board, profile)
+		unit.position = Vector2(100 + index * 17, 415)
+		unit.set_process(false)
+		units.append(unit)
+	for i in range(towers.size()):
+		if i == 1:
+			towers[i].attack_area()
+		else:
+			var target_x := towers[i].position.x + (220 if i == Tower.Kind.MORTAR else 0)
+			var target := units[clampi(roundi((target_x - 100) / 17.0), 0, units.size() - 1)]
+			towers[i].attack(target)
+	for node in game.board.get_node("Projectiles").get_children():
+		(node as CombatProjectile)._process(0.45 if (node as CombatProjectile).kind == CombatProjectile.Kind.MORTAR else 0.12)
+	game.waves.current_wave = 40
+	game.waves.active_count = units.size() # Visual fixture counters only.
+	game.phase = TDGame.Phase.WAVE_ACTIVE
 	game._refresh_hud()
-	game.hud.show_message("Hold the line • Purple shields → White armor → Green health • Specialize your damage to break each layer.")
+	game.hud.show_message("Hold the line • Mix damage, range, firing speed and unique upgrades • Every tower now shares five slots, or six with mastery.")
 	for frame in range(4):
 		await process_frame
 	await RenderingServer.frame_post_draw
 	_capture("hud.png")
 	game.waves.stop()
 	game.phase = TDGame.Phase.BETWEEN_WAVES
+	game.progression.unlocked.assign(["tesla", "basic_training", "tesla_training", "mortar", "ice", "cannon", "salvage", "engineering", "mortar_training"])
 	game.open_skill_tree()
 	for frame in range(4):
 		await process_frame
 	await RenderingServer.frame_post_draw
 	_capture("research.png")
+	game.skill_tree._show_info("mortar_area")
+	await process_frame
+	await RenderingServer.frame_post_draw
+	_capture("research-hover.png")
 	game.close_skill_tree()
 	game.hud.get_node("RightPanel/Margin/Items/Restart").pressed.emit()
 	for frame in range(4):
@@ -77,6 +89,13 @@ func _run() -> void:
 	_capture("restart.png")
 	game.free()
 	await process_frame
+	var gallery := Node2D.new()
+	gallery.set_script(load("res://tests/visual_gallery.gd"))
+	root.add_child(gallery)
+	await process_frame
+	await RenderingServer.frame_post_draw
+	_capture("gallery.png")
+	gallery.free()
 	quit()
 
 func _capture(name: String) -> void:

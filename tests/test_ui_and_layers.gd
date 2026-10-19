@@ -120,7 +120,7 @@ func _test_research() -> void:
 		check(profile.purchase(id) and profile.diamonds == before - int(node.cost), "new research purchase charges correctly: " + id)
 		check(not profile.purchase(id) and profile.diamonds == before - int(node.cost), "research cannot be purchased twice: " + id)
 		seen.append(id)
-	check(seen.size() == 26, "catalog has 26 permanent upgrades")
+	check(seen.size() == 40, "catalog has 40 permanent upgrades")
 	check(profile.gold_reward(30) == 60, "full economy tree gives double gold")
 	var tower := Tower.new()
 	tower.configure_progression(profile)
@@ -163,7 +163,7 @@ func _test_ui(game: TDGame) -> void:
 	var cursor := game.hud.range_button.get_global_rect().get_center()
 	click(root, cursor)
 	check(game.hud.selected_label.get_visible_line_count() == game.hud.selected_label.get_line_count(), "all three tower stat lines are visible")
-	check(tower.upgrade_type == Tower.Upgrade.RANGE and tower.upgrade_level == 1, "real range button selects range track")
+	check(tower.levels(Tower.Upgrade.RANGE) == 1 and tower.upgrade_level == 1, "real range button selects range track")
 	game.start_wave()
 	await process_frame
 	for i in range(controls.size()):
@@ -220,7 +220,7 @@ func _test_ui(game: TDGame) -> void:
 	game.open_skill_tree()
 	await process_frame
 	await process_frame
-	check(game.skill_tree.buy_buttons.size() == 26 and game.skill_tree.scroll.get_v_scroll_bar().max_value > game.skill_tree.scroll.size.y, "four research branches scroll to all 26 upgrades")
+	check(game.skill_tree.buy_buttons.size() == 40 and game.skill_tree.scroll.get_v_scroll_bar().max_value > game.skill_tree.scroll.size.y, "icon research graph scrolls to all 40 upgrades")
 	game.progression.diamonds = 1000
 	game.progression.unlocked.assign(SkillCatalog.IDS)
 	game.progression.unlocked.erase("shield_decay")

@@ -37,7 +37,7 @@ func _run() -> void:
 		var revision := game.board.revision
 		for other in [Tower.Upgrade.DAMAGE, Tower.Upgrade.RANGE, Tower.Upgrade.SPEED]:
 			if other != track:
-				check(not game.upgrade_selected_tower(other) and tower.upgrade_type == track and game.currency == 80, "first upgrade locks competing tracks")
+				check(not game.upgrade_selected_tower(other) and tower.levels(other) == 0 and game.currency == 80, "unaffordable mixed purchase cannot mutate another category")
 		# Dedicated economy fixture: fund the later levels explicitly.
 		game.currency = 10000
 		var expected := game.currency
@@ -63,7 +63,7 @@ func _run() -> void:
 		check(game.remove_selected_tower() and game.currency == expected + 30, "removal refunds half construction, not upgrade spending")
 		check(not game.board.is_blocked(Vector2i(4, 4)) and game.board.revision == revision + 1 and game.tower_at_cell(Vector2i(4, 4)) == null, "removal opens cell and deletes tower from ownership")
 		check(not game.remove_selected_tower() and not game.upgrade_selected_tower(track) and game.currency == expected + 30, "repeated remove/upgrade cannot duplicate refund")
-		check(game.purchase_tower(Vector2i(4, 4)) and game.tower_at_cell(Vector2i(4, 4)).upgrade_type == Tower.Upgrade.NONE, "rebuild starts with an unlocked tower")
+		check(game.purchase_tower(Vector2i(4, 4)) and game.tower_at_cell(Vector2i(4, 4)).upgrade_level == 0, "rebuild starts with an unlocked tower")
 		game._finish(TDGame.Phase.DEFEAT)
 		check(not game.remove_selected_tower() and not game.upgrade_selected_tower(track), "defeat disables tower management")
 		game.free()

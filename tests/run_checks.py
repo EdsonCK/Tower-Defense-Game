@@ -28,6 +28,8 @@ SUITES = (
     "test_auto_start",
     "test_hallway_policy",
     "test_ui_and_layers",
+    "test_new_towers",
+    "test_research_icons",
 )
 ERRORS = re.compile(r"SCRIPT ERROR:|ERROR:|FAIL:|leaked at exit|resources still in use")
 COUNTS = re.compile(r"(\d+) checks, (\d+) failures")

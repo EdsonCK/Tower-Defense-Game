@@ -1,216 +1,144 @@
-# Unnamed TD Game — Research & Layered Defenses (v0.4)
+# Unnamed TD Game — Monsters & Machinations (v0.5)
 
-Godot **4.7.2 Stable**, GDScript, geometric art, no plugins/autoloads/external assets. Open the repository-root `project.godot` and press **F5**. Work is on `Codex-Workspace`.
+Godot **4.7.2 Stable**, GDScript, original vector artwork, no plugins or external assets. Open the repository-root `project.godot` and press **F5**. Development is on **Codex-Workspace**.
 
-## Play and progression
+[Artwork, gameplay and branching research previews](docs/visual-overhaul/README.md)
 
-- **Gold** buys towers and their run-only upgrades. Start each run with 200 gold and 10 lives.
-- Earn **exactly 1 diamond per completed wave**, including a wave survived with escaped enemies. A lost/incomplete wave gives none. Completion callbacks cannot double-pay.
-- **Diamonds and skill unlocks are permanent:** retained through Restart and reopening the application. Gold, placed towers, and purchased tower levels reset on Restart.
-- After clearing waves **5, 10, 15, …**, the skill menu opens automatically. It is also available through **Research lab** before/between waves. Close the modal to resume building or start the next wave. It cannot open during a wave and blocks gameplay actions while visible.
-- **Tesla is the sole first available skill, costing 3 diamonds.** All other skills require it or a descendant.
-- **Every tower type starts with all gold upgrades locked.** Unlock that type's training in Skills first; this immediately enables upgrades on existing and future towers of that type. Unique tracks require their additional skill.
+## Playing
 
-Controls: **Build Tower** or **Build Tesla**, then left-click a valid tile. Click an existing tower to manage it, including while in build mode. **Right-click / Escape / Cancel** clears selection; Escape closes the skill menu. **Start Wave** launches a wave manually. Turn on **Auto-start Waves** to launch subsequent waves after each clear. Wave 1 still starts manually; automatic progression waits for skill menus to close, stops on defeat, and resets off on Restart. Turning the toggle off cancels a queued next wave. **Restart** asks “Are you sure?” before creating a new run/random seed. Combat and spawning pause while the confirmation is open; **Keep playing**, Escape, or closing the dialog resumes the current run. Diamonds and skills are preserved. No victory cap: play continues until defeat.
+Start with **200 gold and 10 lives**. Build a maze without blocking the entrance, exit or any living enemy's committed waypoint. The map remains a **40 × 24 grid**, with 32 px cells, a 1280 × 768 board and a 1600 × 900 logical window.
 
-## Interface
+- Select a tower in the fixed build palette, then left-click a valid tile. Click a placed tower to manage it.
+- Right-click / Escape / **Clear** cancels building or selection. Escape also closes research.
+- **Start next wave** launches a wave manually. **Auto-start waves** starts later waves automatically, waiting for research and restart dialogs. Wave 1 always starts manually; Restart resets auto-start off.
+- **Research lab** opens between waves and automatically after every fifth clear. Hover an icon for its name, cost, requirement and effect; click the icon to buy. Keyboard focus also reveals information and follows the scrolling graph.
+- **Sell** refunds **50% of construction**, excluding upgrade spending. **Restart run** asks for confirmation, pauses combat while deciding, and preserves diamonds/research.
+- The sidebar and footer have fixed hit areas: status, counter and selection changes cannot move Range or Sell under a stationary cursor.
 
-The sidebar and footer use fixed control regions. Status changes, wave completion, selection, long messages, and large counters cannot move upgrade or Sell targets. Sell has a separate red-accented row and Restart sits at the bottom. The selected-tower card shows **HP / ARM / SHD damage**, range and firing interval. Large counters abbreviate; tooltips retain exact values.
+## Monsters and combat presentation
 
-The research lab has four scrolling branches, prerequisite labels, researched/available states, a fixed diamond header and an always-visible close button. See [rendered previews and UI checks](docs/ui/README.md).
+The five existing stat archetypes now have distinct illustrated silhouettes, contrasting highlights, heavy outlines, shadows and animated limbs:
 
-## Permanent skill tree
+| Monster | Existing archetype | Base health / speed / gold | Traits and silhouette |
+| --- | --- | --- | --- |
+| Ember Imp | Grunt | 45 / 60 / 12 | Horns, fangs, curled tail, ember-colored skin |
+| Skitterfang | Runner | 30 / 90 / 9 | Six jointed legs, amber segmented shell, mandibles |
+| Ironback Ogre | Armored | 105 / 40 / 24 | Heavy plating, shoulder spikes, illuminated visor; 45 base armor |
+| Mire Shaman | Regenerator | 68 / 52 / 20 | Green hood, roots, crystal staff; regenerates 3 HP/s after 2 seconds without damage |
+| Void Wraith | Shielded | 80 / 66 / 22 | Crown, claws, spectral tails; 30 base shield |
 
-There are **26 permanent nodes**, including 16 new upgrades with increasing costs. Existing saves and previously purchased unlocks remain valid. Each node is a one-time diamond purchase. The menu shows prerequisites, prices, effects, and acquired/locked states.
+Small perpendicular **render-only** offsets help distinguish overlapping monsters without changing their movement coordinates, target positions or placement protections. Their lower health bars keep fixed vertical positions when defenses break.
 
-| Skill | Diamonds | Requires | Permanent effect |
+Damage layers remain **purple shield → white armor → green health**. A hit affects only the highest remaining pool; overkill never spills into the next layer. Armor is destructible plating. Each tower has separate health, armor and shield damage stats shown in its selected card. Nonpositive damage cannot bypass a protected layer.
+
+## Five tower types
+
+All towers use carved stone bases, metal fittings and distinct weapon silhouettes. Prices and initial combat values:
+
+| Tower | Build / refund | Health / armor / shield damage | Target range | Fire interval | Attack |
+| --- | --- | --- | ---: | ---: | --- |
+| Sentinel (regular tower) | 60 / 30 | **15 / 24 / 8** | 112 px | 0.8 s | Aimed shot, rotating barrel, recoil, muzzle flash and brief tracer |
+| Tesla | 110 / 55 | **12 / 6 / 24** | 80 px | 1.1 s | Jagged circular lightning discharge; every enemy in range is damaged once per pulse |
+| Mortar | 160 / 80 | **55 / 77 / 33** | 280 px | 2.4 s | Shell arcs over towers to a fixed ground destination; 64 px area damage on landing |
+| Ice | 100 / 50 | **8 / 4 / 10** | 136 px | 1.0 s | Homing icicle at 340 px/s; slows 35% for 2 seconds on impact |
+| Cannon | 150 / 75 | **42 / 67 / 21** | 176 px | 1.6 s | Ball at 300 px/s; pierces enemies once each, travels 320 px, stops at the first friendly tower |
+
+Mortar shells have a 0.45–1.5 second flight, scaled by distance. They continue to the landing point if the original target dies, and can miss moving targets. Area damage occurs once, followed by a cosmetic blast. Icicles expire if their target dies. Cannon collision sweeps its full segment, including the ball radius, so large frame steps cannot tunnel through enemies or towers. Collision order respects the nearest tower: targets beyond it receive no damage. A tower constructed during flight can block a ball; a sold tower stops blocking it.
+
+In-flight projectiles snapshot damage and control effects at launch. They survive selling their source, but wave completion/defeat/restart clears them so a previous wave cannot damage the next. Restart confirmation pauses all projectiles with the board. No permanent source/target object references are retained by a projectile.
+
+## Mixed upgrades: five total, or six with mastery
+
+Each tower type needs **its own training** in research before any gold upgrades. Once trained, mix **Damage, Range, Firing speed and researched Unique** upgrades freely, up to **five total purchases per tower**. For example, 2 Damage + 2 Range + 1 Speed uses all five slots. There are no competing-track locks.
+
+**Mastery research for each type unlocks its sixth slot**, immediately affecting placed towers and future construction. A seventh purchase is always rejected. Unique purchases share this same budget; they are not extra free levels. The next price depends on the total number of purchases, not category:
+
+| Tower | Prices for purchases 1–6 | Damage purchase | Range purchase | Unique purchase |
+| --- | --- | --- | --- | --- |
+| Sentinel | 60, 100, 160, 240, 360, **520** | +12 base HP damage | +24 px | +8 base damage and +15 concentrated armor damage |
+| Tesla | 80, 130, 200, 300, 450, **650** | +9 base damage | +12 px | +4 base damage; stronger 0.8 s slow |
+| Mortar | 100, 160, 240, 350, 500, **720** | +22 base damage | +32 px | +10 base damage, +8 px blast radius |
+| Ice | 70, 110, 170, 250, 370, **540** | +6 base damage | +20 px | +2 base damage, +3 percentage points freeze chance, +0.08 s freeze |
+| Cannon | 90, 145, 220, 320, 470, **680** | +16 base damage | +24 px | +6 base damage, +36 px travel |
+
+Each firing-speed purchase multiplies the interval by **0.82**. Damage purchases also increase derived armor/shield damage according to each tower's specialization. Permanent engineering applies before those derived stats are rounded; armor/shield specialization applies afterward. Range and speed passives apply to the combined tower stats. Purchases can shorten an existing cooldown but never grant an immediate free shot.
+
+Slows retain the strongest factor/longest duration without multiplying indefinitely. Ice freezes prevent movement for a bounded time, including correct partial-frame behavior when a freeze ends; the underlying waypoint reservation is retained. The base researched freeze chance is **8%**, rising only with paid Unique purchases, up to 26% with six such purchases. Freeze RNG is local to each tower and never changes the wave generator's random stream.
+
+## Permanent research and saves
+
+Earn **exactly one diamond per cleared wave**. A partial/defeated wave gives none. Duplicate completion callbacks cannot pay twice. Diamonds and all unlocks persist through restarting or reopening the game. Run gold, towers and gold upgrade levels reset.
+
+The Archive has **40 branching icon nodes**, rooted at **Tesla Tower for 3 diamonds**. It is the sole initially eligible research. Icons show researched/available/locked states; node information appears only on hover/focus. Prerequisite lines scroll with the icons. Clicking locked, owned or unaffordable research cannot spend diamonds.
+
+New tower branches and abilities:
+
+| Research | Diamonds | Requires | Effect |
 | --- | ---: | --- | --- |
-| Tesla Tower | **3** | None | Unlock Tesla construction |
-| Basic Tower Training | 3 | Tesla | Enable basic tower gold upgrades |
-| Tesla Training | 4 | Tesla | Enable Tesla gold upgrades |
-| Salvage | 3 | Tesla | +20% gold from kills and wave-clear bonuses |
-| Piercing Rounds | 4 | Basic Training | Unlock basic tower's unique upgrade track |
-| Static Field | 4 | Tesla Training | Unlock Tesla's unique upgrade track |
-| Tower Engineering | 4 | Basic Training | Permanent +10% damage for both tower types, including existing towers |
-| Gold Mastery | 5 | Salvage | Another +20% gold, 40% total |
-| Heavy Footsteps | 4 | Tesla | New enemies move 10% slower |
-| Brittle Defenses | 5 | Heavy Footsteps | New enemies have 15% less HP and shield |
+| Mortar Tower | 7 | Tesla | Unlock mortar construction |
+| Mortar Training | 8 | Mortar Tower | Enable its mixed upgrades |
+| Volatile Payload | 10 | Mortar Training | +25% base blast radius; unlock Unique blast upgrades |
+| Ice Tower | 5 | Tesla | Unlock ice construction |
+| Ice Training | 6 | Ice Tower | Enable its mixed upgrades |
+| Glacial Heart | 9 | Ice Training | 8% chance of 0.5 s freeze; unlock Unique freeze upgrades |
+| Cannon Tower | 8 | Tesla | Unlock cannon construction |
+| Cannon Training | 9 | Cannon Tower | Enable its mixed upgrades |
+| Rifled Bore | 12 | Cannon Training | +50% cannonball travel; unlock Unique travel upgrades |
+| Sentinel / Tesla / Mortar / Ice / Cannon Mastery | 12 / 14 / 16 / 14 / 18 | Respective type's training | Sixth upgrade slot for that type |
 
-| New research | Diamonds | Requires | Permanent effect |
-| --- | ---: | --- | --- |
-| Armor Breaker / II | 7 / 14 | Piercing Rounds / previous tier | +25% / another +40% armor damage for all towers |
-| Tower Engineering II / III | 9 / 18 | Engineering / previous tier | Another +15% / +25% to damage; +50% total with all tiers |
-| Precision Optics / II | 6 / 12 | Basic Training / previous tier | +8% / another +12% range for all towers |
-| Overcharge / II | 7 / 14 | Static Field / previous tier | +25% / another +40% shield damage for all towers |
-| Rapid Cycling / II | 8 / 16 | Tesla Training / previous tier | Interval ×0.92 / another ×0.88, about 19% shorter together |
-| Gold Mastery II / III | 10 / 20 | Gold Mastery / previous tier | Another +25% / +35% reward gold, +100% total with all tiers |
-| Heavy Footsteps II | 9 | Heavy Footsteps | New enemies move another 10% slower, 19% total |
-| Brittle Defenses II | 12 | Brittle Defenses | Another 15% less HP and shield, applied multiplicatively |
-| Exposed Plating | 8 | Brittle Defenses | New enemies have 20% less armor |
-| Shield Decay | 10 | Exposed Plating | New enemies have 25% less shield |
+The previous 26 nodes remain compatible: type training, Piercing Rounds/Static Field, engineering I–III, armor/shield specialization I–II, optics I–II, rapid cycling I–II, gold boosts, slowdown/health nerfs and reduced armor/shields. Generic tower passives now cover **all five types**. All effects and prerequisite costs are defined in `scripts/skill_catalog.gd`.
 
-Tower Engineering scales final damage, including gold levels, and rounds to the nearest HP. Gold boosts are added together, then each reward rounds down. They do **not** boost removal refunds or diamonds. Enemy nerfs apply once to each spawned profile. Skills are bought between waves, so no live enemy stats are abruptly changed.
+Profile schema remains **1**. Existing diamond balances and old skill IDs load without a reset. The profile lives at **`user://progression.json`**, outside the repository. On Windows, use Godot **Project → Open User Data Folder** to locate it. Saves flush a temporary file before replacing the primary and retain a previous valid `.bak`. Corrupt primary data can recover from backup; invalid profiles are preserved, and failed purchases roll back. The HUD marks save errors and offers retry in research. Restart passes the same in-memory profile into the new scene.
 
-## Towers and gold upgrades
+Tests use isolated in-memory profiles and disposable files, never the player's saved profile.
 
-| Type | Build / refund | Health / armor / shield damage | Range | Interval | Attack |
-| --- | --- | ---: | ---: | ---: | --- |
-| Basic | 60 / 30 | **15 / 24 / 8** | 112 px | 0.8 s | Nearest living enemy |
-| Tesla | 110 / 55 | **12 / 6 / 24** | **80 px** | 1.1 s | Electric bolt to **every living enemy in range**, once per pulse |
+## Endless waves and navigation
 
-Tesla has a visible coil and branching electric bolts. Range is center-to-center Euclidean distance, including targets exactly at its radius. Both types block one cell. Removing refunds **50% of original construction**, with no refund for gold spent upgrading. Rebuilding creates a new tower with no selected track; its type's permanent training still applies.
+Post-wave-30 density from v0.4 remains: **152 enemies at wave 50**, **442 at wave 100**, and a safety plateau of **512 enemies from wave 110**. Spawn spacing shrinks as counts grow, while the first-to-last spawn window increases from about 44 seconds at wave 31 to 136 seconds at the plateau. Transit/combat adds further time. Composition, HP/defenses and movement speed vary by seeded run. Health/defense caps and bounded arithmetic remain in place.
 
-After training, select **one track per tower**, up to five levels. Choosing any track, including a unique track, locks out all others on that tower. Costs are the same for normal and unique tracks of a given type:
+Board owns AStarGrid2D occupancy and placement transactions. Every accepted tower preserves spawn-to-exit reachability and every living enemy's committed waypoint. In-flight enemies finish their current segment before replanning. The new towers, freezes and visual offsets preserve these protections. Selling opens routes without moving enemies.
 
-- Basic levels 1–5: **60, 100, 160, 240, 360 gold**.
-- Tesla levels 1–5: **80, 130, 200, 300, 450 gold**.
+Historical one-seed natural bot reports remain in [v0.3 balance](docs/balance/README.md) and [v0.4 layered-defense balance](docs/ui/README.md). The old bots buy Sentinel/Tesla only; those measurements do not establish balance for the new tower combinations. The five-seed normal regression still checks sensible placement clears 30 waves while off-route placement loses within five. No new full endless balance calibration is claimed for v0.5.
 
-| Track | Basic per level | Tesla per level |
-| --- | --- | --- |
-| Damage | +12 damage | +9 damage |
-| Range | +24 px | +12 px |
-| Firing speed | Interval ×0.82 | Interval ×0.82 |
-| Unique | Piercing Rounds: +8 health damage and +15 concentrated armor damage (before armor specialization bonus) | Static Field: +4 damage; slows targets 20–40% for 0.8 s at levels 1–5 |
+## Files
 
-Damage upgrades raise the health stat; the armor/shield stats scale from it. Basic armor/shield ratios are 1.6 / 0.55; Tesla ratios are 0.5 / 2.0. Piercing adds its concentrated armor bonus before permanent armor specialization. Engineering applies to the health stat first; derived damage is rounded, then specialized per layer. Every hit affects only the highest remaining pool: **purple shield → white armor → green health**, with **no overflow into lower layers**, even on a lethal overkill. Armor is now destructible plating rather than a permanent damage-reduction number. Nonpositive damage to the active layer cannot bypass it. Depleted bars disappear; remaining bars keep their vertical positions.
+- `scripts/main.gd`: authoritative run economy, phase, profile and scene wiring.
+- `scripts/board.gd`, `enemy.gd`: grid safety, movement, layered damage, slow/freeze and monster rendering.
+- `scripts/tower_catalog.gd`: five types' construction/combat/research defaults.
+- `scripts/tower.gd`: mixed upgrade counts, tower passives, target selection and firing.
+- `scripts/combat_projectile.gd`: shell/icicle/cannon flight, AoE and swept collision.
+- `scripts/monster_art.gd`, `tower_art.gd`, `draw_kit.gd`: original procedural vector illustrations.
+- `scripts/skill_catalog.gd`, `progression.gd`: permanent unlocks and atomic local saving.
+- `scripts/skill_tree_menu.gd`, `research_graph.gd`, `research_icon.gd`: branching icons, prerequisite edges, hover information and purchase intents.
+- `scripts/hud.gd`, `ui_style.gd`: stable controls, state display, confirmation and shared theme.
+- `scenes/`: valid Godot main, enemy, tower and research scenes.
+- `tests/`: automated regressions, natural reference bots and optional rendered preview fixtures.
 
-Slows retain the strongest factor/longest remaining duration rather than multiplying without limit. Movement resumes at normal speed when they expire, including partway through a frame. Speed upgrades never reset the cooldown to grant a free shot. Invalid, locked, unaffordable, maxed, or stale-selection actions cannot charge gold/diamonds.
+`.gd.uid` source files are committed. `.godot/` and Python caches are ignored. Preview documentation is excluded from game imports with `.gdignore`.
 
-## Map, enemies, and balancing
+## Automated checks
 
-The 40 × 24 grid, 32 px cells, 1280 × 768 board, and 1600 × 900 logical window remain unchanged. Spawn `(0,12)` and exit `(39,12)` are reserved. UI panels consume their own clicks. Every accepted build preserves routes for spawn **and every living enemy's committed waypoint**. In-flight enemies finish their protected segment before rerouting at the next center. Slows, removals, and Tesla damage preserve these rules.
-
-Five enemy types remain distinct:
-
-| Type / shape | Base HP | Speed | Bounty | Trait |
-| --- | ---: | ---: | ---: | --- |
-| Grunt / red circle | 45 | 60 | 12 | Standard |
-| Runner / orange triangle | 30 | 90 | 9 | Fast |
-| Armored / steel square | 105 | 40 | 24 | Starts with 45 destructible armor; scales with wave |
-| Regenerator / purple cross | 68 | 52 | 20 | Heals 3 HP/s after 2 s without a hit |
-| Shielded / gold diamond | 80 | 66 | 22 | Starts with 30 shield; no recharge |
-
-Each independent run varies composition/order, HP/defenses (±5%) and speed (±3%). Through wave 30, count varies by ±1 (8–64 enemies) and cadence by ±4%. After wave 30, count is `min(512, 64 + 4*l + floor(0.02*l*l))`, where `l = wave-30` is bounded before arithmetic. Spawn interval is `0.678 * (count/64)^-0.45` seconds: more enemies arrive faster, while total spawn windows get longer. Both plateau at 512 enemies / about 0.266 s spacing to bound resources. Enemies still in transit extend the actual wave beyond its spawn window.
-
-| Wave | Enemies | Spawn interval | First-to-last spawn window |
-| --- | ---: | ---: | ---: |
-| 31 | 68 | 0.660 s | 44.2 s |
-| 40 | 106 | 0.540 s | 56.7 s |
-| 50 | 152 | 0.459 s | 69.4 s |
-| 75 | 284 | 0.347 s | 98.1 s |
-| 100 | 442 | 0.284 s | 125.3 s |
-| 110+ | 512 | 0.266 s | 135.9 s |
-
-At least two types appear per wave; armor unlocks from wave 2, regeneration from 3, shields from 5. Waves wait until every enemy resolves, and plans/prior-wave nodes are released. Auto-start waits for both research and restart dialogs.
-
-HP/shield scale is `(1 + 0.08*d + 0.012*max(d-4,0)^2) * (1 + 0.055*max(wave-30,0))`, with `d=wave-1` bounded before arithmetic and ±5% profile variation. Armored plating uses this same scale times `45 * (1 + 0.10*min(12, floor(d/6) + floor(max(wave-30,0)/4)))`. Each defense/health pool caps at 1,000,000. Early HP and spawn cadence are preserved; armor now follows the new pool mechanic. Kills pay their bounty; surviving a wave pays **30 base gold and 1 diamond**. Every escape costs one life. Zero lives immediately stops gameplay.
-
-Fresh-profile bot calibration uses five seeds (`721,109,1337,9001,2026`), with no injected gold, diamonds, damage, speed, lives, or unlocks:
-
-- **Sensible policy:** distributed route coverage, earned-gold purchases/levels, and earned-diamond skill purchases. All five cleared **30 waves with 10 lives**.
-- **Poor policy:** the same initial budget spent far from the route. All five lost on **wave 2**, after clearing only wave 1.
-
-These are reproducible reference policies, not a claim that every strategy or late-game build is balanced. Constants/templates/rules are in `game_config.gd`, `enemy_profile.gd`, `wave_generator.gd`, and `skill_catalog.gd`.
-
-## Profile storage and recovery
-
-The local profile is **`user://progression.json`**, outside the repository. On Windows the default Godot location is `%APPDATA%/Godot/app_userdata/Unnamed TD Game/`; Godot's **Project → Open User Data Folder** locates the actual directory. No Windows path is hardcoded in source.
-
-A versioned JSON profile stores the diamond balance, known prerequisite-valid unlocks, and the last rewarded run/wave marker. Saves write and flush a temporary file before replacing the primary, with a previous valid `.bak` retained. A corrupt primary can recover from backup. Unknown versions/invalid data are rejected rather than silently overwritten. A blocked save leaves earned diamonds in memory, marks the HUD balance with `*`, and shows a status/retry action in Skills; failed skill purchases roll back. If both saved copies are unreadable, preserve/repair them while the game is closed and reopen it. Progress cannot survive closing the app if the disk remains unwritable.
-
-Tests inject in-memory profiles. Dedicated persistence tests use unique disposable files under `user://tests/`; **they never reset, spend, or farm the player's real profile**. Restart passes the same profile into the new scene without retaining run objects.
-
-## Files and ownership
-
-```text
-project.godot, .gitignore, README.md
-scenes/
-  main.tscn, enemy.tscn, tower.tscn
-  skill_tree.tscn          # Research modal shell and scrolling branches
-scripts/
-  ui_style.gd             # Shared vector UI theme and palette
-  game_config.gd          # Shared values
-  main.gd                 # Authoritative run economy/state/system wiring
-  board.gd                # AStarGrid2D, occupancy, placement and coordinates
-  enemy.gd                # Movement, health, traits, slowing and resolution
-  tower.gd                # Basic/Tesla attacks, training gates, exclusive tracks
-  hud.gd                  # State display and player intents
-  enemy_profile.gd, wave_generator.gd, wave_manager.gd
-  skill_catalog.gd        # Permanent nodes, costs and dependency graph
-  progression.gd          # Diamond accounting, unlocks, atomic local profile
-  skill_tree_menu.gd      # Modal presentation and button intents
-tests/
-  run_checks.py
-  test_pathfinding.gd, test_movement.gd, test_gameplay.gd
-  test_input_and_restart.gd, test_enemy_traits.gd
-  test_tower_management.gd, test_endless_stability.gd
-  test_progression.gd, test_tesla.gd, test_balance.gd, test_auto_start.gd
-  bot_policies.gd, test_hallway_policy.gd, compare_endless.gd
-  test_ui_and_layers.gd, capture_ui.gd
-```
-
-`.gd.uid` files are source and committed; `.godot/` and Python caches are ignored. There are no plugins or autoload singletons. Live pathfinding still uses AStarGrid2D (no diagonal movement, Manhattan heuristic), initialized once; candidate solidity is restored on rejected placements and scene-instantiation failure.
-
-## Run automated checks
-
-Python 3 standard library only, using the actual Godot 4.7.2 Stable executable:
-
-```powershell
-python tests/run_checks.py --godot 'C:\path\to\Godot_v4.7.2-stable_win64.exe'
-```
-
-Cloud command actually used:
+Run with your actual Godot 4.7.2 Stable executable:
 
 ```sh
-python3 tests/run_checks.py --godot /workspace/tools/godot-4.7.2/Godot_v4.7.2-stable_linux.x86_64
+python3 tests/run_checks.py --godot /path/to/Godot_v4.7.2-stable_linux.x86_64
 ```
 
-The official binary reports `4.7.2.stable.official.ed1daf0bf` and was SHA512-verified. The runner sets writable temporary Linux XDG directories, imports first, runs a 180-frame startup, then all thirteen SceneTree suites. It checks timeouts, exit status, logged engine/script/leak errors, nonzero test counts, and failures. It does not modify HOME or repository source. Individual suites can be run with:
+The standard-library runner imports the editor project, starts the game for 180 frames and executes **15 suites**. It rejects timeouts, nonzero exits, logged engine/script/leak errors, missing check counts and failed assertions. It uses isolated writable temporary Linux XDG directories without modifying HOME.
 
-```sh
-godot --headless --editor --path . --quit
-godot --headless --path . --quit-after 180
-godot --headless --path . --script res://tests/test_progression.gd
-godot --headless --path . --script res://tests/test_tesla.gd
-godot --headless --path . --script res://tests/test_balance.gd
-```
+Coverage includes pathfinding/placement transactions, moving-enemy reroutes, economy, real HUD/restart input, persistent diamond accounting, 40-node research/save compatibility, layer-specific damage, mixed upgrade limits and per-type sixth slots. New suites exercise real hover/click input on icon nodes, mortar flight/AoE, cannon piercing and first-tower collision, live tower construction/removal, ice slow/freeze timing/chance, snapshot damage, dead targets/sold sources, projectile pause and wave cleanup, and repeated blast lifecycles.
 
-Use your actual executable instead of `godot` if it is not on PATH. Import first on fresh checkouts.
+Long-run regression includes **10,000 generated waves / 5,086,314 profiles**, **1,000 scheduled waves**, **300 scene lifecycle waves**, **100 build/remove cycles**, and **80 repeated projectile lifecycles**. Lifecycle fixtures intentionally inject resources or resolve actors; natural placement tests remain separate. Rendering checks are separate from headless tests.
 
-Verified headless results: **35,392 checks across 13 suites, 0 failures**, plus import/startup, with no logged engine/script errors or leaks. Coverage includes persistence/recovery, real skill-menu button input, exact diamond payouts, milestone/modality, type-specific training, unique tracks, Tesla area damage/range/cooldown, gold boosts, enemy nerfs, and permanent-profile restart. New checks cover stationary upgrade clicks across wave completion, footer stability, real restart confirm/cancel/Escape input, paused/resumed processing and auto-start, strict layer isolation, real specialized shots, 26-node purchase/persistence and late-wave spawn windows. Existing pathfinding, rerouting, economy and combat checks remain active.
+## Manual F5 checks
 
-Long-run checks still cover **10,000 generated waves (5,086,314 profiles)**, **1,000 scheduled cycles**, **300 scene lifecycle waves**, and **100 build/remove cycles during movement**. Controlled instant kills in lifecycle tests verify accounting/cleanup; natural combat is measured separately by the bots. Automated checks do not establish unlimited uptime, Windows visual acceptance, or balance for every profile/strategy.
+- Open `project.godot` in 4.7.2 Stable, press F5 and resize the window. Verify five stable build controls and readable monster silhouettes in crowded waves.
+- Open research. Only Tesla can be purchased first, for 3 diamonds. Hover icons for details, leave to hide them, and click an eligible icon once to buy.
+- Unlock each new tower, build it, then purchase its training. Mix Damage, Range and Speed on one tower; stop at five. Research that type's Mastery, buy a sixth, and verify a seventh is blocked.
+- Check Tesla's circular lightning; mortar shells landing with an area blast; icicles slowing/freezing; cannonballs piercing enemies but stopping against a tower. Build/sell a tower in a cannonball's path.
+- Try Volatile Payload, Glacial Heart and Rifled Bore, including their gold Unique upgrades. Inspect selected-tower/button tooltips for current specialization.
+- Hover/click research without leaking input to the board. Keep the cursor on Range over a wave clear: it must stay on Range, with Sell separate.
+- Open Restart during projectile flight, cancel and resume; then confirm a restart. Diamonds/research must persist while every run actor and projectile resets.
+- Verify every fifth cleared wave opens research, auto-start waits for it, and defeat awards no partial-wave diamond. Check Output/Debugger for errors.
 
-## Natural maze comparison
-
-The original [v0.3 calibration](docs/balance/README.md) is retained as historical evidence (reference bot defeat 41 / hallway defeat 49). It predates layered armor and the denser waves. The [v0.4 report](docs/ui/README.md) records new natural comparisons at seed 721, capped at 200 waves, without free resources or combat overrides. The final reference / hallway defeat waves were **39 / 55**, with the existing near-wave-50 assertion passing.
-
-The hallway policy uses `(0,11)`, then a wall at `x=1` starting `(1,12)` downward; walls at `x=3,5,...,37` alternate bottom-up/top-down with one open column between them. Production placement validation rejects each final sealing tile. The full layout has **426 basic towers, 19 open end gaps, and a 476-cell route**. It never buys upgrades, other tower types, or skills. Purchases occur before wave 1 and after completed waves, using only starting/earned gold.
-
-The reference bot retains its existing earned-skill/upgrade policy and caps itself at 24 towers; it is not an optimal-player search. Both start with fresh in-memory profiles and seed 721. At 30 fixed simulation steps per second, only normal spawning, movement and tower combat decide results. No resources, damage or enemy speed are injected. Saved player progression is never used or modified.
-
-To run the current comparison after editor import (substitute your Godot executable):
-
-```sh
-godot --headless --path . --script res://tests/compare_endless.gd -- --seed=721 --cap=200 --report=user://balance_comparison.json --assert-near-50
-```
-
-The optional assertion requires both bots to lose naturally and the longer-surviving bot's defeat wave to be 45–55. The benchmark is separate from the normal test runner; the runner includes its geometry, early-HP preservation and armor-pool regressions. Reports record per-wave routes, towers, gold, lives, HP/armor, kills/escapes by type and source hashes. This calibrates these policies and one seed, not a hard wave cap or a guarantee for all builds/profiles.
-
-## Manual F5 acceptance
-
-- [ ] Open in 4.7.2 Stable, press F5, and resize the window. Gold/diamond labels and all controls remain readable; grid clicks remain aligned.
-- [ ] On a fresh profile, basic towers build but all upgrades are locked; Tesla is locked. Skills offers only Tesla as the first eligible node, at 3 diamonds.
-- [ ] Clear waves: each surviving completion gives exactly one diamond. Wave 5 opens Skills automatically; close it and reopen between waves. Wave 10 repeats. No start/build/upgrade actions leak through the modal.
-- [ ] Buy Tesla: spend 3 diamonds once. Build one for 110 gold and verify bolts hit every enemy in its small radius. It cannot upgrade until Tesla Training is bought.
-- [ ] Buy Basic Training and verify existing/new basic towers can upgrade. Tesla remains independently gated. Upgrade a track and confirm all competing tracks stay locked.
-- [ ] Unlock Piercing Rounds/Static Field and try their gold tracks on fresh towers. Verify concentrated armor damage and Tesla's temporary slow without diagonal movement or teleporting.
-- [ ] Buy gold boosts and enemy nerfs: future rewards increase and new enemies slow/weaken. Removal still refunds only half base construction (30 basic / 55 Tesla).
-- [ ] Click Range across a wave clear without moving the cursor: it must remain Range; Sell stays below the upgrade block. Confirm selected stats stay fully visible.
-- [ ] Click Restart during a wave, then Keep playing/Escape: combat pauses and resumes without losing anything. Confirm Restart only after the question to reset the run.
-- [ ] Scroll all four research branches, purchase a higher tier, and verify increased cost/prerequisite and immediate effects on placed towers.
-- [ ] Inspect shield/armor/health bars: purple above white above green. Overkill on a layer must not spill into the next. Basic breaks plating faster; Tesla breaks shields faster.
-- [ ] Restart, then close/reopen the application: diamonds and skills remain, while gold/lives/board/levels reset. Wave 1 of a new run can earn another diamond normally.
-- [ ] Lose during a wave: no partial-wave diamond; defeat blocks further gameplay. Restart preserves permanent progress.
-- [ ] Enable Auto-start Waves, start wave 1, and verify later waves start automatically. Wave 5 must wait for the skill menu to close. Turn auto-start off to wait between waves; Restart restores it off.
-- [ ] Inspect Output/Debugger for parse, navigation, or recurring runtime errors. The new Windows visual playtest remains pending; no export was produced.
+Linux software-OpenGL previews and automated checks are recorded in the [visual overhaul report](docs/visual-overhaul/README.md). Windows F5 acceptance and export were not run.

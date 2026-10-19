@@ -2,23 +2,47 @@ class_name Tower
 extends Node2D
 
 enum Upgrade { NONE, DAMAGE, RANGE, SPEED, SPECIAL }
-enum Kind { BASIC, TESLA }
+enum Kind { BASIC, TESLA, MORTAR, ICE, CANNON }
 
 var kind := Kind.BASIC
 var upgrades_enabled := false
 var special_enabled := false
+var _sixth_unlocked := false
+var _area_unlocked := false
+var _freeze_unlocked := false
+var _distance_unlocked := false
 var _permanent_damage_factor := 1.0
 var _armor_factor := 1.0
 var _shield_factor := 1.0
 var _range_factor := 1.0
 var _interval_factor := 1.0
-
+var _levels: Array[int] = [0, 0, 0, 0, 0]
+var upgrade_level: int:
+	get: return _levels[1] + _levels[2] + _levels[3] + _levels[4]
 var cell := Vector2i.ZERO
-var upgrade_type := Upgrade.NONE
-var upgrade_level := 0
 var _cooldown := 0.0
 var _flash_remaining := 0.0
-var _shot_endpoints: Array[Vector2] = []
+var _aim := -PI / 2.0
+var _last_endpoint := Vector2.ZERO
+var _pulse_number := 0
+var _rng := RandomNumberGenerator.new()
+
+
+func _ready() -> void:
+	# Local RNG never disturbs the run's wave generator. Cell/kind seed is replayable.
+	_rng.seed = cell.x * 7349 + cell.y * 193 + kind * 32771 + 17
+
+
+func data() -> Dictionary:
+	return TowerCatalog.DATA[kind]
+
+
+func levels(track: int) -> int:
+	return _levels[track] if track >= Upgrade.DAMAGE and track <= Upgrade.SPECIAL else 0
+
+
+func max_upgrades() -> int:
+	return 6 if _sixth_unlocked else 5
 
 
 func configure_progression(profile: Progression) -> void:
@@ -27,12 +51,18 @@ func configure_progression(profile: Progression) -> void:
 	_shield_factor = 1.0 + (0.25 if profile.has_skill("overcharge") else 0.0) + (0.4 if profile.has_skill("overcharge_ii") else 0.0)
 	_range_factor = 1.0 + (0.08 if profile.has_skill("optics") else 0.0) + (0.12 if profile.has_skill("optics_ii") else 0.0)
 	_interval_factor = (0.92 if profile.has_skill("rapid_fire") else 1.0) * (0.88 if profile.has_skill("rapid_fire_ii") else 1.0)
-	upgrades_enabled = profile.has_skill("tesla_training" if kind == Kind.TESLA else "basic_training")
-	special_enabled = profile.has_skill("static_field" if kind == Kind.TESLA else "piercing")
+	upgrades_enabled = profile.has_skill(data().training)
+	special_enabled = profile.has_skill(data().special)
+	_sixth_unlocked = profile.has_skill(data().mastery)
+	_area_unlocked = profile.has_skill("mortar_area")
+	_freeze_unlocked = profile.has_skill("ice_freeze")
+	_distance_unlocked = profile.has_skill("cannon_distance")
+	_cooldown = minf(_cooldown, attack_interval())
+	queue_redraw()
 
 
 func build_cost() -> int:
-	return GameConfig.TESLA_COST if kind == Kind.TESLA else GameConfig.TOWER_COST
+	return int(data().cost)
 
 
 func refund() -> int:
@@ -40,62 +70,79 @@ func refund() -> int:
 
 
 func damage() -> int:
-	var base := GameConfig.TESLA_DAMAGE if kind == Kind.TESLA else GameConfig.TOWER_DAMAGE
-	if upgrade_type == Upgrade.DAMAGE:
-		base += (9 if kind == Kind.TESLA else GameConfig.DAMAGE_PER_LEVEL) * upgrade_level
-	elif upgrade_type == Upgrade.SPECIAL:
-		base += (4 if kind == Kind.TESLA else 8) * upgrade_level
-	return roundi(base * _permanent_damage_factor)
+	return roundi((int(data().damage) + int(data().damage_step) * levels(Upgrade.DAMAGE) + int(data().special_damage) * levels(Upgrade.SPECIAL)) * _permanent_damage_factor)
 
 
 func armor_damage() -> int:
-	var ratio := 0.5 if kind == Kind.TESLA else 1.6
-	var bonus := 15 * upgrade_level if kind == Kind.BASIC and upgrade_type == Upgrade.SPECIAL else 0
-	return maxi(1, roundi((damage() * ratio + bonus) * _armor_factor))
+	var bonus := 15 * levels(Upgrade.SPECIAL) if kind == Kind.BASIC else 0
+	return maxi(1, roundi((damage() * float(data().armor_ratio) + bonus) * _armor_factor))
 
 
 func shield_damage() -> int:
-	var ratio := 2.0 if kind == Kind.TESLA else 0.55
-	return maxi(1, roundi(damage() * ratio * _shield_factor))
+	return maxi(1, roundi(damage() * float(data().shield_ratio) * _shield_factor))
 
 
 func attack_range() -> float:
-	var base := GameConfig.TESLA_RANGE if kind == Kind.TESLA else GameConfig.TOWER_RANGE
-	return (base + ((12.0 if kind == Kind.TESLA else GameConfig.RANGE_PER_LEVEL) * upgrade_level if upgrade_type == Upgrade.RANGE else 0.0)) * _range_factor
+	return (float(data().range) + float(data().range_step) * levels(Upgrade.RANGE)) * _range_factor
 
 
 func attack_interval() -> float:
-	var base := GameConfig.TESLA_COOLDOWN if kind == Kind.TESLA else GameConfig.TOWER_COOLDOWN
-	return base * (pow(GameConfig.SPEED_FACTOR_PER_LEVEL, upgrade_level) if upgrade_type == Upgrade.SPEED else 1.0) * _interval_factor
+	return float(data().interval) * pow(GameConfig.SPEED_FACTOR_PER_LEVEL, levels(Upgrade.SPEED)) * _interval_factor
+
+
+func blast_radius() -> float:
+	return 64.0 * (1.25 if _area_unlocked else 1.0) + 8.0 * levels(Upgrade.SPECIAL)
+
+
+func freeze_chance() -> float:
+	return 0.08 + 0.03 * levels(Upgrade.SPECIAL) if _freeze_unlocked else 0.0
+
+
+func cannon_distance() -> float:
+	return 320.0 * (1.5 if _distance_unlocked else 1.0) + 36.0 * levels(Upgrade.SPECIAL)
+
+
+func upgrade_description(track: int) -> String:
+	match track:
+		Upgrade.DAMAGE: return "+%d base health damage; armor/shield damage also scales." % int(data().damage_step)
+		Upgrade.RANGE: return "+%.0f base targeting range." % float(data().range_step)
+		Upgrade.SPEED: return "18% shorter firing interval; stacks multiplicatively."
+		Upgrade.SPECIAL:
+			return ["+8 base health damage and +15 concentrated armor damage.", "+4 base damage and a stronger 0.8-second slow.", "+10 base damage and +8 pixels of blast radius.", "+2 base damage, +3 percentage points of freeze chance, +0.08 seconds of freeze.", "+6 base damage and +36 pixels of cannonball travel."][kind]
+	return ""
+
+
+func attack_description() -> String:
+	match kind:
+		Kind.BASIC: return "Aimed shots at the nearest enemy."
+		Kind.TESLA: return "Circular lightning hits every enemy in range once per discharge."
+		Kind.MORTAR: return "Arcing shells land at a fixed point. Blast radius: %.0f pixels." % blast_radius()
+		Kind.ICE: return "Homing icicles slow 35%% for 2 seconds. Freeze chance: %.0f%%." % (freeze_chance() * 100)
+		Kind.CANNON: return "Pierces enemies for %.0f pixels of travel. Any friendly tower blocks the ball." % cannon_distance()
+	return ""
 
 
 func next_upgrade_cost() -> int:
-	if upgrade_level >= GameConfig.MAX_UPGRADE_LEVEL:
-		return 0
-	var prices := GameConfig.TESLA_UPGRADE_COSTS if kind == Kind.TESLA else GameConfig.UPGRADE_COSTS
-	return prices[upgrade_level]
+	return 0 if upgrade_level >= max_upgrades() else int(data().prices[upgrade_level])
 
 
 func upgrade_error(track: int) -> String:
 	if not upgrades_enabled:
 		return "Unlock this tower's training in the skill tree first"
 	if track < Upgrade.DAMAGE or track > Upgrade.SPECIAL:
-		return "Choose an available upgrade track"
+		return "Choose an available upgrade"
 	if track == Upgrade.SPECIAL and not special_enabled:
 		return "Unlock this unique upgrade in the skill tree first"
-	if upgrade_type != Upgrade.NONE and upgrade_type != track:
-		return "This tower is locked to %s upgrades" % Upgrade.keys()[upgrade_type].to_lower()
-	if upgrade_level >= GameConfig.MAX_UPGRADE_LEVEL:
-		return "Tower is fully upgraded"
+	if upgrade_level >= max_upgrades():
+		return "Research this tower's sixth upgrade slot" if max_upgrades() == 5 else "All six upgrade slots are filled"
 	return ""
 
 
 func apply_upgrade(track: int) -> bool:
 	if not upgrade_error(track).is_empty():
 		return false
-	upgrade_type = track as Upgrade
-	upgrade_level += 1
-	# Speed upgrades may shorten a wait but cannot reset it to grant a free shot.
+	_levels[track] += 1
+	# Any category can share the budget. No purchase grants an immediate free shot.
 	_cooldown = minf(_cooldown, attack_interval())
 	queue_redraw()
 	return true
@@ -108,13 +155,11 @@ func _process(delta: float) -> void:
 	_cooldown = maxf(0.0, _cooldown - delta)
 	if _cooldown > 0.0:
 		return
-	# At most one group scan per shot interval, including while idle.
 	if kind == Kind.TESLA:
 		attack_area()
 	else:
 		var target := _nearest_target()
 		if target != null:
-			_shot_endpoints.clear()
 			attack(target)
 	_cooldown = attack_interval()
 
@@ -136,45 +181,75 @@ func _nearest_target() -> Enemy:
 func attack(target: Enemy) -> void:
 	if not is_instance_valid(target) or not target.is_alive() or global_position.distance_to(target.global_position) > attack_range():
 		return
-	_shot_endpoints.append(to_local(target.global_position))
-	_flash_remaining = GameConfig.SHOT_FLASH_DURATION
-	target.take_damage(damage(), armor_damage(), shield_damage())
-	if kind == Kind.TESLA and upgrade_type == Upgrade.SPECIAL and target.is_alive():
-		target.apply_slow(0.85 - 0.05 * upgrade_level, 0.8)
+	_last_endpoint = to_local(target.global_position)
+	_aim = _last_endpoint.angle()
+	_flash_remaining = 0.28 if kind == Kind.TESLA else 0.18
+	if kind == Kind.MORTAR or kind == Kind.ICE or kind == Kind.CANNON:
+		_launch(target)
+	else:
+		target.take_damage(damage(), armor_damage(), shield_damage())
+		if kind == Kind.TESLA and levels(Upgrade.SPECIAL) > 0 and target.is_alive():
+			target.apply_slow(maxf(0.5, 0.85 - 0.05 * levels(Upgrade.SPECIAL)), 0.8)
 	queue_redraw()
 
 
 func attack_area() -> void:
-	_shot_endpoints.clear()
-	# Snapshot the group once per pulse; every living target in range is hit once.
+	var hit := false
 	for candidate in get_tree().get_nodes_in_group("enemies"):
 		var enemy := candidate as Enemy
 		if enemy != null and enemy.is_alive() and global_position.distance_to(enemy.global_position) <= attack_range():
 			attack(enemy)
+			hit = true
+	if hit:
+		_pulse_number += 1
+
+
+func _launch(target_enemy: Enemy) -> void:
+	var board := get_parent().get_parent() as Board
+	if board == null:
+		return
+	var projectile := CombatProjectile.new()
+	projectile.kind = [CombatProjectile.Kind.MORTAR, CombatProjectile.Kind.ICE, CombatProjectile.Kind.CANNON][kind - Kind.MORTAR]
+	projectile.board = board
+	projectile.source_id = get_instance_id()
+	projectile.origin = position
+	projectile.destination = target_enemy.position
+	projectile.position = position
+	projectile.direction = (target_enemy.position - position).normalized()
+	projectile.health_damage = damage()
+	projectile.armor_damage = armor_damage()
+	projectile.shield_damage = shield_damage()
+	projectile.target = weakref(target_enemy)
+	projectile.splash_radius = blast_radius()
+	projectile.flight_duration = clampf(position.distance_to(target_enemy.position) / 220.0, 0.45, 1.5)
+	projectile.speed = 340.0 if kind == Kind.ICE else 300.0
+	projectile.travel_limit = cannon_distance()
+	projectile.freeze_on_hit = _rng.randf() < freeze_chance() if kind == Kind.ICE else false
+	projectile.freeze_duration = 0.5 + 0.08 * levels(Upgrade.SPECIAL)
+	board.get_node("Projectiles").add_child(projectile)
 
 
 func _draw() -> void:
-	draw_rect(Rect2(-13, -13, 26, 26), Color("17688e"))
-	draw_rect(Rect2(-13, -13, 26, 26), Color("65d8f5"), false, 2.0)
-	draw_circle(Vector2.ZERO, 7, Color("8beaff"))
-	if kind == Kind.TESLA:
-		draw_circle(Vector2.ZERO, 11, Color("7d58b4"))
-		draw_arc(Vector2.ZERO, 9, 0, TAU, 16, Color("c5e8ff"), 2)
-		draw_line(Vector2(-4, -8), Vector2(3, 1), Color.WHITE, 2)
-		draw_line(Vector2(3, 1), Vector2(-3, 8), Color.WHITE, 2)
+	TowerArt.draw_tower(self, kind, _aim, clampf(_flash_remaining / 0.18, 0, 1))
 	if upgrade_level > 0:
-		var color := Color("ffb56b")
-		if upgrade_type == Upgrade.RANGE:
-			color = Color("b5f57c")
-		elif upgrade_type == Upgrade.SPEED:
-			color = Color("dc9aff")
-		for i in range(upgrade_level):
-			draw_circle(Vector2(-10 + 5 * i, 10), 2, color)
-	if _flash_remaining > 0.0:
-		for endpoint in _shot_endpoints:
-			if kind == Kind.TESLA:
-				var bend := endpoint * 0.5 + endpoint.orthogonal().normalized() * 7.0
-				draw_polyline(PackedVector2Array([Vector2.ZERO, bend, endpoint]), Color("b4eaff"), 3.0, true)
-			else:
-				draw_line(Vector2.ZERO, endpoint, Color("f5f6a6"), 3.0, true)
-		draw_circle(Vector2.ZERO, 10, Color(1.0, 1.0, 0.7, 0.65))
+		var colors := [Color.TRANSPARENT, Color("efb876"), Color("aada91"), Color("c3a0ef"), Color("8bddeb")]
+		var slot := 0
+		for track in range(1, 5):
+			for level in range(levels(track)):
+				draw_circle(Vector2(-10 + slot * 4, 12), 2.4, DrawKit.INK)
+				draw_circle(Vector2(-10 + slot * 4, 12), 1.4, colors[track])
+				slot += 1
+	if _flash_remaining <= 0:
+		return
+	if kind == Kind.TESLA:
+		var progress := 1.0 - _flash_remaining / 0.28
+		DrawKit.bolt_ring(self, attack_range() * (0.8 + 0.2 * progress), _pulse_number * 3.7, 1.0 - progress)
+	elif kind == Kind.BASIC:
+		var muzzle := Vector2.from_angle(_aim) * 15.0 + Vector2(0, -2)
+		var f := Vector2.from_angle(_aim)
+		var side := f.orthogonal()
+		var alpha := _flash_remaining / 0.18
+		draw_line(muzzle, _last_endpoint, Color(1, 0.8, 0.45, alpha * 0.6), 1.2, true)
+		DrawKit.poly(self, PackedVector2Array([muzzle - side * 3, muzzle + f * 6 - side * 6, muzzle + f * 13, muzzle + f * 6 + side * 6, muzzle + side * 3]), Color(1, 0.86, 0.55, alpha), Color(1, 0.75, 0.35, alpha), 1)
+	elif kind == Kind.MORTAR or kind == Kind.CANNON:
+		draw_circle(Vector2.from_angle(_aim) * 12, 4 * _flash_remaining / 0.18, Color("ffd099"))

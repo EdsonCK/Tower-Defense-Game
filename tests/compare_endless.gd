@@ -91,6 +91,10 @@ func _session(name: String) -> Dictionary:
 				if game.is_finished():
 					break
 				(node as Tower)._process(DELTA)
+			for node in game.board.get_node("Projectiles").get_children():
+				if game.is_finished():
+					break
+				(node as CombatProjectile)._process(DELTA)
 			frames += 1
 			if frames % 300 == 0:
 				await process_frame

@@ -9,6 +9,7 @@ signal auto_start_changed(enabled: bool)
 signal restart_prompt_changed(open: bool)
 signal restart_requested
 signal upgrade_requested(track: int)
+signal tower_type_requested(kind: int)
 signal tesla_requested
 signal skills_requested
 signal remove_requested
@@ -21,6 +22,7 @@ var _restart_shade: ColorRect
 
 @onready var diamond_label: Label = $RightPanel/Margin/Items/Diamonds
 @onready var tesla_button: Button = $RightPanel/Margin/Items/BuildTesla
+@onready var build_buttons: Array[Button] = [$RightPanel/Margin/Items/BuildTower, $RightPanel/Margin/Items/BuildTesla, $RightPanel/Margin/Items/BuildMortar, $RightPanel/Margin/Items/BuildIce, $RightPanel/Margin/Items/BuildCannon]
 @onready var skills_button: Button = $RightPanel/Margin/Items/Skills
 @onready var special_button: Button = $RightPanel/Margin/Items/UpgradeSpecial
 @onready var selected_label: Label = $RightPanel/Margin/Items/SelectedTower
@@ -72,7 +74,8 @@ func _ready() -> void:
 	tesla_button.pressed.connect(func() -> void: tesla_requested.emit())
 	skills_button.pressed.connect(func() -> void: skills_requested.emit())
 	special_button.pressed.connect(func() -> void: upgrade_requested.emit(Tower.Upgrade.SPECIAL))
-	build_button.text = "Build Tower • %d" % GameConfig.TOWER_COST
+	for kind in range(2, TowerCatalog.DATA.size()):
+		build_buttons[kind].pressed.connect(func() -> void: tower_type_requested.emit(kind))
 	remove_button.text = "Sell tower • +%d gold" % GameConfig.TOWER_REFUND
 	damage_button.pressed.connect(func() -> void: upgrade_requested.emit(Tower.Upgrade.DAMAGE))
 	range_button.pressed.connect(func() -> void: upgrade_requested.emit(Tower.Upgrade.RANGE))
@@ -120,29 +123,32 @@ func display_tower(tower: Tower, currency: int, finished: bool) -> void:
 	selected_label.tooltip_text = ""
 	if tower != null:
 		remove_button.text = "Sell tower • +%d gold" % tower.refund()
-		titles[3] = "Static Field" if tower.kind == Tower.Kind.TESLA else "Piercing Rounds"
-		var track_name: String = Tower.Upgrade.keys()[tower.upgrade_type].capitalize()
-		selected_label.text = "%s • %s %d/%d\nHP %d   ARM %d   SHD %d\nRange %.0f px   /   Fire %.2f s" % ["Tesla" if tower.kind == Tower.Kind.TESLA else "Basic", track_name if tower.upgrade_level > 0 else "No track", tower.upgrade_level, GameConfig.MAX_UPGRADE_LEVEL, tower.damage(), tower.armor_damage(), tower.shield_damage(), tower.attack_range(), tower.attack_interval()]
-		selected_label.tooltip_text = "Damage per hit: health / armor / shield. Each hit affects only the top layer.\n" + selected_label.text
+		titles[3] = tower.data().special_title
+		selected_label.text = "%s • Upgrades %d/%d\nHP %d   ARM %d   SHD %d\nRange %.0f px   /   Fire %.2f s" % [tower.data().title, tower.upgrade_level, tower.max_upgrades(), tower.damage(), tower.armor_damage(), tower.shield_damage(), tower.attack_range(), tower.attack_interval()]
+		selected_label.tooltip_text = "Damage per hit: health / armor / shield. Each hit affects only the top layer.\n" + selected_label.text + "\n" + tower.attack_description()
 	for i in range(buttons.size()):
 		var cost := tower.next_upgrade_cost() if tower != null else GameConfig.UPGRADE_COSTS[0]
-		var locked := tower != null and (not tower.upgrades_enabled or (tracks[i] == Tower.Upgrade.SPECIAL and not tower.special_enabled) or (tower.upgrade_type != Tower.Upgrade.NONE and tower.upgrade_type != tracks[i]))
-		var maxed := tower != null and tower.upgrade_level >= GameConfig.MAX_UPGRADE_LEVEL
-		buttons[i].text = titles[i] + (" • Locked" if locked else (" • Max" if maxed else " • %d" % cost))
+		var locked := tower != null and (not tower.upgrades_enabled or (tracks[i] == Tower.Upgrade.SPECIAL and not tower.special_enabled))
+		var maxed := tower != null and tower.upgrade_level >= tower.max_upgrades()
+		buttons[i].text = titles[i] + (" [%d]" % tower.levels(tracks[i]) if tower != null else "") + (" • Locked" if locked else (" • Max" if maxed else " • %d" % cost))
 		buttons[i].disabled = finished or tower == null or locked or maxed or currency < cost
 		buttons[i].tooltip_text = "Select a tower on the grid" if tower == null else tower.upgrade_error(tracks[i])
 		if buttons[i].tooltip_text.is_empty():
-			buttons[i].tooltip_text = "Upgrade this tower for %d gold. Choosing a track locks the others." % cost
+			buttons[i].tooltip_text = tower.upgrade_description(tracks[i]) + "\nCost: %d gold. Mix any categories within the slot limit." % cost
 
 
 func display_progression(profile: Progression, can_open: bool, selected_kind: int) -> void:
 	diamond_label.text = "Diamonds: %s%s" % [_counter(profile.diamonds), " *" if not profile.save_error.is_empty() else ""]
 	diamond_label.tooltip_text = "%d diamonds" % profile.diamonds + ("\n" + profile.save_error if not profile.save_error.is_empty() else "")
-	tesla_button.text = "Build Tesla • %d" % GameConfig.TESLA_COST if profile.has_skill("tesla") else "Tesla • Skill locked"
-	tesla_button.disabled = _finished or not profile.has_skill("tesla") or _currency < GameConfig.TESLA_COST
+	for kind in range(TowerCatalog.DATA.size()):
+		var data: Dictionary = TowerCatalog.DATA[kind]
+		var available := TowerCatalog.unlocked(profile, kind)
+		build_buttons[kind].text = "%s · %d" % [data.title, data.cost] if available else "%s · Locked" % data.title
+		build_buttons[kind].disabled = _finished or not available or _currency < int(data.cost)
+		build_buttons[kind].tooltip_text = "Build %s for %d gold" % [data.title, data.cost] if available else "Unlock %s in the skill tree" % data.title
 	skills_button.disabled = not can_open
 	if _building:
-		selection_label.text = ("TESLA" if selected_kind == Tower.Kind.TESLA else "BASIC") + " BUILD MODE • Left-click a valid tile • Right-click/Esc cancels"
+		selection_label.text = str(TowerCatalog.DATA[selected_kind].title).to_upper() + " BUILD MODE • Left-click a valid tile • Right-click/Esc cancels"
 
 
 func _counter(value: int) -> String:

@@ -28,6 +28,13 @@ func _init(fixture_solids: Array[Vector2i] = []) -> void:
 		_astar.set_point_solid(cell, true)
 
 
+func _ready() -> void:
+	if not has_node("Projectiles"):
+		var projectiles := Node2D.new()
+		projectiles.name = "Projectiles"
+		add_child(projectiles)
+
+
 func is_inside(cell: Vector2i) -> bool:
 	return _astar.region.has_point(cell)
 
@@ -168,14 +175,19 @@ func contains_pixel(pixel: Vector2) -> bool:
 func _draw() -> void:
 	for y in range(GameConfig.GRID_SIZE.y):
 		for x in range(GameConfig.GRID_SIZE.x):
-			var color := Color("243c32") if (x + y) % 2 == 0 else Color("284237")
+			var color := Color("222f37") if (x + y) % 2 == 0 else Color("26343c")
 			draw_rect(Rect2(Vector2(x, y) * GameConfig.CELL_SIZE, Vector2.ONE * GameConfig.CELL_SIZE), color)
+			var corner := Vector2(x, y) * GameConfig.CELL_SIZE
+			if (x * 17 + y * 31) % 7 == 0:
+				draw_line(corner + Vector2(4, 5), corner + Vector2(10, 6), Color("3c4b4c"), 1)
+			if (x * 13 + y * 7) % 19 == 0:
+				draw_line(corner + Vector2(25, 25), corner + Vector2(22, 29), Color("52634e"), 2)
 	for x in range(GameConfig.GRID_SIZE.x + 1):
-		draw_line(Vector2(x * GameConfig.CELL_SIZE, 0), Vector2(x * GameConfig.CELL_SIZE, GameConfig.BOARD_SIZE.y), Color("334d40"))
+		draw_line(Vector2(x * GameConfig.CELL_SIZE, 0), Vector2(x * GameConfig.CELL_SIZE, GameConfig.BOARD_SIZE.y), Color("304048"))
 	for y in range(GameConfig.GRID_SIZE.y + 1):
-		draw_line(Vector2(0, y * GameConfig.CELL_SIZE), Vector2(GameConfig.BOARD_SIZE.x, y * GameConfig.CELL_SIZE), Color("334d40"))
-	draw_rect(Rect2(cell_to_pixel(GameConfig.SPAWN) - Vector2(15, 15), Vector2(30, 30)), Color("58db83"))
-	draw_rect(Rect2(cell_to_pixel(GameConfig.EXIT) - Vector2(15, 15), Vector2(30, 30)), Color("f17c52"))
+		draw_line(Vector2(0, y * GameConfig.CELL_SIZE), Vector2(GameConfig.BOARD_SIZE.x, y * GameConfig.CELL_SIZE), Color("304048"))
+	_draw_gate(GameConfig.SPAWN, Color("79d4ac"))
+	_draw_gate(GameConfig.EXIT, Color("e9a069"))
 
 	if _building and is_inside(_hover_cell):
 		var tint := Color(0.3, 1.0, 0.55, 0.35) if _hover_error.is_empty() else Color(1.0, 0.2, 0.2, 0.45)
@@ -186,3 +198,14 @@ func _draw() -> void:
 	if not _building and is_inside(_selected_cell):
 		draw_rect(Rect2(cell_to_pixel(_selected_cell) - Vector2(15, 15), Vector2(30, 30)), Color.WHITE, false, 2)
 		draw_arc(cell_to_pixel(_selected_cell), _selected_range, 0, TAU, 64, Color(0.7, 0.9, 1, 0.65), 1.0)
+
+
+func _draw_gate(cell: Vector2i, color: Color) -> void:
+	var center := cell_to_pixel(cell)
+	draw_rect(Rect2(center - Vector2(15, 15), Vector2(30, 30)), Color("141f2b"))
+	draw_arc(center, 12, 0, TAU, 24, Color(color, 0.45), 3, true)
+	draw_arc(center, 9, 0, TAU, 24, color, 1, true)
+	for i in range(4):
+		var ray := Vector2.from_angle(i * PI / 2)
+		draw_line(center + ray * 12, center + ray * 15, DrawKit.BONE, 2, true)
+	draw_polyline(PackedVector2Array([center + Vector2(-3, -5), center + Vector2(3, 0), center + Vector2(-3, 5)]), color, 2, true)

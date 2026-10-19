@@ -163,37 +163,61 @@ theme_override_colors/font_color = Color(0.6, 0.7, 0.82, 1)
 layout_mode = 0
 offset_left = 0.0
 offset_top = 244.0
-offset_right = 276.0
+offset_right = 134.0
 offset_bottom = 280.0
-text = "Build Basic • 60"
-theme_override_font_sizes/font_size = 17
+text = "Sentinel · 60"
+theme_override_font_sizes/font_size = 14
 clip_text = true
-
-
 
 [node name="BuildTesla" type="Button" parent="HUD/UILayout/RightPanel/Margin/Items"]
 layout_mode = 0
+offset_left = 142.0
+offset_top = 244.0
+offset_right = 276.0
+offset_bottom = 280.0
+text = "Tesla · Locked"
+theme_override_font_sizes/font_size = 14
+clip_text = true
+
+[node name="BuildMortar" type="Button" parent="HUD/UILayout/RightPanel/Margin/Items"]
+layout_mode = 0
 offset_left = 0.0
+offset_top = 286.0
+offset_right = 134.0
+offset_bottom = 322.0
+text = "Mortar · Locked"
+theme_override_font_sizes/font_size = 14
+clip_text = true
+
+[node name="BuildIce" type="Button" parent="HUD/UILayout/RightPanel/Margin/Items"]
+layout_mode = 0
+offset_left = 142.0
 offset_top = 286.0
 offset_right = 276.0
 offset_bottom = 322.0
-text = "Build Tesla • 110"
-theme_override_font_sizes/font_size = 17
+text = "Ice · Locked"
+theme_override_font_sizes/font_size = 14
 clip_text = true
 
-
-
-[node name="Cancel" type="Button" parent="HUD/UILayout/RightPanel/Margin/Items"]
+[node name="BuildCannon" type="Button" parent="HUD/UILayout/RightPanel/Margin/Items"]
 layout_mode = 0
 offset_left = 0.0
 offset_top = 328.0
-offset_right = 276.0
-offset_bottom = 358.0
-text = "Clear selection  /  Esc"
-theme_override_font_sizes/font_size = 15
+offset_right = 134.0
+offset_bottom = 360.0
+text = "Cannon · Locked"
+theme_override_font_sizes/font_size = 14
 clip_text = true
 
-
+[node name="Cancel" type="Button" parent="HUD/UILayout/RightPanel/Margin/Items"]
+layout_mode = 0
+offset_left = 142.0
+offset_top = 328.0
+offset_right = 276.0
+offset_bottom = 360.0
+text = "Clear / Esc"
+theme_override_font_sizes/font_size = 14
+clip_text = true
 
 [node name="StartWave" type="Button" parent="HUD/UILayout/RightPanel/Margin/Items"]
 layout_mode = 0

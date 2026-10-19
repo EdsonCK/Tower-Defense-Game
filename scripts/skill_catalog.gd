@@ -1,6 +1,6 @@
 class_name SkillCatalog
 extends RefCounted
-## Permanent one-time unlocks. Tesla is the sole root of the tree.
+## Backward-compatible permanent unlocks. Tesla is still the sole root.
 
 const IDS: Array[String] = [
 	"tesla", "basic_training", "tesla_training", "salvage",
@@ -9,19 +9,22 @@ const IDS: Array[String] = [
 	"engineering_ii", "engineering_iii", "optics", "optics_ii",
 	"overcharge", "overcharge_ii", "rapid_fire", "rapid_fire_ii",
 	"gold_mastery_ii", "gold_mastery_iii", "sluggish_ii", "fragile_ii",
-	"exposed_armor", "shield_decay",
+	"exposed_armor", "shield_decay", "mortar", "ice",
+	"cannon", "mortar_training", "ice_training", "cannon_training",
+	"mortar_area", "ice_freeze", "cannon_distance", "basic_mastery",
+	"tesla_mastery", "mortar_mastery", "ice_mastery", "cannon_mastery",
 ]
 const NODES := {
-	"tesla": {"branch": "Start here", "title": "Tesla Tower", "cost": 3, "requires": "", "effect": "Unlock the short-range tower that bolts ALL nearby enemies."},
-	"basic_training": {"branch": "Basic ballistics", "title": "Basic Tower Training", "cost": 3, "requires": "tesla", "effect": "Unlock gold upgrades for basic towers: damage, range, or speed."},
+	"tesla": {"branch": "Start here", "title": "Tesla Tower", "cost": 3, "requires": "", "effect": "Unlock the short-range tower that discharges a circular lightning storm."},
+	"basic_training": {"branch": "Basic ballistics", "title": "Sentinel Training", "cost": 3, "requires": "tesla", "effect": "Unlock gold upgrades for basic towers: damage, range, or speed."},
 	"tesla_training": {"branch": "Tesla research", "title": "Tesla Training", "cost": 4, "requires": "tesla", "effect": "Unlock gold upgrades for Tesla towers: damage, range, or speed."},
 	"salvage": {"branch": "Economy", "title": "Salvage", "cost": 3, "requires": "tesla", "effect": "+20% gold from kills and wave-clear bonuses."},
-	"piercing": {"branch": "Basic ballistics", "title": "Piercing Rounds", "cost": 4, "requires": "basic_training", "effect": "Basic towers gain a unique upgrade track: bonus health damage and concentrated armor damage."},
+	"piercing": {"branch": "Basic ballistics", "title": "Piercing Rounds", "cost": 4, "requires": "basic_training", "effect": "Basic towers gain a unique upgrade track: bonus health damage and concentrated armor damage, mixable with other upgrades."},
 	"static_field": {"branch": "Tesla research", "title": "Static Field", "cost": 4, "requires": "tesla_training", "effect": "Tesla gains a unique track: bonus damage and a brief area slow."},
 	"gold_mastery": {"branch": "Economy", "title": "Gold Mastery", "cost": 5, "requires": "salvage", "effect": "+20% more gold (40% total). Refunds are never boosted."},
 	"sluggish": {"branch": "Disruption", "title": "Heavy Footsteps", "cost": 4, "requires": "tesla", "effect": "All newly spawned enemies move 10% slower."},
 	"fragile": {"branch": "Disruption", "title": "Brittle Defenses", "cost": 5, "requires": "sluggish", "effect": "All new enemies have 15% less HP and shield."},
-	"engineering": {"branch": "Basic ballistics", "title": "Tower Engineering", "cost": 4, "requires": "basic_training", "effect": "Permanently increase both tower types' damage by 10%, including placed towers."},
+	"engineering": {"branch": "Basic ballistics", "title": "Tower Engineering", "cost": 4, "requires": "basic_training", "effect": "Permanently increase every tower type's damage by 10%, including placed towers."},
 	"armor_breaker": {"title": "Armor Breaker", "cost": 7, "requires": "piercing", "branch": "Basic ballistics", "effect": "All towers deal +25% damage to armor pools."},
 	"armor_breaker_ii": {"title": "Armor Breaker II", "cost": 14, "requires": "armor_breaker", "branch": "Basic ballistics", "effect": "Another +40% armor damage (65% total)."},
 	"engineering_ii": {"title": "Tower Engineering II", "cost": 9, "requires": "engineering", "branch": "Basic ballistics", "effect": "Another +15% damage (25% total), to all three layers."},
@@ -38,4 +41,18 @@ const NODES := {
 	"fragile_ii": {"title": "Brittle Defenses II", "cost": 12, "requires": "fragile", "branch": "Disruption", "effect": "Reduce new enemies' health and shield by another 15%."},
 	"exposed_armor": {"title": "Exposed Plating", "cost": 8, "requires": "fragile", "branch": "Disruption", "effect": "New enemies spawn with 20% less armor."},
 	"shield_decay": {"title": "Shield Decay", "cost": 10, "requires": "exposed_armor", "branch": "Disruption", "effect": "New enemies spawn with 25% less shield."},
+	"mortar": {"title": "Mortar Tower", "cost": 7, "requires": "tesla", "branch": "Siegecraft", "effect": "Unlock a 160-gold siege mortar. Arcing shells deal area damage at long range."},
+	"ice": {"title": "Ice Tower", "cost": 5, "requires": "tesla", "branch": "Cryomancy", "effect": "Unlock a 100-gold ice spire. Icicles slow enemies by 35% for 2 seconds."},
+	"cannon": {"title": "Cannon Tower", "cost": 8, "requires": "tesla", "branch": "Artillery", "effect": "Unlock a 150-gold cannon. Balls pierce enemies but stop against any friendly tower."},
+	"mortar_training": {"title": "Mortar Training", "cost": 8, "requires": "mortar", "branch": "Siegecraft", "effect": "Enable mixed damage, range and firing-speed upgrades for mortars."},
+	"ice_training": {"title": "Ice Training", "cost": 6, "requires": "ice", "branch": "Cryomancy", "effect": "Enable mixed damage, range and firing-speed upgrades for ice towers."},
+	"cannon_training": {"title": "Cannon Training", "cost": 9, "requires": "cannon", "branch": "Artillery", "effect": "Enable mixed damage, range and firing-speed upgrades for cannons."},
+	"mortar_area": {"title": "Volatile Payload", "cost": 10, "requires": "mortar_training", "branch": "Siegecraft", "effect": "Mortar blast radius +25%. Unlock blast upgrades: +8 radius and +10 damage per purchase."},
+	"ice_freeze": {"title": "Glacial Heart", "cost": 9, "requires": "ice_training", "branch": "Cryomancy", "effect": "Icicles gain an 8% chance to freeze for 0.5 seconds. Unlock deep-freeze upgrades: +3 percentage points and +0.08 seconds per purchase."},
+	"cannon_distance": {"title": "Rifled Bore", "cost": 12, "requires": "cannon_training", "branch": "Artillery", "effect": "Cannonballs travel 50% farther. Unlock long-barrel upgrades: +36 travel and +6 damage per purchase."},
+	"basic_mastery": {"title": "Sentinel Mastery", "cost": 12, "requires": "basic_training", "branch": "Basic ballistics", "effect": "Unlock a sixth mixed upgrade slot for each existing and future Sentinel."},
+	"tesla_mastery": {"title": "Tesla Mastery", "cost": 14, "requires": "tesla_training", "branch": "Tesla research", "effect": "Unlock a sixth mixed upgrade slot for each existing and future Tesla."},
+	"mortar_mastery": {"title": "Mortar Mastery", "cost": 16, "requires": "mortar_training", "branch": "Siegecraft", "effect": "Unlock a sixth mixed upgrade slot for each existing and future mortar."},
+	"ice_mastery": {"title": "Ice Mastery", "cost": 14, "requires": "ice_training", "branch": "Cryomancy", "effect": "Unlock a sixth mixed upgrade slot for each existing and future ice tower."},
+	"cannon_mastery": {"title": "Cannon Mastery", "cost": 18, "requires": "cannon_training", "branch": "Artillery", "effect": "Unlock a sixth mixed upgrade slot for each existing and future cannon."},
 }

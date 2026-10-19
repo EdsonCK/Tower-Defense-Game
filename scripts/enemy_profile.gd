@@ -5,7 +5,7 @@ extends RefCounted
 enum Kind { GRUNT, RUNNER, ARMORED, REGENERATOR, SHIELDED }
 
 var kind := Kind.GRUNT
-var title := "Grunt"
+var title := "Ember Imp"
 var hit_points := 45
 var speed := 60.0
 var bounty := 12
@@ -20,27 +20,27 @@ static func base(type: Kind) -> EnemyProfile:
 	result.kind = type
 	match type:
 		Kind.RUNNER:
-			result.title = "Runner"
+			result.title = "Skitterfang"
 			result.hit_points = 30
 			result.speed = 90.0
 			result.bounty = 9
 			result.color = Color("ffba58")
 		Kind.ARMORED:
-			result.title = "Armored"
+			result.title = "Ironback Ogre"
 			result.hit_points = 105
 			result.speed = 40.0
 			result.bounty = 24
 			result.color = Color("a8bccb")
 			result.armor = 45
 		Kind.REGENERATOR:
-			result.title = "Regenerator"
+			result.title = "Mire Shaman"
 			result.hit_points = 68
 			result.speed = 52.0
 			result.bounty = 20
 			result.color = Color("c889ef")
 			result.regeneration = 3.0
 		Kind.SHIELDED:
-			result.title = "Shielded"
+			result.title = "Void Wraith"
 			result.hit_points = 80
 			result.speed = 66.0
 			result.bounty = 22

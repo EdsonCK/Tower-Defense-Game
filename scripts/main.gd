@@ -16,6 +16,7 @@ var build_kind := Tower.Kind.BASIC
 var progression: Progression
 var auto_start_waves := false
 var _run_id := ""
+var _enemy_serial := 0
 var _restart_pending := false
 var _restart_confirming := false
 var _prior_board_mode: ProcessMode
@@ -37,6 +38,7 @@ func _ready() -> void:
 		progression.load_profile()
 	_run_id = Crypto.new().generate_random_bytes(16).hex_encode()
 	hud.tesla_requested.connect(func() -> void: select_tower(Tower.Kind.TESLA))
+	hud.tower_type_requested.connect(select_tower)
 	hud.skills_requested.connect(open_skill_tree)
 	skill_tree.purchase_requested.connect(purchase_skill)
 	skill_tree.close_requested.connect(close_skill_tree)
@@ -62,12 +64,12 @@ func is_finished() -> bool:
 func select_tower(kind: int = Tower.Kind.BASIC) -> void:
 	if is_finished() or _restart_confirming or skill_tree.visible:
 		return
-	if kind != Tower.Kind.BASIC and kind != Tower.Kind.TESLA:
+	if not TowerCatalog.valid(kind):
 		return
-	if kind == Tower.Kind.TESLA and not progression.has_skill("tesla"):
-		hud.show_message("Unlock Tesla for 3 diamonds in the skill tree")
+	if not TowerCatalog.unlocked(progression, kind):
+		hud.show_message("Unlock %s in the skill tree first" % TowerCatalog.DATA[kind].title)
 		return
-	var cost := GameConfig.TESLA_COST if kind == Tower.Kind.TESLA else GameConfig.TOWER_COST
+	var cost := int(TowerCatalog.DATA[kind].cost)
 	if currency < cost:
 		hud.show_message("Insufficient gold")
 		return
@@ -122,9 +124,9 @@ func _unhandled_input(event: InputEvent) -> void:
 func purchase_tower(cell: Vector2i) -> bool:
 	if is_finished() or _restart_confirming or skill_tree.visible:
 		return false
-	if build_kind == Tower.Kind.TESLA and not progression.has_skill("tesla"):
+	if not TowerCatalog.unlocked(progression, build_kind):
 		return false
-	var cost := GameConfig.TESLA_COST if build_kind == Tower.Kind.TESLA else GameConfig.TOWER_COST
+	var cost := int(TowerCatalog.DATA[build_kind].cost)
 	var error := board.try_block_cell(cell, currency, cost)
 	if not error.is_empty():
 		hud.show_message(error)
@@ -188,7 +190,7 @@ func upgrade_selected_tower(track: int) -> bool:
 		return false
 	currency -= cost
 	_refresh_hud()
-	hud.show_message("Tower upgraded • -%d gold • Track locked to %s" % [cost, Tower.Upgrade.keys()[track].to_lower()])
+	hud.show_message("%s upgraded • -%d gold • %d/%d upgrade slots used" % [TowerCatalog.DATA[selected_tower.kind].title, cost, selected_tower.upgrade_level, selected_tower.max_upgrades()])
 	return true
 
 
@@ -270,6 +272,8 @@ func _spawn_enemy(profile: EnemyProfile) -> void:
 	enemy.died.connect(_on_enemy_died)
 	enemy.reached_exit.connect(_on_enemy_reached_exit)
 	enemy.navigation_failed.connect(_on_navigation_failed)
+	enemy.visual_seed = _enemy_serial
+	_enemy_serial += 1
 	board.get_node("Enemies").add_child(enemy)
 	progression.apply_enemy_nerfs(profile)
 	enemy.setup_profile(board, profile)
@@ -299,6 +303,7 @@ func _on_enemy_reached_exit(_enemy: Enemy) -> void:
 func _on_wave_completed(wave: int) -> void:
 	if phase != Phase.WAVE_ACTIVE or lives <= 0 or wave != waves.current_wave or waves.running or waves.active_count != 0 or waves.remaining_to_spawn != 0:
 		return
+	_clear_projectiles()
 	currency += progression.gold_reward(GameConfig.WAVE_CLEAR_BONUS)
 	progression.award_wave(_run_id, wave)
 	phase = Phase.BETWEEN_WAVES
@@ -316,6 +321,7 @@ func open_skill_tree() -> void:
 	cancel_build()
 	skill_tree.refresh(progression)
 	skill_tree.show()
+	skill_tree.get_node("Panel/Margin/Items/Footer/Close").grab_focus()
 	_refresh_hud()
 
 
@@ -331,7 +337,7 @@ func purchase_skill(id: String) -> bool:
 		return false
 	var error := progression.purchase_error(id)
 	if not error.is_empty():
-		skill_tree.message.text = error
+		skill_tree.refresh(progression)
 		return false
 	if not progression.purchase(id):
 		skill_tree.refresh(progression)
@@ -355,10 +361,19 @@ func _finish(result: Phase) -> void:
 	selected_tower = null
 	building = false
 	waves.stop()
+	_clear_projectiles()
 	board.get_node("Enemies").process_mode = Node.PROCESS_MODE_DISABLED
 	board.get_node("Towers").process_mode = Node.PROCESS_MODE_DISABLED
 	hud.show_message("DEFEAT • The base has fallen. Restart for a fresh wave sequence.")
 	_refresh_hud()
+
+
+func _clear_projectiles() -> void:
+	var container := board.get_node_or_null("Projectiles")
+	if container != null:
+		for child in container.get_children():
+			child.set_process(false)
+			child.queue_free()
 
 
 func _on_navigation_failed(message: String) -> void:
@@ -371,11 +386,12 @@ func _refresh_hud() -> void:
 	if phase == Phase.WAVE_ACTIVE:
 		status += "\n%d active • %d to spawn" % [waves.active_count, waves.remaining_to_spawn]
 	hud.display(currency, lives, waves.current_wave, status, building, waves.can_start() and not skill_tree.visible, is_finished() or skill_tree.visible)
-	hud.display_progression(progression, phase != Phase.WAVE_ACTIVE and not is_finished(), build_kind)
+	hud.display_progression(progression, phase != Phase.WAVE_ACTIVE and not is_finished() and not skill_tree.visible, build_kind)
+	(hud.get_node("RightPanel/Margin/Items/Restart") as Button).disabled = skill_tree.visible or _restart_pending
 	hud.auto_start_button.set_pressed_no_signal(auto_start_waves)
 	hud.auto_start_button.disabled = is_finished() or skill_tree.visible or _restart_pending or _restart_confirming
-	var cost := GameConfig.TESLA_COST if build_kind == Tower.Kind.TESLA else GameConfig.TOWER_COST
-	var radius := GameConfig.TESLA_RANGE if build_kind == Tower.Kind.TESLA else GameConfig.TOWER_RANGE
+	var cost := int(TowerCatalog.DATA[build_kind].cost)
+	var radius := float(TowerCatalog.DATA[build_kind].range)
 	board.set_build_preview(building and not skill_tree.visible, currency, cost, radius)
 	var selected := selected_tower if _owns_tower(selected_tower) else null
 	hud.display_tower(selected, currency, is_finished() or skill_tree.visible)
