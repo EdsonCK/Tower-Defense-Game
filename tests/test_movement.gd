@@ -45,8 +45,14 @@ func _run() -> void:
 	check(enemy.position == before and enemy.get_committed_cell() == Vector2i(1, 12), "navigation revision preserves position and current segment")
 	enemy._process(17.0 / 60.0)
 	check(enemy.position == board.cell_to_pixel(Vector2i(1, 12)), "finishes old segment at next center")
+	check(not board.try_block_cell(Vector2i(1, 12), 200).is_empty(), "enemy at a cell center protects that cell")
 	enemy._process(0.1)
 	check(enemy.get_current_cell() == Vector2i(1, 12) and enemy.get_committed_cell() != Vector2i(2, 12), "reroutes at center, avoids newly blocked future tile")
+	before = enemy.position
+	var committed := enemy.get_committed_cell()
+	check(board.try_block_cell(Vector2i(3, 12), 200).is_empty(), "another placement succeeds during rerouted segment")
+	board.confirm_placement()
+	check(enemy.position == before and enemy.get_committed_cell() == committed, "multiple revisions preserve in-flight segment")
 	var last := enemy.position
 	var movement_safe := true
 	for i in range(5000):

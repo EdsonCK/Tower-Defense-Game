@@ -61,7 +61,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not building or is_finished():
 		return
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		var pixel := board.get_local_mouse_position()
+		var pixel: Vector2 = board.get_global_transform_with_canvas().affine_inverse() * event.position
 		if board.contains_pixel(pixel):
 			purchase_tower(board.pixel_to_cell(pixel))
 			get_viewport().set_input_as_handled()

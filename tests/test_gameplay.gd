@@ -34,6 +34,12 @@ func _test_purchases() -> void:
 	game.tower_scene = null
 	check(not game.purchase_tower(Vector2i(5, 5)), "failed instantiation rejected")
 	check(game.currency == 140 and not game.board.is_blocked(Vector2i(5, 5)) and game.board.revision == revision, "failed instantiation rolls back occupancy, revision, and currency")
+	var wrong_root := Node2D.new()
+	var wrong_scene := PackedScene.new()
+	wrong_scene.pack(wrong_root)
+	wrong_root.free()
+	game.tower_scene = wrong_scene
+	check(not game.purchase_tower(Vector2i(5, 5)) and game.currency == 140 and not game.board.is_blocked(Vector2i(5, 5)), "wrong scene type rolls back without charging")
 	game.tower_scene = saved_scene
 	check(game.purchase_tower(Vector2i(21, 12)) and game.purchase_tower(Vector2i(22, 12)), "three starting towers affordable")
 	check(game.currency == 20 and not game.building, "stop build mode below tower cost")
@@ -46,6 +52,26 @@ func make_game() -> TDGame:
 	root.add_child(game)
 	game.process_mode = Node.PROCESS_MODE_DISABLED
 	return game
+
+
+func _test_blocked_route_economy() -> void:
+	var solids: Array[Vector2i] = []
+	for y in range(24):
+		if y != 12:
+			solids.append(Vector2i(20, y))
+	var game := preload("res://scenes/main.tscn").instantiate() as TDGame
+	game.get_node("Board").free()
+	var board := Board.new(solids)
+	board.name = "Board"
+	for container_name in ["Enemies", "Towers"]:
+		var container := Node2D.new()
+		container.name = container_name
+		board.add_child(container)
+	game.add_child(board)
+	root.add_child(game)
+	check(not game.purchase_tower(Vector2i(20, 12)), "Main rejects purchase sealing last gap")
+	check(game.currency == 200 and not board.is_blocked(Vector2i(20, 12)) and board.revision == 0 and board.get_node("Towers").get_child_count() == 0, "route rejection leaves all transaction state unchanged")
+	game.free()
 
 
 func _test_cadence_and_rewards() -> void:
@@ -171,6 +197,7 @@ func _test_playable_sessions() -> void:
 
 func _run() -> void:
 	_test_purchases()
+	_test_blocked_route_economy()
 	_test_cadence_and_rewards()
 	_test_combat()
 	_test_playable_sessions()
