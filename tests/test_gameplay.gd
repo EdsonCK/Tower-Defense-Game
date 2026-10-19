@@ -154,9 +154,10 @@ func test_armor_reduces_damage_but_never_below_one() -> void:
 	var board: Board = _make_board()
 	var tank: Enemy = _spawn_enemy(board, 100.0, EnemyTypes.TANK)
 	tank.take_damage(15)
-	_check(tank.health == 91.0, "Tank armor 6 turns a 15 hit into 9 (HP %s)" % tank.health)
-	tank.take_damage(3)
-	_check(tank.health == 90.0, "hits weaker than armor still deal 1 (HP %s)" % tank.health)
+	_check(tank.health == 100.0 - (15 - tank.armor), "Tank armor %d reduces a 15 hit to %d (HP %s)" % [tank.armor, 15 - tank.armor, tank.health])
+	var before: float = tank.health
+	tank.take_damage(tank.armor - 1)
+	_check(tank.health == before - 1.0, "hits weaker than armor still deal 1 (HP %s)" % tank.health)
 
 
 func test_mender_regenerates_up_to_max() -> void:
@@ -251,8 +252,12 @@ func test_endless_waves_never_end_in_victory() -> void:
 		if wm.is_wave_active() or main.state != main.GameState.BETWEEN_WAVES or wm.get_unresolved_count() != 0:
 			clean = false
 			break
+		if main.is_skill_menu_open() != (wave % GameConfig.SKILL_MENU_WAVE_INTERVAL == 0):
+			clean = false
+			break
+		_close_skill_menu(main)
 		bonuses += WaveGenerator.wave_clear_bonus(wave)
-	_check(clean, "30 consecutive waves (3 boss waves) start and complete cleanly")
+	_check(clean, "30 consecutive waves (3 boss waves) complete cleanly; the skill tree opens after every 5th")
 	_check(wm.current_wave == 30 and wm.has_next_wave(), "after wave 30 another wave is still available")
 	_check(main.lives == GameConfig.STARTING_LIVES, "no lives lost when everything is killed")
 	_check(main.currency == GameConfig.STARTING_CURRENCY + earned[0] + bonuses, "currency = start + every bounty once + every wave bonus (%d)" % main.currency)
@@ -263,6 +268,7 @@ func test_endless_waves_never_end_in_victory() -> void:
 
 func test_upgrade_one_path_per_tower() -> void:
 	var main: Node2D = _make_main()
+	_unlock_tower_skills(main)
 	main.currency = 10000
 	main.try_buy_tower(Vector2i(10, 5))
 	var tower: Tower = main.get_tower_at(Vector2i(10, 5))
@@ -284,6 +290,7 @@ func test_upgrade_one_path_per_tower() -> void:
 
 func test_upgrade_effects() -> void:
 	var main: Node2D = _make_main()
+	_unlock_tower_skills(main)
 	main.currency = 10000
 	main.try_buy_tower(Vector2i(10, 5))
 	main.try_buy_tower(Vector2i(12, 5))
@@ -314,6 +321,7 @@ func test_upgrade_effects() -> void:
 
 func test_upgrade_rejections_change_nothing() -> void:
 	var main: Node2D = _make_main()
+	_unlock_tower_skills(main)
 	main.try_buy_tower(Vector2i(10, 5))
 	main.try_buy_tower(Vector2i(11, 5))
 	main.try_buy_tower(Vector2i(12, 5))
@@ -327,6 +335,7 @@ func test_upgrade_rejections_change_nothing() -> void:
 
 func test_sell_refunds_half_and_unblocks() -> void:
 	var main: Node2D = _make_main()
+	_unlock_tower_skills(main)
 	var cell: Vector2i = Vector2i(10, 12)
 	main.try_buy_tower(cell)
 	_check(main.currency == 140, "bought one tower")
@@ -371,6 +380,7 @@ func test_sell_mid_wave_enemies_reroute_through_freed_cell() -> void:
 
 func test_selection_and_hud() -> void:
 	var main: Node2D = _make_main()
+	_unlock_tower_skills(main)
 	main.currency = 1000
 	main.try_buy_tower(Vector2i(10, 5))
 	var tower: Tower = main.get_tower_at(Vector2i(10, 5))
@@ -379,14 +389,16 @@ func test_selection_and_hud() -> void:
 	_check(main.hud.is_selection_visible(), "upgrade/sell panel is shown")
 	main._on_upgrade_pressed(Tower.UpgradePath.SPEED)
 	_check(tower.upgrade_path == Tower.UpgradePath.SPEED, "upgrade button applies to the selected tower")
-	_check(not main.hud._upgrade_damage_button.visible and not main.hud._upgrade_range_button.visible and main.hud._upgrade_speed_button.visible, "other upgrade paths are hidden once one is chosen")
+	var hud: Hud = main.hud
+	_check(not hud.get_upgrade_button(Tower.UpgradePath.DAMAGE).visible and not hud.get_upgrade_button(Tower.UpgradePath.RANGE).visible \
+			and not hud.get_upgrade_button(Tower.UpgradePath.PIERCE).visible and hud.get_upgrade_button(Tower.UpgradePath.SPEED).visible, "other upgrade paths (incl. the unique one) are hidden once one is chosen")
 	main._on_board_cell_clicked(Vector2i(30, 20))
 	_check(main.selected_tower == null and not tower.selected and not main.hud.is_selection_visible(), "clicking empty ground deselects")
 	main._on_board_cell_clicked(Vector2i(10, 5))
 	main._on_cancel_pressed()
 	_check(main.selected_tower == null, "Esc / right-click deselects")
 	main._on_board_cell_clicked(Vector2i(10, 5))
-	main._on_build_pressed()
+	main._on_build_pressed(TowerTypes.BASIC)
 	_check(main.selected_tower == null and main.build_mode, "entering build mode clears the selection")
 	main._on_cancel_pressed()
 	main._on_board_cell_clicked(Vector2i(10, 5))

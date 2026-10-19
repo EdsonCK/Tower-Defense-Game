@@ -45,9 +45,9 @@ const DEFS: Dictionary = {
 		"min_wave": 4, "weight": 4.0, "pack": [3, 5], "interval": 0.35,
 	},
 	TANK: {
-		"name": "Tank", "trait": "Armored: -6 damage per hit",
+		"name": "Tank", "trait": "Armored: -4 damage per hit",
 		"shape": "square", "color": Color(0.6, 0.35, 0.85), "radius": 12.0,
-		"speed": 36.0, "health": 150.0, "reward": 28, "armor": 6, "regen": 0.0, "lives": 2,
+		"speed": 36.0, "health": 150.0, "reward": 28, "armor": 4, "regen": 0.0, "lives": 2,
 		"split_into": "", "split_count": 0,
 		"min_wave": 5, "weight": 3.0, "pack": [1, 1], "interval": 1.6,
 	},
@@ -68,7 +68,7 @@ const DEFS: Dictionary = {
 	BOSS: {
 		"name": "Warlord", "trait": "Boss every 10 waves: armored, slowly regenerates, costs 5 lives",
 		"shape": "star", "color": Color(0.55, 0.05, 0.1), "radius": 15.0,
-		"speed": 34.0, "health": 250.0, "reward": 150, "armor": 4, "regen": 0.005, "lives": 5,
+		"speed": 34.0, "health": 250.0, "reward": 150, "armor": 3, "regen": 0.005, "lives": 5,
 		"split_into": "", "split_count": 0,
 		"min_wave": 10, "weight": 0.0, "pack": [1, 1], "interval": 2.5,
 	},

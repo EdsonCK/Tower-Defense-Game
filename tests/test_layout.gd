@@ -47,6 +47,8 @@ func _layout_violation(main: Node2D) -> String:
 		var control: Control = node as Control
 		if not control.is_visible_in_tree():
 			continue
+		if _in_modal(control):
+			continue  # full-screen modal menus pause the game; checked in test_skills
 		if control.is_in_group(Hud.PASSTHROUGH_GROUP):
 			if control.mouse_filter != Control.MOUSE_FILTER_IGNORE or control.get_class() not in Hud.PASSTHROUGH_CLASSES:
 				return "%s is marked passthrough but can draw or catch clicks (%s, filter %d)" % [control.name, control.get_class(), control.mouse_filter]
@@ -61,16 +63,30 @@ func _layout_violation(main: Node2D) -> String:
 	return ""
 
 
+func _in_modal(control: Control) -> bool:
+	var node: Node = control
+	while node != null:
+		if node.is_in_group(Hud.MODAL_GROUP):
+			return true
+		node = node.get_parent()
+	return false
+
+
 func _stress_states(main: Node2D) -> Array[Callable]:
 	var hud: Hud = main.hud
 	var huge_counts: Dictionary = {}
 	for type_id: String in EnemyTypes.DEFS:
 		huge_counts[type_id] = 9999
 	var selection: Dictionary = {
-		"path": "None", "level": 0, "max_level": 3, "damage": 999999, "range": 99999.0, "cooldown": 0.01,
-		"next_cost": 999999, "sell_value": 999999, "locked_path": Tower.UpgradePath.NONE,
-		"options": {Tower.UpgradePath.DAMAGE: true, Tower.UpgradePath.RANGE: true, Tower.UpgradePath.SPEED: true},
-		"can_sell": true,
+		"title": "TESLA TOWER - LEVEL 999/999 (ARMOR PIERCING)", "stats": "Damage 999999 to all in range, range 99999 px, every 0.01 s",
+		"note": "Upgrades locked - unlock Tesla Upgrades in the Skill Tree. " + LONG_TEXT,
+		"buttons": {
+			Tower.UpgradePath.DAMAGE: {"visible": true, "enabled": true, "text": "Upgrade Damage (999999)"},
+			Tower.UpgradePath.RANGE: {"visible": true, "enabled": true, "text": "Upgrade Range (999999)"},
+			Tower.UpgradePath.SPEED: {"visible": true, "enabled": true, "text": "Upgrade Hit speed (999999)"},
+			Tower.UpgradePath.STATIC: {"visible": true, "enabled": true, "text": "Upgrade Static field (999999)"},
+		},
+		"sell_value": 999999, "can_sell": true,
 	}
 	return [
 		func() -> void: pass,
@@ -78,6 +94,8 @@ func _stress_states(main: Node2D) -> Array[Callable]:
 		func() -> void: hud.show_error(LONG_TEXT + LONG_TEXT + LONG_TEXT),
 		func() -> void: hud.set_build_mode(true),
 		func() -> void: hud.update_status(2147483647, 999999, 999999, "BETWEEN WAVES BETWEEN WAVES BETWEEN WAVES", 9223372036854775807),
+		func() -> void: hud.update_diamonds(2147483647),
+		func() -> void: hud.set_buttons(true, true, false, TowerTypes.BASIC, TowerTypes.ORDER),
 		func() -> void: hud.update_enemy_counts(999999, 999999),
 		func() -> void: hud.update_next_wave(999999, huge_counts),
 		func() -> void: hud.show_selection(selection),

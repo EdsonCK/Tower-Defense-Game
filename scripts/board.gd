@@ -34,6 +34,7 @@ var _astar: AStarGrid2D = AStarGrid2D.new()
 var _blocked: Dictionary = {}  # Vector2i -> true
 var _build_mode: bool = false
 var _can_afford: bool = true
+var _preview_range: float = GameConfig.TOWER_RANGE
 var _hover_cell: Vector2i = NO_CELL
 var _hover_valid: bool = false
 var _hover_refresh_left: float = 0.0
@@ -164,6 +165,17 @@ func try_block_cell_live(cell: Vector2i) -> String:
 	return try_block_cell(cell, get_enemy_occupied_cells(), get_enemy_committed_waypoints())
 
 
+## Route from spawn to exit if `cell` were also blocked; the pathfinder is left unchanged.
+## Read-only query for previews and tooling (does not validate the placement).
+func preview_path_with_block(cell: Vector2i) -> Array[Vector2i]:
+	if not is_in_bounds(cell) or _astar.is_point_solid(cell):
+		return find_path(GameConfig.SPAWN_CELL, GameConfig.EXIT_CELL)
+	_astar.set_point_solid(cell, true)
+	var path: Array[Vector2i] = find_path(GameConfig.SPAWN_CELL, GameConfig.EXIT_CELL)
+	_astar.set_point_solid(cell, false)
+	return path
+
+
 ## Rolls back a block (used if tower creation fails).
 func unblock_cell(cell: Vector2i) -> void:
 	if not _blocked.has(cell):
@@ -238,10 +250,11 @@ func _bump_revision() -> void:
 
 # --- Input and hover -----------------------------------------------------------
 
-## Called by Main whenever build mode or affordability changes.
-func set_build_state(active: bool, can_afford: bool) -> void:
+## Called by Main whenever build mode, affordability or the build type changes.
+func set_build_state(active: bool, can_afford: bool, preview_range: float = GameConfig.TOWER_RANGE) -> void:
 	_build_mode = active
 	_can_afford = can_afford
+	_preview_range = preview_range
 	_hover_refresh_left = 0.0
 	if not active:
 		_hover_cell = NO_CELL
@@ -298,7 +311,7 @@ func _draw() -> void:
 		draw_rect(_cell_rect(_hover_cell), color)
 		draw_rect(_cell_rect(_hover_cell), Color(color, 0.9), false, 2.0)
 		if _hover_valid:
-			draw_arc(cell_to_world(_hover_cell), GameConfig.TOWER_RANGE, 0.0, TAU, 48, Color(1, 1, 1, 0.35), 1.5)
+			draw_arc(cell_to_world(_hover_cell), _preview_range, 0.0, TAU, 48, Color(1, 1, 1, 0.35), 1.5)
 
 
 func _draw_marker(cell: Vector2i, color: Color, text: String) -> void:

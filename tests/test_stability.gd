@@ -4,6 +4,9 @@ extends "res://tests/test_base.gd"
 ##   godot --headless --path <project> --script res://tests/test_stability.gd
 
 
+const BOTS: GDScript = preload("res://tests/bots.gd")
+
+
 func get_tests() -> Array[Callable]:
 	return [
 		test_random_build_sell_upgrade_fuzz,
@@ -16,35 +19,50 @@ func _random_cell(rng: RandomNumberGenerator) -> Vector2i:
 	return Vector2i(rng.randi_range(0, GameConfig.GRID_COLUMNS - 1), rng.randi_range(0, GameConfig.GRID_ROWS - 1))
 
 
-## Random actions (build / sell / upgrade / start wave) interleaved with simulation.
+## Random actions (build either tower / sell / upgrade any path / unlock skills / open
+## and close the skill tree / toggle auto-start / start waves) interleaved with simulation.
 func test_random_build_sell_upgrade_fuzz() -> void:
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = 424242
 	var main: Node2D = _make_main(2024)
 	var violation: String = ""
-	var actions: Dictionary = {"build": 0, "sell": 0, "upgrade": 0, "waves": 0, "restarts": 0}
+	var actions: Dictionary = {"build": 0, "tesla": 0, "sell": 0, "upgrade": 0, "skills": 0, "menu": 0, "waves": 0, "restarts": 0}
+	var skill_ids: Array = SkillTree.SKILLS.keys()
 	for step in 6000:
 		if main.is_game_over():
 			main.restart_game(rng.randi_range(0, 1000000))
 			actions["restarts"] += 1
 		main.currency = maxi(main.currency, 500)  # keep the fuzzer able to act
 		var roll: float = rng.randf()
-		if roll < 0.25:
-			if main.try_buy_tower(_random_cell(rng)):
-				actions["build"] += 1
-		elif roll < 0.32 and main.get_tower_count() > 0:
+		if roll < 0.22:
+			var type_id: String = TowerTypes.ORDER[rng.randi_range(0, TowerTypes.ORDER.size() - 1)]
+			if main.try_buy_tower(_random_cell(rng), type_id):
+				actions["tesla" if type_id == TowerTypes.TESLA else "build"] += 1
+		elif roll < 0.29 and main.get_tower_count() > 0:
 			var cells: Array = main._towers_by_cell.keys()
 			if main.try_sell_tower(cells[rng.randi_range(0, cells.size() - 1)]):
 				actions["sell"] += 1
-		elif roll < 0.40 and main.get_tower_count() > 0:
+		elif roll < 0.37 and main.get_tower_count() > 0:
 			var cells: Array = main._towers_by_cell.keys()
 			var tower: Tower = main.get_tower_at(cells[rng.randi_range(0, cells.size() - 1)])
-			if main.try_upgrade_tower(tower, rng.randi_range(1, 3) as Tower.UpgradePath):
+			if main.try_upgrade_tower(tower, rng.randi_range(1, 5) as Tower.UpgradePath):
 				actions["upgrade"] += 1
-		if main.state == main.GameState.READY or main.state == main.GameState.BETWEEN_WAVES:
+		elif roll < 0.40:
+			main.diamonds += 1
+			if main.try_unlock_skill(skill_ids[rng.randi_range(0, skill_ids.size() - 1)]):
+				actions["skills"] += 1
+		elif roll < 0.41:
+			main.open_skill_menu("fuzz")
+			actions["menu"] += 1
+		elif roll < 0.42:
+			main.set_auto_start(not main.auto_start)
+		if main.is_skill_menu_open() and rng.randf() < 0.3:
+			main.close_skill_menu()
+		if (main.state == main.GameState.READY or main.state == main.GameState.BETWEEN_WAVES) and rng.randf() < 0.5:
 			main._on_start_wave_pressed()
 			actions["waves"] += 1
 		_simulate(main, 0.05, 1)
+		main.step_auto_start(0.05)
 		_free_resolved(main)
 		if step % 5 == 0:
 			violation = _invariant_violation(main)
@@ -52,65 +70,33 @@ func test_random_build_sell_upgrade_fuzz() -> void:
 				violation = "step %d: %s" % [step, violation]
 				break
 	_check(violation == "", "6000 randomized steps keep every invariant%s" % ("" if violation == "" else " - " + violation))
-	_check(actions["build"] > 100 and actions["sell"] > 10 and actions["upgrade"] > 10 and actions["waves"] > 3, "fuzzer exercised builds/sells/upgrades/waves: %s" % actions)
+	_check(actions["build"] > 50 and actions["tesla"] > 20 and actions["sell"] > 10 and actions["upgrade"] > 10 and actions["skills"] >= SkillTree.SKILLS.size() - 2 and actions["waves"] > 3, "fuzzer exercised every action: %s" % actions)
 
 
-## A fixed defensive layout with upgrades fights real generated waves until defeat or
-## wave 30, checking invariants and that every wave finishes in bounded time.
+## The good bot plays real generated waves with every invariant checked every 10 ticks,
+## and every wave must resolve in bounded time.
 func test_long_run_with_defending_towers() -> void:
 	var main: Node2D = _make_main(31337)
-	var wm: WaveManager = main.wave_manager
-	var layout: Array[Vector2i] = []
-	for x in [6, 10, 14, 18, 22, 26, 30, 34]:
-		for y in range(4, 21):
-			# Alternate gaps top/bottom to make a serpentine maze.
-			var gap_at_top: bool = (x / 4) % 2 == 0
-			if (gap_at_top and y == 4) or (not gap_at_top and y == 20):
-				continue
-			layout.append(Vector2i(x, y))
-	# Build the cells nearest the enemies' row first so early towers actually defend.
-	layout.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
-		var da: int = absi(a.y - 12) * 4 + a.x
-		var db: int = absi(b.y - 12) * 4 + b.x
-		return da < db)
-	var violation: String = ""
-	var stuck_wave: int = -1
-	var paths: Array = [Tower.UpgradePath.DAMAGE, Tower.UpgradePath.RANGE, Tower.UpgradePath.SPEED]
-	var build_index: int = 0
-	var history: PackedStringArray = PackedStringArray()
-	var escaped: Dictionary = {}
-	wm.enemy_escaped.connect(func(e: Enemy) -> void: escaped[e.type_id] = escaped.get(e.type_id, 0) + 1)
-	while not main.is_game_over() and wm.current_wave < 30:
-		# Spend between waves: extend the maze, then upgrade towers round-robin.
-		while build_index < layout.size() and main.currency >= GameConfig.TOWER_COST:
-			main.try_buy_tower(layout[build_index])
-			build_index += 1
-		var cells: Array = main._towers_by_cell.keys()
-		for i in cells.size():
-			var tower: Tower = main.get_tower_at(cells[i])
-			if tower.next_upgrade_cost() > 0 and main.currency >= tower.next_upgrade_cost():
-				main.try_upgrade_tower(tower, paths[i % 3])
-		main._on_start_wave_pressed()
-		var wave_steps: int = 0
-		while wm.is_wave_active() and not main.is_game_over():
-			_simulate(main, 0.05, 10)
-			_free_resolved(main)
-			wave_steps += 10
-			violation = _invariant_violation(main)
-			if violation != "":
-				break
-			if wave_steps > 20 * 60 * 10:  # 10 simulated minutes
-				stuck_wave = wm.current_wave
-				break
-		if violation != "" or stuck_wave >= 0:
-			break
-		history.append("w%d:%dL%s" % [wm.current_wave, main.lives, "" if escaped.is_empty() else str(escaped)])
-		escaped.clear()
-	print("  ..   [%s] lives after each wave: %s" % [_current_test, " ".join(history)])
-	print("  ..   [%s] long run reached wave %d, lives %d, towers %d, state %s" % [_current_test, wm.current_wave, main.lives, main.get_tower_count(), main.GameState.keys()[main.state]])
-	_check(violation == "", "invariants hold through the long run%s" % ("" if violation == "" else " - wave %d: %s" % [wm.current_wave, violation]))
-	_check(stuck_wave < 0, "every wave resolves in bounded time (stuck on wave %d)" % stuck_wave)
-	_check(wm.current_wave >= 10, "towers with upgrades survive at least 10 waves (reached %d)" % wm.current_wave)
+	var bot = BOTS.new("good", 31337)
+	var violation: Array[String] = [""]
+	var ticks: Array[int] = [0]
+	var stepper: Callable = func(m: Node2D, dt: float) -> void:
+		if violation[0] != "":
+			return
+		_simulate(m, dt, 1)
+		_free_resolved(m)
+		ticks[0] += 1
+		if ticks[0] % 10 != 0:
+			return
+		violation[0] = _invariant_violation(m)
+		if violation[0] != "":
+			violation[0] = "wave %d: %s" % [m.wave_manager.current_wave, violation[0]]
+			m.lives = 0
+			m._end_game("invariant violated")
+	var reached: int = bot.play(main, 20, stepper)
+	print("  ..   [%s] good bot reached wave %d, lives %d, towers %d, route %d cells, skills %d" % [_current_test, reached, main.lives, main.get_tower_count(), main.board.find_path(SPAWN, EXIT).size(), main.skills.unlocked_ids().size()])
+	_check(violation[0] == "", "invariants hold (checked every 10 ticks) through a 20-wave run%s" % ("" if violation[0] == "" else " - " + violation[0]))
+	_check(reached == 20 and not main.is_game_over(), "good bot survives 20 waves (reached %d)" % reached)
 
 
 func test_many_restarts_leave_no_residue() -> void:

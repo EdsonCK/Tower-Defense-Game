@@ -39,6 +39,20 @@ const MAX_ENEMIES_PER_WAVE: int = 70
 const BOSS_WAVE_INTERVAL: int = 10
 const MAX_BOSSES_PER_WAVE: int = 3
 ## Regular-enemy count multiplier on boss waves.
-const BOSS_WAVE_ESCORT_FACTOR: float = 0.7
+const BOSS_WAVE_ESCORT_FACTOR: float = 0.5
+## Enemy health multiplier on wave w: (1 + LINEAR*(w-1)) * GROWTH^(w-1).
+## Exponential growth outpaces any economy eventually, so endless runs always end;
+## well-built mazes (long routes, upgrades, skills) push that point much further out.
+const HEALTH_SCALE_LINEAR: float = 0.10
+const HEALTH_SCALE_GROWTH: float = 1.10
 const WAVE_CLEAR_BONUS_BASE: int = 30
 const WAVE_CLEAR_BONUS_PER_WAVE: int = 5
+
+# --- Diamonds and skill tree ---
+const DIAMONDS_PER_WAVE: int = 1
+## The skill tree opens automatically after every Nth completed wave.
+const SKILL_MENU_WAVE_INTERVAL: int = 5
+## Where permanent progress (diamonds + unlocked skills) is saved.
+const PROGRESS_SAVE_PATH: String = "user://progress.json"
+## Seconds between waves when auto-start is on.
+const AUTO_START_DELAY: float = 3.0

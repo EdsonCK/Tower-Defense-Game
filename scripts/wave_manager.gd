@@ -15,6 +15,9 @@ const ENEMY_SCENE: PackedScene = preload("res://scenes/enemy.tscn")
 ## 1-based number of the most recently started wave (0 before the first).
 var current_wave: int = 0
 var run_seed: int = 0
+## Skill-tree nerfs applied to every enemy at spawn (set by Main).
+var enemy_health_multiplier: float = 1.0
+var enemy_speed_multiplier: float = 1.0
 
 var _board: Board
 var _generator: WaveGenerator
@@ -106,7 +109,8 @@ func step(delta: float) -> void:
 		_queue_index += 1
 		_spawn_timer += entry["interval"]
 		var enemy: Enemy = ENEMY_SCENE.instantiate() as Enemy
-		enemy.setup(_board, entry, current_wave)
+		enemy.setup(_board, _apply_nerfs(entry), current_wave)
+		enemy.speed *= enemy_speed_multiplier
 		_add_enemy(enemy)
 
 
@@ -125,8 +129,15 @@ func _spawn_split_children(parent: Enemy) -> void:
 		return
 	for i in int(def["split_count"]):
 		var child: Enemy = ENEMY_SCENE.instantiate() as Enemy
-		child.setup_split_from(parent, WaveGenerator.make_entry(child_type, parent.wave), i)
+		child.setup_split_from(parent, _apply_nerfs(WaveGenerator.make_entry(child_type, parent.wave)), i)
+		child.speed *= enemy_speed_multiplier
 		_add_enemy(child)
+
+
+func _apply_nerfs(entry: Dictionary) -> Dictionary:
+	var nerfed: Dictionary = entry.duplicate()
+	nerfed["health"] = maxf(1.0, entry["health"] * enemy_health_multiplier)
+	return nerfed
 
 
 func _on_enemy_died(enemy: Enemy) -> void:

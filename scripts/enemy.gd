@@ -39,6 +39,8 @@ var _route_dirty: bool = true
 var _resolved: bool = false
 var _route_error_reported: bool = false
 var _draw_offset: Vector2 = Vector2.ZERO
+var _slow: float = 0.0       # fraction of speed removed while slowed
+var _slow_left: float = 0.0  # seconds of slow remaining
 
 
 ## Configures a freshly spawned enemy at the entrance from a WaveGenerator spawn entry.
@@ -98,12 +100,17 @@ func step(delta: float) -> void:
 	if regen_rate > 0.0 and health < max_health:
 		health = minf(max_health, health + max_health * regen_rate * delta)
 		queue_redraw()
+	if _slow_left > 0.0:
+		_slow_left -= delta
+		if _slow_left <= 0.0:
+			_slow = 0.0
+			queue_redraw()
 	advance(delta)
 
 
 ## Moves the enemy by `delta` seconds of travel, crossing as many cell centers as needed.
 func advance(delta: float) -> void:
-	var remaining: float = speed * delta
+	var remaining: float = get_effective_speed() * delta
 	while remaining > 0.0 and not _resolved:
 		if not _moving and not _start_next_segment():
 			return
@@ -118,16 +125,34 @@ func advance(delta: float) -> void:
 			remaining = 0.0
 
 
-## Applies a hit after armor. Every hit deals at least 1 damage.
-func take_damage(amount: int) -> void:
+## Applies a hit after armor (unless `ignore_armor`). Every hit deals at least 1 damage.
+func take_damage(amount: int, ignore_armor: bool = false) -> void:
 	if _resolved:
 		return
-	health = maxf(health - maxi(amount - armor, 1), 0.0)
+	var effective: int = amount if ignore_armor else amount - armor
+	health = maxf(health - maxi(effective, 1), 0.0)
 	queue_redraw()
 	if health <= 0.0:
 		_resolve()
 		died.emit(self)
 		queue_free()
+
+
+## Slows the enemy by `amount` (0-1) for `duration` seconds; the strongest slow wins.
+func apply_slow(amount: float, duration: float) -> void:
+	if _resolved:
+		return
+	_slow = clampf(maxf(_slow, amount), 0.0, 0.8)
+	_slow_left = maxf(_slow_left, duration)
+	queue_redraw()
+
+
+func get_effective_speed() -> float:
+	return speed * (1.0 - _slow)
+
+
+func is_slowed() -> bool:
+	return _slow > 0.0
 
 
 ## True while the enemy is alive, unresolved and may be targeted or block placement.
@@ -222,6 +247,8 @@ func _draw() -> void:
 		draw_polyline(points, COLOR_OUTLINE, 1.5)
 	if armor > 0:
 		draw_arc(_draw_offset, radius + 3.0, 0.0, TAU, 24, Color(0.8, 0.8, 0.85), 2.0)
+	if _slow > 0.0:
+		draw_arc(_draw_offset, radius + 5.0, 0.0, TAU, 24, Color(0.45, 0.75, 1.0, 0.9), 2.0)
 	var bar_origin: Vector2 = _draw_offset + Vector2(-HEALTH_BAR_WIDTH / 2.0, -radius - 9.0)
 	draw_rect(Rect2(bar_origin, Vector2(HEALTH_BAR_WIDTH, HEALTH_BAR_HEIGHT)), Color(0.1, 0.1, 0.1))
 	var ratio: float = clampf(health / max_health, 0.0, 1.0) if max_health > 0.0 else 0.0

@@ -20,6 +20,8 @@ var _current_test: String = ""
 
 
 func _initialize() -> void:
+	# Never read or write the player's real progress file from tests.
+	ProgressStore.save_path = ""
 	# Nodes added to root only receive _ready() once the tree is running, so start on the first frame.
 	process_frame.connect(_run_all, CONNECT_ONE_SHOT)
 
@@ -75,6 +77,20 @@ func _make_main(seed_value: int = TEST_SEED) -> Node2D:
 	root.add_child(main)
 	main.restart_game(seed_value)
 	return main
+
+
+## Unlocks the Tesla and every tower-upgrade skill (no global stat modifiers).
+func _unlock_tower_skills(main: Node2D) -> void:
+	for id: String in ["tesla", "basic_upgrades", "basic_pierce", "tesla_upgrades", "tesla_static"]:
+		main.skills.unlock(id)
+	main._apply_skill_modifiers()
+	main._refresh_hud()
+
+
+## Closes the skill tree if a wave completion opened it.
+func _close_skill_menu(main: Node2D) -> void:
+	if main.is_skill_menu_open():
+		main.close_skill_menu()
 
 
 func _spawn_enemy(board: Board, health: float = 45.0, type_id: String = EnemyTypes.GRUNT) -> Enemy:
@@ -175,6 +191,6 @@ func _invariant_violation(main: Node2D) -> String:
 			return "enemy health out of range: %s / %s" % [enemy.health, enemy.max_health]
 	if main.currency < 0:
 		return "negative currency %d" % main.currency
-	if main.lives < 0 or main.lives > GameConfig.STARTING_LIVES:
+	if main.lives < 0 or main.lives > main.get_max_lives():
 		return "lives out of range %d" % main.lives
 	return ""

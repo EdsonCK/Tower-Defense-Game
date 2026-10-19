@@ -18,7 +18,7 @@ func _init(seed_value: int) -> void:
 ## Multiplier applied to base enemy health on `wave` (1.0 on wave 1).
 static func health_scale(wave: int) -> float:
 	var w: float = float(maxi(wave, 1) - 1)
-	return 1.0 + 0.14 * w + 0.008 * w * w
+	return (1.0 + GameConfig.HEALTH_SCALE_LINEAR * w) * pow(GameConfig.HEALTH_SCALE_GROWTH, w)
 
 
 ## Multiplier applied to base kill rewards on `wave`.
