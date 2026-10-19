@@ -36,9 +36,11 @@ func generate(wave: int) -> Array[EnemyProfile]:
 		var profile := EnemyProfile.base(kind)
 		# Early waves teach placement; later HP follows investment in tower levels.
 		var late := maxf(0.0, difficulty - 4.0)
-		var scale := (1.0 + 0.08 * difficulty + 0.012 * late * late) * _rng.randf_range(0.95, 1.05)
+		var veteran := maxf(0.0, difficulty + 1.0 - GameConfig.VETERAN_START_WAVE)
+		var pressure := 1.0 + GameConfig.VETERAN_HEALTH_PER_WAVE * veteran
+		var scale := (1.0 + 0.08 * difficulty + 0.012 * late * late) * pressure * _rng.randf_range(0.95, 1.05)
 		if kind == EnemyProfile.Kind.ARMORED:
-			profile.armor += mini(12, floori(difficulty / 6.0))
+			profile.armor += mini(12, floori(difficulty / 6.0) + floori(veteran / GameConfig.VETERAN_ARMOR_INTERVAL))
 		profile.hit_points = clampi(roundi(profile.hit_points * scale), 1, GameConfig.MAX_ENEMY_HEALTH)
 		profile.speed *= _rng.randf_range(0.97, 1.03)
 		profile.shield = mini(roundi(profile.shield * scale), GameConfig.MAX_ENEMY_HEALTH)

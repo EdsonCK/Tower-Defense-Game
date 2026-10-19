@@ -71,7 +71,7 @@ Five enemy types remain distinct:
 
 Each independent run varies composition/order, count (±1 within bounds), HP/shield (±5%), speed (±3%), and cadence (±4% before clamping). Waves grow from about 8 to **64 enemies maximum**, with spawn spacing falling from about 1.2 s toward a **0.45 s minimum**. At least two types appear per wave; armor unlocks from wave 2, regeneration from 3, shields from 5. Waves wait until all enemies resolve (auto-start then launches the next unless a skill menu is open); plans and previous-wave nodes are released.
 
-Health now follows investment in towers more strongly: `1 + 0.08*d + 0.012*max(d-4,0)^2`, where `d = wave-1` is bounded before arithmetic. Armored enemies gain one armor per six waves, capped at +12. HP/shield retain safety caps. Kills pay their bounty; surviving each wave pays **30 base gold and 1 diamond**. Every escape costs one life. Zero lives stops spawning/movement/combat and management immediately.
+Health now follows investment in towers more strongly: `1 + 0.08*d + 0.012*max(d-4,0)^2`, where `d = wave-1` is bounded before arithmetic. After wave 30, multiply that health/shield scale by `1 + 0.04*(wave-30)`. Armored enemies gain one armor per six waves, plus one per four waves after wave 30, still capped at +12. Waves 1–30 are unchanged. HP/shield retain safety caps. Kills pay their bounty; surviving each wave pays **30 base gold and 1 diamond**. Every escape costs one life. Zero lives stops spawning/movement/combat and management immediately.
 
 Fresh-profile bot calibration uses five seeds (`721,109,1337,9001,2026`), with no injected gold, diamonds, damage, speed, lives, or unlocks:
 
@@ -112,6 +112,7 @@ tests/
   test_input_and_restart.gd, test_enemy_traits.gd
   test_tower_management.gd, test_endless_stability.gd
   test_progression.gd, test_tesla.gd, test_balance.gd, test_auto_start.gd
+  bot_policies.gd, test_hallway_policy.gd, compare_endless.gd
 ```
 
 `.gd.uid` files are source and committed; `.godot/` and Python caches are ignored. There are no plugins or autoload singletons. Live pathfinding still uses AStarGrid2D (no diagonal movement, Manhattan heuristic), initialized once; candidate solidity is restored on rejected placements and scene-instantiation failure.
@@ -130,7 +131,7 @@ Cloud command actually used:
 python3 tests/run_checks.py --godot /workspace/tools/godot-4.7.2/Godot_v4.7.2-stable_linux.x86_64
 ```
 
-The official binary reports `4.7.2.stable.official.ed1daf0bf` and was SHA512-verified. The runner sets writable temporary Linux XDG directories, imports first, runs a 180-frame startup, then all eleven SceneTree suites. It checks timeouts, exit status, logged engine/script/leak errors, nonzero test counts, and failures. It does not modify HOME or repository source. Individual suites can be run with:
+The official binary reports `4.7.2.stable.official.ed1daf0bf` and was SHA512-verified. The runner sets writable temporary Linux XDG directories, imports first, runs a 180-frame startup, then all twelve SceneTree suites. It checks timeouts, exit status, logged engine/script/leak errors, nonzero test counts, and failures. It does not modify HOME or repository source. Individual suites can be run with:
 
 ```sh
 godot --headless --editor --path . --quit
@@ -142,9 +143,25 @@ godot --headless --path . --script res://tests/test_balance.gd
 
 Use your actual executable instead of `godot` if it is not on PATH. Import first on fresh checkouts.
 
-Verified headless results: **35,084 checks across 11 suites, 0 failures**, plus import/startup, with no logged engine/script errors or leaks. Coverage includes persistence/recovery, real skill-menu button input, exact diamond payouts, milestone/modality, type-specific training, unique tracks, Tesla area damage/range/cooldown, gold boosts, enemy nerfs, and permanent-profile restart. Existing pathfinding, rerouting, economy and combat checks remain active.
+Verified headless results: **35,169 checks across 12 suites, 0 failures**, plus import/startup, with no logged engine/script errors or leaks. Coverage includes persistence/recovery, real skill-menu button input, exact diamond payouts, milestone/modality, type-specific training, unique tracks, Tesla area damage/range/cooldown, gold boosts, enemy nerfs, and permanent-profile restart. Existing pathfinding, rerouting, economy and combat checks remain active.
 
 Long-run checks still cover **10,000 generated waves (635,730 profiles)**, **1,000 scheduled cycles**, **300 scene lifecycle waves**, and **100 build/remove cycles during movement**. Controlled instant kills in lifecycle tests verify accounting/cleanup; natural combat is measured separately by the bots. Automated checks do not establish unlimited uptime, Windows visual acceptance, or balance for every profile/strategy.
+
+## Single-run maze comparison and wave-50 calibration
+
+The opt-in [comparison report](docs/balance/README.md) contains a single seeded baseline run per bot and a single tuned confirmation per bot, each bounded at 200 waves. The original reference bot lost on wave **46** and the unupgraded basic-only hallway bot on **68**. With the post-wave-30 pressure adjustment, they lost on **41** and **49**, respectively. No run reached the cap; the winning policy now reaches approximately wave 50.
+
+The hallway policy uses `(0,11)`, then a wall at `x=1` starting `(1,12)` downward; walls at `x=3,5,...,37` alternate bottom-up/top-down with one open column between them. Production placement validation rejects each final sealing tile. The full layout has **426 basic towers, 19 open end gaps, and a 476-cell route**. It never buys upgrades, other tower types, or skills. Purchases occur before wave 1 and after completed waves, using only starting/earned gold.
+
+The reference bot retains its existing earned-skill/upgrade policy and caps itself at 24 towers; it is not an optimal-player search. Both start with fresh in-memory profiles and seed 721. At 30 fixed simulation steps per second, only normal spawning, movement and tower combat decide results. No resources, damage or enemy speed are injected. Saved player progression is never used or modified.
+
+To reproduce the tuned comparison after editor import (substitute your Godot executable):
+
+```sh
+godot --headless --path . --script res://tests/compare_endless.gd -- --seed=721 --cap=200 --report=user://balance_comparison.json --assert-near-50
+```
+
+The optional assertion requires both bots to lose naturally and the longer-surviving bot's defeat wave to be 45–55. The benchmark is separate from the normal test runner; the runner includes its geometry, early-wave preservation and armor-counter regressions. Reports record per-wave routes, towers, gold, lives, HP/armor, kills/escapes by type and source hashes. This calibrates these policies and one seed, not a hard wave cap or a guarantee for all builds/profiles.
 
 ## Manual F5 acceptance
 

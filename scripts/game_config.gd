@@ -36,3 +36,8 @@ const TESLA_DAMAGE := 12
 const TESLA_COOLDOWN := 1.1
 const TESLA_UPGRADE_COSTS: Array[int] = [80, 130, 200, 300, 450]
 const SKILL_MENU_INTERVAL := 5
+
+# Veteran pressure follows early-game investment without imposing a final wave.
+const VETERAN_START_WAVE := 30
+const VETERAN_HEALTH_PER_WAVE := 0.04
+const VETERAN_ARMOR_INTERVAL := 4.0
