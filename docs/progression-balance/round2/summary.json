@@ -1,0 +1,88 @@
+{
+  "experiments": [
+    {
+      "variant": "architect",
+      "seed": 109,
+      "waves": [
+        11,
+        12,
+        51
+      ],
+      "outcomes": [
+        "defeat",
+        "defeat",
+        "defeat"
+      ],
+      "cleared": 71,
+      "first_wave_50_attempt": 3,
+      "elapsed_seconds": 195.33599999999998,
+      "report": "architect-109.json"
+    },
+    {
+      "variant": "architect",
+      "seed": 721,
+      "waves": [
+        11,
+        42,
+        53
+      ],
+      "outcomes": [
+        "defeat",
+        "defeat",
+        "defeat"
+      ],
+      "cleared": 103,
+      "first_wave_50_attempt": 3,
+      "elapsed_seconds": 268.59299999999996,
+      "report": "architect-721.json"
+    },
+    {
+      "variant": "builder",
+      "seed": 109,
+      "waves": [
+        11,
+        12,
+        51
+      ],
+      "outcomes": [
+        "defeat",
+        "defeat",
+        "defeat"
+      ],
+      "cleared": 71,
+      "first_wave_50_attempt": 3,
+      "elapsed_seconds": 237.18800000000002,
+      "report": "builder-109.json"
+    },
+    {
+      "variant": "builder",
+      "seed": 721,
+      "waves": [
+        11,
+        42,
+        55
+      ],
+      "outcomes": [
+        "defeat",
+        "defeat",
+        "cap"
+      ],
+      "cleared": 106,
+      "first_wave_50_attempt": 3,
+      "elapsed_seconds": 322.773,
+      "report": "builder-721.json"
+    }
+  ],
+  "ranking": [
+    {
+      "variant": "builder",
+      "mean_last_run_wave": 53.0,
+      "mean_cleared": 88.5
+    },
+    {
+      "variant": "architect",
+      "mean_last_run_wave": 52.0,
+      "mean_cleared": 87.0
+    }
+  ]
+}

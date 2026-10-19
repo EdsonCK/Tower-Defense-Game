@@ -52,7 +52,7 @@ func _test_generation() -> void:
 			generated_enemies += 1
 			kinds_seen[profile.kind] = true
 			wave_kinds[profile.kind] = true
-			if profile.hit_points <= 0 or profile.hit_points > GameConfig.MAX_ENEMY_HEALTH or not is_finite(profile.speed) or profile.speed <= 0 or profile.speed > 100 or profile.bounty <= 0 or profile.shield < 0:
+			if profile.hit_points <= 0 or profile.hit_points > GameConfig.MAX_ENEMY_HEALTH or not is_finite(profile.speed) or profile.speed <= 0 or profile.speed > 100 or profile.bounty <= 0 or profile.shield < 0 or profile.shield > GameConfig.MAX_ENEMY_HEALTH or profile.armor < 0 or profile.armor > GameConfig.MAX_ENEMY_HEALTH:
 				valid = false
 		check(valid and wave_kinds.size() >= 2, "wave %d finite stats and mixed types" % wave)
 	check(kinds_seen.size() == 5, "soak includes all five types")

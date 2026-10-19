@@ -1,8 +1,8 @@
-# Unnamed TD Game — Monsters & Machinations (v0.5)
+# Unnamed TD Game — Earned Progression (v0.6)
 
 Godot **4.7.2 Stable**, GDScript, original vector artwork, no plugins or external assets. Open the repository-root `project.godot` and press **F5**. Development is on **Codex-Workspace**.
 
-[Artwork, gameplay and branching research previews](docs/visual-overhaul/README.md)
+[Artwork, gameplay and branching research previews](docs/visual-overhaul/README.md) · [Advanced bot and progression balance](docs/progression-balance/README.md)
 
 ## Playing
 
@@ -98,7 +98,9 @@ Post-wave-30 density from v0.4 remains: **152 enemies at wave 50**, **442 at wav
 
 Board owns AStarGrid2D occupancy and placement transactions. Every accepted tower preserves spawn-to-exit reachability and every living enemy's committed waypoint. In-flight enemies finish their current segment before replanning. The new towers, freezes and visual offsets preserve these protections. Selling opens routes without moving enemies.
 
-Historical one-seed natural bot reports remain in [v0.3 balance](docs/balance/README.md) and [v0.4 layered-defense balance](docs/ui/README.md). The old bots buy Sentinel/Tesla only; those measurements do not establish balance for the new tower combinations. The five-seed normal regression still checks sensible placement clears 30 waves while off-route placement loses within five. No new full endless balance calibration is claimed for v0.5.
+The v0.6 durability multiplier is **min(8.5, 1 + 1.25 × max(0, wave − 5))**, applied to health, armor and shield before rounding. Waves 1–5 preserve the introduction; waves 6–11 build pressure on a fresh maze. Existing growth and safety caps still apply. This curve is shared by every run, independent of profile or attempt number. Permanent research retains its existing prices/effects.
+
+The [progression balance report](docs/progression-balance/README.md) records natural campaigns, strategy comparisons and retained diamond/research results. The advanced bot extends a safe serpentine route, places weapons by route coverage and functionality, and weighs upgrades against further construction. The standard five-seed regression checks fresh expert placement loses around wave 10 and off-route placement loses within five. Historical [v0.3](docs/balance/README.md), [v0.4](docs/ui/README.md) and [v0.5](docs/visual-overhaul/README.md) measurements describe earlier balance curves.
 
 ## Files
 
@@ -112,7 +114,7 @@ Historical one-seed natural bot reports remain in [v0.3 balance](docs/balance/RE
 - `scripts/skill_tree_menu.gd`, `research_graph.gd`, `research_icon.gd`: branching icons, prerequisite edges, hover information and purchase intents.
 - `scripts/hud.gd`, `ui_style.gd`: stable controls, state display, confirmation and shared theme.
 - `scenes/`: valid Godot main, enemy, tower and research scenes.
-- `tests/`: automated regressions, natural reference bots and optional rendered preview fixtures.
+- `tests/`: automated regressions, natural reference/advanced bots, retained-profile campaign sweeps and optional rendered preview fixtures.
 
 `.gd.uid` source files are committed. `.godot/` and Python caches are ignored. Preview documentation is excluded from game imports with `.gdignore`.
 
@@ -124,11 +126,11 @@ Run with your actual Godot 4.7.2 Stable executable:
 python3 tests/run_checks.py --godot /path/to/Godot_v4.7.2-stable_linux.x86_64
 ```
 
-The standard-library runner imports the editor project, starts the game for 180 frames and executes **15 suites**. It rejects timeouts, nonzero exits, logged engine/script/leak errors, missing check counts and failed assertions. It uses isolated writable temporary Linux XDG directories without modifying HOME.
+The standard-library runner imports the editor project, starts the game for 180 frames and executes **16 suites**. It rejects timeouts, nonzero exits, logged engine/script/leak errors, missing check counts and failed assertions. It uses isolated writable temporary Linux XDG directories without modifying HOME.
 
-Coverage includes pathfinding/placement transactions, moving-enemy reroutes, economy, real HUD/restart input, persistent diamond accounting, 40-node research/save compatibility, layer-specific damage, mixed upgrade limits and per-type sixth slots. New suites exercise real hover/click input on icon nodes, mortar flight/AoE, cannon piercing and first-tower collision, live tower construction/removal, ice slow/freeze timing/chance, snapshot damage, dead targets/sold sources, projectile pause and wave cleanup, and repeated blast lifecycles.
+Coverage includes pathfinding/placement transactions, moving-enemy reroutes, economy, real HUD/restart input, persistent diamond accounting, 40-node research/save compatibility, layer-specific damage, mixed upgrade limits and per-type sixth slots. Suites also exercise real hover/click input on icon nodes, mortar flight/AoE, cannon piercing and first-tower collision, live tower construction/removal, ice slow/freeze timing/chance, snapshot damage, dead targets/sold sources, projectile pause and wave cleanup, and repeated blast lifecycles.
 
-Long-run regression includes **10,000 generated waves / 5,086,314 profiles**, **1,000 scheduled waves**, **300 scene lifecycle waves**, **100 build/remove cycles**, and **80 repeated projectile lifecycles**. Lifecycle fixtures intentionally inject resources or resolve actors; natural placement tests remain separate. Rendering checks are separate from headless tests.
+Long-run regression includes **10,000 generated waves / 5,086,314 profiles**, **1,000 scheduled waves**, **300 scene lifecycle waves**, **100 build/remove cycles**, and **80 repeated projectile lifecycles**. Lifecycle fixtures intentionally inject resources or resolve actors; natural placement tests and retained-profile campaigns remain separate. The advanced-bot suite checks safe maze completion, actual gold/research transactions, sparse slow coverage and a real cannon shot through the entrance lane. Rendering checks are separate from headless tests. Optional long campaigns use `tests/sweep_campaigns.py`; see the progression report for commands, seeds, outcomes and wave-cap limitations.
 
 ## Manual F5 checks
 

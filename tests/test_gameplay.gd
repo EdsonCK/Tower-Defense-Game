@@ -168,7 +168,7 @@ func _test_playable_sessions() -> void:
 			for x in range(3, 38, 3):
 				build_cells.append(Vector2i(x, y))
 		var next_cell := 0
-		for wave in range(1, 13):
+		for wave in range(1, 16):
 			game.close_skill_tree()
 			while game.currency >= GameConfig.TOWER_COST and next_cell < build_cells.size():
 				game.purchase_tower(build_cells[next_cell])
@@ -182,10 +182,13 @@ func _test_playable_sessions() -> void:
 					(node as Enemy)._process(1.0 / 60.0)
 				for node in game.board.get_node("Towers").get_children():
 					(node as Tower)._process(1.0 / 60.0)
-			check(game.waves.current_wave == wave and game.waves.active_count == 0 and game.phase == TDGame.Phase.BETWEEN_WAVES, "natural combat clears endless wave %d" % wave)
+			check(game.phase != TDGame.Phase.WAVE_ACTIVE and game.waves.current_wave == wave, "natural combat resolves wave %d without a stuck actor" % wave)
+			if wave <= 5:
+				check(game.phase == TDGame.Phase.BETWEEN_WAVES and game.waves.active_count == 0, "untrained route coverage survives introductory wave %d" % wave)
 			if game.is_finished():
 				break
-		check(game.lives > 0 and game.waves.current_wave == 12, "twelve-wave session using only earned money and production combat")
+		check(game.lives == 0 and game.phase == TDGame.Phase.DEFEAT and game.waves.current_wave <= 15, "untrained basic-only placement eventually loses to the shared pressure ramp")
+		check(game.progression.diamonds == game.waves.current_wave - 1, "only naturally cleared waves award diamonds")
 		print("Endless session: seed=%d, wave=%d, lives=%d, currency=%d" % [run_seed, game.waves.current_wave, game.lives, game.currency])
 		game.free()
 	var game := make_game()

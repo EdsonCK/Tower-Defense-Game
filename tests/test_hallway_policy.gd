@@ -44,7 +44,7 @@ func _run() -> void:
 		basic_only = basic_only and tower.kind == Tower.Kind.BASIC and tower.upgrade_level == 0
 	check(basic_only and game.progression.unlocked.is_empty(), "hallway policy has no upgrades, Tesla towers, or skills")
 
-	# Verify unchanged early generation against actual baseline run observations.
+	# Verify the new shared pressure curve against measured historical generation.
 	var baseline: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://docs/balance/baseline.json"))
 	var hallway: Dictionary = baseline.results[1]
 	var generator := WaveGenerator.new(721)
@@ -61,7 +61,10 @@ func _run() -> void:
 				armored_profile = profile
 		if wave <= 30:
 			var original: Dictionary = hallway.waves[wave - 1].combat
-			check(hp == int(original.max_hp), "wave %d preserves measured early-game HP" % wave)
+			var factor := minf(GameConfig.APPRENTICE_PRESSURE_LIMIT, 1.0 + GameConfig.APPRENTICE_PRESSURE_PER_WAVE * maxf(0, wave - GameConfig.APPRENTICE_START_WAVE))
+			# The archive rounded before this multiplier; current generation rounds after.
+			var tolerance := 0.0 if wave <= 5 else ceilf(factor * 0.5 + 0.5)
+			check(absf(hp - int(original.max_hp) * factor) <= tolerance, "wave %d follows shared pressure curve, preserving the first five" % wave)
 	check(armored_profile != null, "wave-50 fixture contains an armored enemy")
 	var enemy := preload("res://scenes/enemy.tscn").instantiate() as Enemy
 	game.board.get_node("Enemies").add_child(enemy)

@@ -41,3 +41,8 @@ const SKILL_MENU_INTERVAL := 5
 const VETERAN_START_WAVE := 30
 const VETERAN_HEALTH_PER_WAVE := 0.055
 const VETERAN_ARMOR_INTERVAL := 4.0
+
+# A smooth shared pressure ramp after the five-wave introduction. Never run-aware.
+const APPRENTICE_START_WAVE := 5
+const APPRENTICE_PRESSURE_PER_WAVE := 1.25
+const APPRENTICE_PRESSURE_LIMIT := 8.5

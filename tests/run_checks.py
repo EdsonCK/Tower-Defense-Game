@@ -25,6 +25,7 @@ SUITES = (
     "test_progression",
     "test_tesla",
     "test_balance",
+    "test_advanced_bot",
     "test_auto_start",
     "test_hallway_policy",
     "test_ui_and_layers",

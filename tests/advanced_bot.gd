@@ -1,0 +1,238 @@
+extends RefCounted
+## Functional placement + budgeted path extension + marginal-value mixed upgrades.
+## All actions go through TDGame transactions. No money, actor or stat overrides.
+
+const VARIANTS := {
+	"builder": {"spacing": 2, "upgrade_share": 0.15, "tesla_share": 0.25, "mortar_share": 0.10, "ice_share": 0.07, "cannon": false, "mixed": false, "research": "economy"},
+	"storm": {"spacing": 2, "upgrade_share": 0.45, "tesla_share": 0.55, "mortar_share": 0.0, "ice_share": 0.09, "cannon": false, "mixed": true, "research": "storm"},
+	"siege": {"spacing": 3, "upgrade_share": 0.40, "tesla_share": 0.15, "mortar_share": 0.40, "ice_share": 0.10, "cannon": false, "mixed": true, "research": "siege"},
+	"artillery": {"spacing": 3, "upgrade_share": 0.45, "tesla_share": 0.20, "mortar_share": 0.20, "ice_share": 0.10, "cannon": true, "mixed": true, "research": "artillery"},
+	"hybrid": {"spacing": 2, "upgrade_share": 0.40, "tesla_share": 0.35, "mortar_share": 0.25, "ice_share": 0.08, "cannon": true, "mixed": true, "research": "economy"},
+	"investor": {"spacing": 2, "upgrade_share": 0.65, "tesla_share": 0.40, "mortar_share": 0.25, "ice_share": 0.08, "cannon": true, "mixed": true, "research": "economy"},
+	"architect": {"spacing": 2, "upgrade_share": 0.15, "tesla_share": 0.25, "mortar_share": 0.10, "ice_share": 0.07, "cannon": true, "mixed": true, "research": "economy"},
+}
+const DEFAULT_VARIANT := "builder"
+const ECONOMY: Array[String] = ["tesla", "salvage", "basic_training", "gold_mastery", "tesla_training", "engineering", "sluggish", "ice", "mortar", "mortar_training", "mortar_area", "fragile", "gold_mastery_ii", "engineering_ii", "rapid_fire", "ice_training", "cannon", "cannon_training", "cannon_distance", "piercing", "armor_breaker", "optics", "static_field", "overcharge", "sluggish_ii", "fragile_ii", "exposed_armor", "shield_decay", "engineering_iii", "gold_mastery_iii", "rapid_fire_ii", "armor_breaker_ii", "overcharge_ii", "optics_ii", "tesla_mastery", "mortar_mastery", "basic_mastery", "ice_freeze", "ice_mastery", "cannon_mastery"]
+
+var traits: Dictionary
+var variant: String
+var index := 0
+var gaps: Array[Vector2i] = []
+var candidates: Array[Vector2i] = []
+var error := ""
+var research_order: Array[String] = []
+var purchases := 0
+var upgrade_purchases := 0
+var _route: Array[Vector2i] = []
+var _coverage_cache: Dictionary = {}
+
+
+func _init(name: String = DEFAULT_VARIANT) -> void:
+	variant = name
+	traits = VARIANTS[name].duplicate(true)
+	candidates.append(Vector2i(0, 11))
+	for y in range(12, 24):
+		candidates.append(Vector2i(1, y))
+	var wall := 0
+	for x in range(1 + int(traits.spacing), 39, int(traits.spacing)):
+		for step in range(24):
+			candidates.append(Vector2i(x, 23 - step if wall % 2 == 0 else step))
+		wall += 1
+	research_order.assign(ECONOMY)
+	var priority: Array[String] = []
+	match traits.research:
+		"storm": priority.assign(["tesla", "tesla_training", "salvage", "basic_training", "static_field", "sluggish", "rapid_fire", "overcharge", "gold_mastery", "engineering", "ice"])
+		"siege": priority.assign(["tesla", "mortar", "salvage", "mortar_training", "mortar_area", "basic_training", "ice", "sluggish", "gold_mastery", "engineering"])
+		"artillery": priority.assign(["tesla", "cannon", "salvage", "cannon_training", "cannon_distance", "basic_training", "ice", "sluggish", "gold_mastery", "engineering"])
+	for i in range(priority.size() - 1, -1, -1):
+		research_order.erase(priority[i])
+		research_order.push_front(priority[i])
+
+
+func research(game: TDGame) -> void:
+	game.open_skill_tree()
+	# Save toward the next planned unlock rather than spending on arbitrary cheap nodes.
+	for id in research_order:
+		if game.progression.has_skill(id):
+			continue
+		var required: String = SkillCatalog.NODES[id].requires
+		if not required.is_empty() and not game.progression.has_skill(required):
+			continue
+		if not game.purchase_skill(id):
+			break
+	game.close_skill_tree()
+
+
+func prepare(game: TDGame) -> void:
+	assert(game.phase != TDGame.Phase.WAVE_ACTIVE)
+	research(game)
+	_route = game.board.find_path()
+	var opening_budget := game.currency
+	var upgrade_budget := floori(opening_budget * float(traits.upgrade_share))
+	# Keep the initial entrance wall intact. Its cap makes an unobstructed cannon lane.
+	if bool(traits.cannon) and TowerCatalog.unlocked(game.progression, Tower.Kind.CANNON):
+		var anchor := game.tower_at_cell(Vector2i(0, 11))
+		if anchor != null and anchor.kind == Tower.Kind.BASIC and game.currency + anchor.refund() >= int(TowerCatalog.DATA[Tower.Kind.CANNON].cost) + GameConfig.TOWER_COST:
+			game.select_placed_tower(anchor)
+			if game.remove_selected_tower():
+				game.select_tower(Tower.Kind.CANNON)
+				if not game.purchase_tower(Vector2i(0, 11)):
+					error = "Could not replace entrance cap with the cannon"
+					return
+				purchases += 1
+	_spend_upgrades(game, upgrade_budget)
+	var counts := _counts(game)
+	while game.currency >= GameConfig.TOWER_COST and index < candidates.size():
+		var cell := candidates[index]
+		if game.tower_at_cell(cell) != null:
+			index += 1
+			continue
+		var invalid := game.board.try_block_cell(cell, game.currency)
+		if invalid == "Cannot block the last route":
+			gaps.append(cell)
+			index += 1
+			continue
+		if not invalid.is_empty():
+			error = "Unexpected maze rejection %s: %s" % [cell, invalid]
+			return
+		var extended := game.board.find_path()
+		game.board.rollback_placement(cell)
+		var kind := _choose_kind(game, cell, extended, counts)
+		game.select_tower(kind)
+		if not game.purchase_tower(cell):
+			error = "Purchase rejected at %s" % cell
+			return
+		counts[kind] += 1
+		index += 1
+		purchases += 1
+		_route = extended
+	# Once the maze is complete, reinvest all surplus in effective firing positions.
+	if index >= candidates.size():
+		_spend_upgrades(game, game.currency)
+	if not game.board.path_is_valid(game.board.find_path(), GameConfig.SPAWN):
+		error = "Bot left an invalid spawn route"
+
+
+func _counts(game: TDGame) -> Array[int]:
+	var result: Array[int] = [0, 0, 0, 0, 0]
+	for child in game.board.get_node("Towers").get_children():
+		result[(child as Tower).kind] += 1
+	return result
+
+
+func _choose_kind(game: TDGame, cell: Vector2i, route: Array[Vector2i], counts: Array[int]) -> int:
+	var total := 0
+	for count in counts:
+		total += count
+	# A cheap three-tower entrance fold is a better opening than one costly weapon.
+	if total < 3 and game.waves.current_wave == 0:
+		return Tower.Kind.BASIC
+	if cell == Vector2i(0, 11):
+		return Tower.Kind.BASIC # Reserve its unobstructed entrance lane for later cannon replacement.
+	var center := game.board.cell_to_pixel(cell)
+	var best := Tower.Kind.BASIC
+	var best_value := 0.0
+	for kind in [Tower.Kind.TESLA, Tower.Kind.MORTAR, Tower.Kind.ICE]:
+		if not TowerCatalog.unlocked(game.progression, kind) or int(TowerCatalog.DATA[kind].cost) > game.currency:
+			continue
+		var share: float = traits[["tesla_share", "mortar_share", "ice_share"][kind - 1]]
+		if share <= 0 or counts[kind] >= ceili((total + 1) * share):
+			continue
+		var covered := coverage(game.board, route, center, float(TowerCatalog.DATA[kind].range))
+		var value := float(covered) / int(TowerCatalog.DATA[kind].cost)
+		if kind == Tower.Kind.ICE:
+			var nearby := false
+			for child in game.board.get_node("Towers").get_children():
+				var tower := child as Tower
+				if tower.kind == Tower.Kind.ICE and tower.position.distance_squared_to(center) < 180.0 * 180.0:
+					nearby = true
+			if nearby or covered < 5:
+				continue
+			value *= 2.8
+		elif kind == Tower.Kind.TESLA:
+			# Tight walls let one ring cover both neighboring corridors and a turn.
+			value *= 2.0
+		elif kind == Tower.Kind.MORTAR:
+			value *= 0.65
+		if value > best_value:
+			best = kind
+			best_value = value
+	return best
+
+
+static func coverage(board: Board, route: Array[Vector2i], center: Vector2, radius: float) -> int:
+	var count := 0
+	for cell in route:
+		if board.cell_to_pixel(cell).distance_squared_to(center) <= radius * radius:
+			count += 1
+	return count
+
+
+func _exposure(tower: Tower, radius: float) -> int:
+	# Geometry stays fixed during an upgrade pass. Range is part of the key, so a
+	# bought range level invalidates its own score without rescanning other towers.
+	var key := Vector3(tower.cell.x, tower.cell.y, radius)
+	if not _coverage_cache.has(key):
+		_coverage_cache[key] = coverage(tower.get_parent().get_parent() as Board, _route, tower.position, radius)
+	return int(_coverage_cache[key])
+
+
+func _spend_upgrades(game: TDGame, budget: int) -> void:
+	_coverage_cache.clear()
+	var remaining := mini(budget, game.currency)
+	while remaining > 0:
+		var best: Tower
+		var best_track := Tower.Upgrade.NONE
+		var best_score := 0.0
+		for child in game.board.get_node("Towers").get_children():
+			var tower := child as Tower
+			var cost := tower.next_upgrade_cost()
+			if cost <= 0 or cost > remaining:
+				continue
+			var exposure := _exposure(tower, tower.attack_range())
+			if exposure == 0:
+				continue
+			for track in [Tower.Upgrade.DAMAGE, Tower.Upgrade.RANGE, Tower.Upgrade.SPEED, Tower.Upgrade.SPECIAL]:
+				if not tower.upgrade_error(track).is_empty() or (not bool(traits.mixed) and track != Tower.Upgrade.DAMAGE):
+					continue
+				var gain := _upgrade_gain(tower, track, exposure)
+				var utility := float(tower.damage()) / tower.attack_interval()
+				if tower.kind == Tower.Kind.TESLA: utility *= 2.5
+				if tower.kind == Tower.Kind.MORTAR: utility *= 2.0
+				if tower.kind == Tower.Kind.ICE: utility *= 2.0
+				var score := gain * utility * sqrt(float(exposure)) / cost
+				if score > best_score:
+					best_score = score
+					best = tower
+					best_track = track
+		if best == null:
+			break
+		var cost := best.next_upgrade_cost()
+		game.select_placed_tower(best)
+		if not game.upgrade_selected_tower(best_track):
+			error = "Selected bot upgrade was rejected"
+			return
+		remaining -= cost
+		upgrade_purchases += 1
+
+
+func _upgrade_gain(tower: Tower, track: int, exposure: int) -> float:
+	var data := tower.data()
+	match track:
+		Tower.Upgrade.DAMAGE:
+			return float(data.damage_step) / (float(data.damage) + int(data.damage_step) * tower.levels(Tower.Upgrade.DAMAGE) + int(data.special_damage) * tower.levels(Tower.Upgrade.SPECIAL))
+		Tower.Upgrade.SPEED:
+			return 1.0 / GameConfig.SPEED_FACTOR_PER_LEVEL - 1.0
+		Tower.Upgrade.RANGE:
+			var factor := tower.attack_range() / (float(data.range) + float(data.range_step) * tower.levels(Tower.Upgrade.RANGE))
+			var expanded := _exposure(tower, tower.attack_range() + float(data.range_step) * factor)
+			return float(expanded - exposure) / exposure
+		Tower.Upgrade.SPECIAL:
+			var damage_gain := float(data.special_damage) / maxf(1, tower.damage() / tower._permanent_damage_factor)
+			match tower.kind:
+				Tower.Kind.BASIC: return damage_gain + 0.2 * 15.0 / maxf(1, tower.armor_damage())
+				Tower.Kind.TESLA: return damage_gain + (0.22 if tower.levels(track) == 0 else 0.04)
+				Tower.Kind.MORTAR: return (1 + damage_gain) * pow((tower.blast_radius() + 8) / tower.blast_radius(), 1.5) - 1
+				Tower.Kind.ICE: return damage_gain + 0.12
+				Tower.Kind.CANNON: return damage_gain + 0.04
+	return 0.0

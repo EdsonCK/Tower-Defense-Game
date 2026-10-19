@@ -1,0 +1,456 @@
+{
+  "experiments": [
+    {
+      "variant": "artillery",
+      "seed": 109,
+      "waves": [
+        10
+      ],
+      "outcomes": [
+        "defeat"
+      ],
+      "cleared": 9,
+      "first_wave_50_attempt": null,
+      "elapsed_seconds": 0.734,
+      "report": "artillery-109.json"
+    },
+    {
+      "variant": "artillery",
+      "seed": 721,
+      "waves": [
+        11
+      ],
+      "outcomes": [
+        "defeat"
+      ],
+      "cleared": 10,
+      "first_wave_50_attempt": null,
+      "elapsed_seconds": 0.686,
+      "report": "artillery-721.json"
+    },
+    {
+      "variant": "artillery",
+      "seed": 1337,
+      "waves": [
+        10
+      ],
+      "outcomes": [
+        "defeat"
+      ],
+      "cleared": 9,
+      "first_wave_50_attempt": null,
+      "elapsed_seconds": 0.615,
+      "report": "artillery-1337.json"
+    },
+    {
+      "variant": "artillery",
+      "seed": 2026,
+      "waves": [
+        10
+      ],
+      "outcomes": [
+        "defeat"
+      ],
+      "cleared": 9,
+      "first_wave_50_attempt": null,
+      "elapsed_seconds": 0.55,
+      "report": "artillery-2026.json"
+    },
+    {
+      "variant": "artillery",
+      "seed": 9001,
+      "waves": [
+        11
+      ],
+      "outcomes": [
+        "defeat"
+      ],
+      "cleared": 10,
+      "first_wave_50_attempt": null,
+      "elapsed_seconds": 0.937,
+      "report": "artillery-9001.json"
+    },
+    {
+      "variant": "builder",
+      "seed": 109,
+      "waves": [
+        11
+      ],
+      "outcomes": [
+        "defeat"
+      ],
+      "cleared": 10,
+      "first_wave_50_attempt": null,
+      "elapsed_seconds": 0.904,
+      "report": "builder-109.json"
+    },
+    {
+      "variant": "builder",
+      "seed": 721,
+      "waves": [
+        11
+      ],
+      "outcomes": [
+        "defeat"
+      ],
+      "cleared": 10,
+      "first_wave_50_attempt": null,
+      "elapsed_seconds": 0.69,
+      "report": "builder-721.json"
+    },
+    {
+      "variant": "builder",
+      "seed": 1337,
+      "waves": [
+        12
+      ],
+      "outcomes": [
+        "defeat"
+      ],
+      "cleared": 11,
+      "first_wave_50_attempt": null,
+      "elapsed_seconds": 1.13,
+      "report": "builder-1337.json"
+    },
+    {
+      "variant": "builder",
+      "seed": 2026,
+      "waves": [
+        11
+      ],
+      "outcomes": [
+        "defeat"
+      ],
+      "cleared": 10,
+      "first_wave_50_attempt": null,
+      "elapsed_seconds": 0.694,
+      "report": "builder-2026.json"
+    },
+    {
+      "variant": "builder",
+      "seed": 9001,
+      "waves": [
+        12
+      ],
+      "outcomes": [
+        "defeat"
+      ],
+      "cleared": 11,
+      "first_wave_50_attempt": null,
+      "elapsed_seconds": 1.274,
+      "report": "builder-9001.json"
+    },
+    {
+      "variant": "hybrid",
+      "seed": 109,
+      "waves": [
+        11
+      ],
+      "outcomes": [
+        "defeat"
+      ],
+      "cleared": 10,
+      "first_wave_50_attempt": null,
+      "elapsed_seconds": 0.966,
+      "report": "hybrid-109.json"
+    },
+    {
+      "variant": "hybrid",
+      "seed": 721,
+      "waves": [
+        11
+      ],
+      "outcomes": [
+        "defeat"
+      ],
+      "cleared": 10,
+      "first_wave_50_attempt": null,
+      "elapsed_seconds": 1.02,
+      "report": "hybrid-721.json"
+    },
+    {
+      "variant": "hybrid",
+      "seed": 1337,
+      "waves": [
+        10
+      ],
+      "outcomes": [
+        "defeat"
+      ],
+      "cleared": 9,
+      "first_wave_50_attempt": null,
+      "elapsed_seconds": 0.702,
+      "report": "hybrid-1337.json"
+    },
+    {
+      "variant": "hybrid",
+      "seed": 2026,
+      "waves": [
+        9
+      ],
+      "outcomes": [
+        "defeat"
+      ],
+      "cleared": 8,
+      "first_wave_50_attempt": null,
+      "elapsed_seconds": 0.521,
+      "report": "hybrid-2026.json"
+    },
+    {
+      "variant": "hybrid",
+      "seed": 9001,
+      "waves": [
+        12
+      ],
+      "outcomes": [
+        "defeat"
+      ],
+      "cleared": 11,
+      "first_wave_50_attempt": null,
+      "elapsed_seconds": 0.783,
+      "report": "hybrid-9001.json"
+    },
+    {
+      "variant": "investor",
+      "seed": 109,
+      "waves": [
+        11
+      ],
+      "outcomes": [
+        "defeat"
+      ],
+      "cleared": 10,
+      "first_wave_50_attempt": null,
+      "elapsed_seconds": 0.874,
+      "report": "investor-109.json"
+    },
+    {
+      "variant": "investor",
+      "seed": 721,
+      "waves": [
+        11
+      ],
+      "outcomes": [
+        "defeat"
+      ],
+      "cleared": 10,
+      "first_wave_50_attempt": null,
+      "elapsed_seconds": 0.72,
+      "report": "investor-721.json"
+    },
+    {
+      "variant": "investor",
+      "seed": 1337,
+      "waves": [
+        10
+      ],
+      "outcomes": [
+        "defeat"
+      ],
+      "cleared": 9,
+      "first_wave_50_attempt": null,
+      "elapsed_seconds": 0.513,
+      "report": "investor-1337.json"
+    },
+    {
+      "variant": "investor",
+      "seed": 2026,
+      "waves": [
+        9
+      ],
+      "outcomes": [
+        "defeat"
+      ],
+      "cleared": 8,
+      "first_wave_50_attempt": null,
+      "elapsed_seconds": 0.497,
+      "report": "investor-2026.json"
+    },
+    {
+      "variant": "investor",
+      "seed": 9001,
+      "waves": [
+        11
+      ],
+      "outcomes": [
+        "defeat"
+      ],
+      "cleared": 10,
+      "first_wave_50_attempt": null,
+      "elapsed_seconds": 0.843,
+      "report": "investor-9001.json"
+    },
+    {
+      "variant": "siege",
+      "seed": 109,
+      "waves": [
+        10
+      ],
+      "outcomes": [
+        "defeat"
+      ],
+      "cleared": 9,
+      "first_wave_50_attempt": null,
+      "elapsed_seconds": 0.862,
+      "report": "siege-109.json"
+    },
+    {
+      "variant": "siege",
+      "seed": 721,
+      "waves": [
+        11
+      ],
+      "outcomes": [
+        "defeat"
+      ],
+      "cleared": 10,
+      "first_wave_50_attempt": null,
+      "elapsed_seconds": 1.006,
+      "report": "siege-721.json"
+    },
+    {
+      "variant": "siege",
+      "seed": 1337,
+      "waves": [
+        10
+      ],
+      "outcomes": [
+        "defeat"
+      ],
+      "cleared": 9,
+      "first_wave_50_attempt": null,
+      "elapsed_seconds": 0.551,
+      "report": "siege-1337.json"
+    },
+    {
+      "variant": "siege",
+      "seed": 2026,
+      "waves": [
+        10
+      ],
+      "outcomes": [
+        "defeat"
+      ],
+      "cleared": 9,
+      "first_wave_50_attempt": null,
+      "elapsed_seconds": 0.82,
+      "report": "siege-2026.json"
+    },
+    {
+      "variant": "siege",
+      "seed": 9001,
+      "waves": [
+        10
+      ],
+      "outcomes": [
+        "defeat"
+      ],
+      "cleared": 9,
+      "first_wave_50_attempt": null,
+      "elapsed_seconds": 0.775,
+      "report": "siege-9001.json"
+    },
+    {
+      "variant": "storm",
+      "seed": 109,
+      "waves": [
+        10
+      ],
+      "outcomes": [
+        "defeat"
+      ],
+      "cleared": 9,
+      "first_wave_50_attempt": null,
+      "elapsed_seconds": 0.749,
+      "report": "storm-109.json"
+    },
+    {
+      "variant": "storm",
+      "seed": 721,
+      "waves": [
+        10
+      ],
+      "outcomes": [
+        "defeat"
+      ],
+      "cleared": 9,
+      "first_wave_50_attempt": null,
+      "elapsed_seconds": 0.643,
+      "report": "storm-721.json"
+    },
+    {
+      "variant": "storm",
+      "seed": 1337,
+      "waves": [
+        9
+      ],
+      "outcomes": [
+        "defeat"
+      ],
+      "cleared": 8,
+      "first_wave_50_attempt": null,
+      "elapsed_seconds": 0.514,
+      "report": "storm-1337.json"
+    },
+    {
+      "variant": "storm",
+      "seed": 2026,
+      "waves": [
+        9
+      ],
+      "outcomes": [
+        "defeat"
+      ],
+      "cleared": 8,
+      "first_wave_50_attempt": null,
+      "elapsed_seconds": 0.877,
+      "report": "storm-2026.json"
+    },
+    {
+      "variant": "storm",
+      "seed": 9001,
+      "waves": [
+        9
+      ],
+      "outcomes": [
+        "defeat"
+      ],
+      "cleared": 8,
+      "first_wave_50_attempt": null,
+      "elapsed_seconds": 0.472,
+      "report": "storm-9001.json"
+    }
+  ],
+  "ranking": [
+    {
+      "variant": "builder",
+      "mean_last_run_wave": 11.4,
+      "mean_cleared": 10.4
+    },
+    {
+      "variant": "hybrid",
+      "mean_last_run_wave": 10.6,
+      "mean_cleared": 9.6
+    },
+    {
+      "variant": "artillery",
+      "mean_last_run_wave": 10.4,
+      "mean_cleared": 9.4
+    },
+    {
+      "variant": "investor",
+      "mean_last_run_wave": 10.4,
+      "mean_cleared": 9.4
+    },
+    {
+      "variant": "siege",
+      "mean_last_run_wave": 10.2,
+      "mean_cleared": 9.2
+    },
+    {
+      "variant": "storm",
+      "mean_last_run_wave": 9.4,
+      "mean_cleared": 8.4
+    }
+  ]
+}

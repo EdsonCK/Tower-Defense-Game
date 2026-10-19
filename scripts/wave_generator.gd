@@ -40,7 +40,8 @@ func generate(wave: int) -> Array[EnemyProfile]:
 		var late := maxf(0.0, difficulty - 4.0)
 		var veteran := maxf(0.0, difficulty + 1.0 - GameConfig.VETERAN_START_WAVE)
 		var pressure := 1.0 + GameConfig.VETERAN_HEALTH_PER_WAVE * veteran
-		var scale := (1.0 + 0.08 * difficulty + 0.012 * late * late) * pressure * _rng.randf_range(0.95, 1.05)
+		var apprenticeship := minf(GameConfig.APPRENTICE_PRESSURE_LIMIT, 1.0 + GameConfig.APPRENTICE_PRESSURE_PER_WAVE * maxf(0, difficulty + 1 - GameConfig.APPRENTICE_START_WAVE))
+		var scale := (1.0 + 0.08 * difficulty + 0.012 * late * late) * pressure * apprenticeship * _rng.randf_range(0.95, 1.05)
 		if kind == EnemyProfile.Kind.ARMORED:
 			var plating := 1.0 + 0.10 * mini(12, floori(difficulty / 6.0) + floori(veteran / GameConfig.VETERAN_ARMOR_INTERVAL))
 			profile.armor = clampi(roundi(profile.armor * plating * scale), 1, GameConfig.MAX_ENEMY_HEALTH)

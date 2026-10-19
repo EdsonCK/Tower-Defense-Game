@@ -1,0 +1,121 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+Campaign builder seed=721 run=1 wave=5 clear lives=10 route=62 towers=[10, 3, 0, 0, 0] sim=1.2m wall=0.1s
+Campaign builder seed=721 run=1 wave=10 clear lives=2 route=86 towers=[27, 9, 0, 0, 0] sim=4.8m wall=0.5s
+Campaign builder seed=721 run=1 wave=11 DEFEAT lives=0 route=86 towers=[30, 10, 0, 0, 0] sim=5.7m wall=0.7s
+Campaign RESULT: builder run=1 cleared=10 last_wave=11 outcome=defeat diamonds=1 skills=3
+Campaign builder seed=721 run=2 wave=5 clear lives=10 route=62 towers=[10, 4, 0, 0, 0] sim=1.2m wall=0.1s
+Campaign builder seed=721 run=2 wave=10 clear lives=10 route=86 towers=[31, 10, 0, 0, 0] sim=3.8m wall=0.4s
+Campaign builder seed=721 run=2 wave=15 clear lives=9 route=132 towers=[61, 20, 0, 0, 0] sim=9.2m wall=1.4s
+Campaign builder seed=721 run=2 wave=20 clear lives=9 route=178 towers=[99, 34, 0, 0, 0] sim=15.7m wall=3.2s
+Campaign builder seed=721 run=2 wave=25 clear lives=9 route=246 towers=[142, 49, 0, 5, 0] sim=24.6m wall=7.6s
+Campaign builder seed=721 run=2 wave=30 clear lives=9 route=292 towers=[169, 61, 13, 9, 0] sim=36.9m wall=19.3s
+Campaign builder seed=721 run=2 wave=35 clear lives=9 route=362 towers=[190, 79, 32, 12, 0] sim=53.0m wall=37.2s
+Campaign builder seed=721 run=2 wave=40 clear lives=9 route=454 towers=[246, 103, 41, 19, 0] sim=79.4m wall=71.6s
+Campaign builder seed=721 run=2 wave=42 DEFEAT lives=0 route=476 towers=[257, 107, 43, 19, 0] sim=92.5m wall=92.7s
+Campaign RESULT: builder run=2 cleared=41 last_wave=42 outcome=defeat diamonds=5 skills=10
+Campaign builder seed=721 run=3 wave=5 clear lives=10 route=62 towers=[6, 3, 2, 1, 0] sim=1.1m wall=0.1s
+Campaign builder seed=721 run=3 wave=10 clear lives=10 route=86 towers=[19, 9, 4, 3, 0] sim=3.6m wall=0.4s
+Campaign builder seed=721 run=3 wave=15 clear lives=10 route=110 towers=[41, 18, 7, 4, 0] sim=7.5m wall=1.4s
+Campaign builder seed=721 run=3 wave=20 clear lives=10 route=154 towers=[65, 29, 12, 7, 0] sim=12.1m wall=3.3s
+Campaign builder seed=721 run=3 wave=25 clear lives=10 route=224 towers=[101, 43, 18, 11, 0] sim=18.3m wall=5.5s
+Campaign builder seed=721 run=3 wave=30 clear lives=10 route=292 towers=[144, 62, 25, 16, 0] sim=26.1m wall=9.9s
+Campaign builder seed=721 run=3 wave=35 clear lives=10 route=384 towers=[197, 84, 34, 22, 0] sim=36.8m wall=19.2s
+Campaign builder seed=721 run=3 wave=40 clear lives=10 route=476 towers=[249, 107, 43, 27, 0] sim=53.2m wall=38.4s
+Campaign builder seed=721 run=3 wave=45 clear lives=10 route=476 towers=[249, 107, 43, 27, 0] sim=74.3m wall=72.7s
+Campaign builder seed=721 run=3 wave=50 clear lives=10 route=476 towers=[249, 107, 43, 27, 0] sim=101.4m wall=116.9s
+Campaign builder seed=721 run=3 wave=55 clear lives=4 route=476 towers=[249, 107, 43, 27, 0] sim=135.3m wall=179.4s
+Campaign builder seed=721 run=3 wave=56 DEFEAT lives=0 route=476 towers=[249, 107, 43, 27, 0] sim=141.0m wall=193.6s
+Campaign RESULT: builder run=3 cleared=55 last_wave=56 outcome=defeat diamonds=4 skills=17
+Campaign builder seed=721 run=4 wave=5 clear lives=10 route=62 towers=[6, 4, 2, 1, 0] sim=1.2m wall=0.1s
+Campaign builder seed=721 run=4 wave=10 clear lives=10 route=86 towers=[24, 10, 4, 3, 0] sim=3.3m wall=0.4s
+Campaign builder seed=721 run=4 wave=15 clear lives=10 route=128 towers=[45, 20, 8, 6, 0] sim=6.7m wall=0.9s
+Campaign builder seed=721 run=4 wave=20 clear lives=10 route=178 towers=[75, 33, 13, 9, 0] sim=10.9m wall=2.0s
+Campaign builder seed=721 run=4 wave=25 clear lives=10 route=246 towers=[115, 49, 20, 13, 0] sim=16.8m wall=4.1s
+Campaign builder seed=721 run=4 wave=30 clear lives=10 route=316 towers=[162, 69, 28, 17, 0] sim=24.1m wall=8.0s
+Campaign builder seed=721 run=4 wave=35 clear lives=10 route=408 towers=[211, 90, 37, 23, 0] sim=33.6m wall=16.0s
+Campaign builder seed=721 run=4 wave=40 clear lives=10 route=476 towers=[249, 107, 43, 27, 0] sim=48.0m wall=33.3s
+Campaign builder seed=721 run=4 wave=45 clear lives=10 route=476 towers=[249, 107, 43, 27, 0] sim=66.7m wall=60.7s
+Campaign builder seed=721 run=4 wave=50 clear lives=10 route=476 towers=[249, 107, 43, 27, 0] sim=91.5m wall=117.1s
+Campaign builder seed=721 run=4 wave=55 clear lives=10 route=476 towers=[249, 107, 43, 27, 0] sim=120.8m wall=236.5s
+Campaign builder seed=721 run=4 wave=60 clear lives=10 route=476 towers=[249, 107, 43, 27, 0] sim=157.2m wall=367.5s
+Campaign RESULT: builder run=4 cleared=60 last_wave=60 outcome=cap diamonds=6 skills=25
+Campaign builder seed=721 run=5 wave=5 clear lives=10 route=62 towers=[7, 4, 2, 2, 0] sim=1.2m wall=0.1s
+Campaign builder seed=721 run=5 wave=10 clear lives=10 route=86 towers=[23, 11, 5, 3, 0] sim=3.1m wall=0.4s
+Campaign builder seed=721 run=5 wave=15 clear lives=10 route=132 towers=[46, 21, 9, 6, 0] sim=6.2m wall=0.8s
+Campaign builder seed=721 run=5 wave=20 clear lives=10 route=178 towers=[79, 35, 14, 9, 0] sim=10.0m wall=1.7s
+Campaign builder seed=721 run=5 wave=25 clear lives=10 route=246 towers=[118, 50, 20, 13, 0] sim=15.0m wall=3.4s
+Campaign builder seed=721 run=5 wave=30 clear lives=10 route=316 towers=[161, 70, 28, 18, 0] sim=21.1m wall=7.6s
+Campaign builder seed=721 run=5 wave=35 clear lives=10 route=408 towers=[215, 92, 37, 24, 0] sim=29.7m wall=14.1s
+Campaign builder seed=721 run=5 wave=40 clear lives=10 route=476 towers=[247, 107, 43, 29, 0] sim=41.7m wall=28.0s
+Campaign builder seed=721 run=5 wave=45 clear lives=10 route=476 towers=[247, 107, 43, 29, 0] sim=56.6m wall=48.5s
+Campaign builder seed=721 run=5 wave=50 clear lives=10 route=476 towers=[247, 107, 43, 29, 0] sim=74.6m wall=76.4s
+Campaign builder seed=721 run=5 wave=55 clear lives=10 route=476 towers=[247, 107, 43, 29, 0] sim=97.0m wall=114.8s
+Campaign builder seed=721 run=5 wave=60 clear lives=10 route=476 towers=[247, 107, 43, 29, 0] sim=126.0m wall=171.2s
+Campaign RESULT: builder run=5 cleared=60 last_wave=60 outcome=cap diamonds=18 skills=29
+Campaign builder seed=721 run=6 wave=5 clear lives=10 route=62 towers=[7, 4, 2, 2, 0] sim=1.1m wall=0.1s
+Campaign builder seed=721 run=6 wave=10 clear lives=10 route=94 towers=[30, 13, 5, 3, 0] sim=3.1m wall=0.4s
+Campaign builder seed=721 run=6 wave=15 clear lives=10 route=148 towers=[59, 26, 10, 6, 0] sim=5.8m wall=0.8s
+Campaign builder seed=721 run=6 wave=20 clear lives=10 route=204 towers=[94, 41, 17, 11, 0] sim=9.3m wall=1.6s
+Campaign builder seed=721 run=6 wave=25 clear lives=10 route=292 towers=[142, 62, 25, 16, 0] sim=13.7m wall=3.2s
+Campaign builder seed=721 run=6 wave=30 clear lives=10 route=384 towers=[195, 85, 34, 23, 0] sim=18.9m wall=5.9s
+Campaign builder seed=721 run=6 wave=35 clear lives=10 route=476 towers=[247, 107, 43, 29, 0] sim=26.0m wall=11.8s
+Campaign builder seed=721 run=6 wave=40 clear lives=10 route=476 towers=[247, 107, 43, 29, 0] sim=35.1m wall=22.6s
+Campaign builder seed=721 run=6 wave=45 clear lives=10 route=476 towers=[247, 107, 43, 29, 0] sim=46.6m wall=37.6s
+Campaign builder seed=721 run=6 wave=50 clear lives=10 route=476 towers=[247, 107, 43, 29, 0] sim=61.4m wall=77.9s
+Campaign builder seed=721 run=6 wave=55 clear lives=10 route=476 towers=[247, 107, 43, 29, 0] sim=79.2m wall=108.8s
+Campaign builder seed=721 run=6 wave=60 clear lives=10 route=476 towers=[247, 107, 43, 29, 0] sim=99.8m wall=149.1s
+Campaign RESULT: builder run=6 cleared=60 last_wave=60 outcome=cap diamonds=2 skills=34
+Campaign builder seed=721 run=7 wave=5 clear lives=10 route=62 towers=[9, 4, 2, 2, 0] sim=1.1m wall=0.1s
+Campaign builder seed=721 run=7 wave=10 clear lives=10 route=94 towers=[30, 13, 5, 3, 0] sim=3.1m wall=0.3s
+Campaign builder seed=721 run=7 wave=15 clear lives=10 route=148 towers=[60, 25, 10, 6, 0] sim=5.7m wall=0.8s
+Campaign builder seed=721 run=7 wave=20 clear lives=10 route=206 towers=[95, 41, 17, 11, 0] sim=9.0m wall=1.5s
+Campaign builder seed=721 run=7 wave=25 clear lives=10 route=292 towers=[141, 61, 25, 16, 0] sim=13.3m wall=2.9s
+Campaign builder seed=721 run=7 wave=30 clear lives=10 route=384 towers=[195, 85, 34, 23, 0] sim=18.3m wall=5.9s
+Campaign builder seed=721 run=7 wave=35 clear lives=10 route=476 towers=[247, 107, 43, 29, 0] sim=24.9m wall=11.3s
+Campaign builder seed=721 run=7 wave=40 clear lives=10 route=476 towers=[247, 107, 43, 29, 0] sim=34.1m wall=21.6s
+Campaign builder seed=721 run=7 wave=45 clear lives=10 route=476 towers=[247, 107, 43, 29, 0] sim=45.0m wall=37.0s
+Campaign builder seed=721 run=7 wave=50 clear lives=10 route=476 towers=[247, 107, 43, 29, 0] sim=58.8m wall=59.9s
+Campaign builder seed=721 run=7 wave=55 clear lives=10 route=476 towers=[247, 107, 43, 29, 0] sim=76.3m wall=96.4s
+Campaign builder seed=721 run=7 wave=60 clear lives=10 route=476 towers=[247, 107, 43, 29, 0] sim=96.8m wall=148.0s
+Campaign RESULT: builder run=7 cleared=60 last_wave=60 outcome=cap diamonds=11 skills=38
+Campaign builder seed=721 run=8 wave=5 clear lives=10 route=62 towers=[8, 4, 2, 2, 0] sim=1.1m wall=0.1s
+Campaign builder seed=721 run=8 wave=10 clear lives=10 route=94 towers=[30, 13, 5, 3, 0] sim=3.1m wall=0.4s
+Campaign builder seed=721 run=8 wave=15 clear lives=10 route=148 towers=[60, 25, 10, 6, 0] sim=5.8m wall=0.8s
+Campaign builder seed=721 run=8 wave=20 clear lives=10 route=204 towers=[94, 41, 17, 11, 0] sim=9.0m wall=1.6s
+Campaign builder seed=721 run=8 wave=25 clear lives=10 route=292 towers=[141, 61, 25, 16, 0] sim=13.1m wall=3.1s
+Campaign builder seed=721 run=8 wave=30 clear lives=10 route=384 towers=[195, 85, 34, 23, 0] sim=17.8m wall=5.8s
+Campaign builder seed=721 run=8 wave=35 clear lives=10 route=476 towers=[247, 107, 43, 29, 0] sim=24.7m wall=12.3s
+Campaign builder seed=721 run=8 wave=40 clear lives=10 route=476 towers=[247, 107, 43, 29, 0] sim=33.9m wall=25.4s
+Campaign builder seed=721 run=8 wave=45 clear lives=10 route=476 towers=[247, 107, 43, 29, 0] sim=45.4m wall=43.4s
+Campaign builder seed=721 run=8 wave=50 clear lives=10 route=476 towers=[247, 107, 43, 29, 0] sim=59.1m wall=71.2s
+Campaign builder seed=721 run=8 wave=55 clear lives=10 route=476 towers=[247, 107, 43, 29, 0] sim=76.6m wall=108.3s
+Campaign builder seed=721 run=8 wave=60 clear lives=10 route=476 towers=[247, 107, 43, 29, 0] sim=97.7m wall=156.4s
+Campaign RESULT: builder run=8 cleared=60 last_wave=60 outcome=cap diamonds=39 skills=40
+Campaign builder seed=721 run=9 wave=5 clear lives=10 route=62 towers=[8, 5, 2, 2, 0] sim=1.2m wall=0.1s
+Campaign builder seed=721 run=9 wave=10 clear lives=10 route=94 towers=[29, 13, 6, 3, 0] sim=3.1m wall=0.4s
+Campaign builder seed=721 run=9 wave=15 clear lives=10 route=152 towers=[60, 26, 11, 6, 0] sim=5.9m wall=0.8s
+Campaign builder seed=721 run=9 wave=20 clear lives=10 route=210 towers=[96, 42, 17, 11, 0] sim=9.1m wall=1.6s
+Campaign builder seed=721 run=9 wave=25 clear lives=10 route=292 towers=[143, 61, 25, 16, 0] sim=13.2m wall=3.1s
+Campaign builder seed=721 run=9 wave=30 clear lives=10 route=384 towers=[198, 85, 34, 23, 0] sim=18.0m wall=6.7s
+Campaign builder seed=721 run=9 wave=35 clear lives=10 route=476 towers=[247, 107, 43, 29, 0] sim=24.9m wall=13.6s
+Campaign builder seed=721 run=9 wave=40 clear lives=10 route=476 towers=[247, 107, 43, 29, 0] sim=34.0m wall=26.7s
+Campaign builder seed=721 run=9 wave=45 clear lives=10 route=476 towers=[247, 107, 43, 29, 0] sim=45.1m wall=44.7s
+Campaign builder seed=721 run=9 wave=50 clear lives=10 route=476 towers=[247, 107, 43, 29, 0] sim=58.6m wall=67.5s
+Campaign builder seed=721 run=9 wave=55 clear lives=10 route=476 towers=[247, 107, 43, 29, 0] sim=76.2m wall=136.8s
+Campaign builder seed=721 run=9 wave=60 clear lives=10 route=476 towers=[247, 107, 43, 29, 0] sim=97.4m wall=227.8s
+Campaign RESULT: builder run=9 cleared=60 last_wave=60 outcome=cap diamonds=99 skills=40
+Campaign builder seed=721 run=10 wave=5 clear lives=10 route=62 towers=[9, 4, 2, 2, 0] sim=1.2m wall=0.1s
+Campaign builder seed=721 run=10 wave=10 clear lives=10 route=96 towers=[30, 13, 6, 3, 0] sim=3.1m wall=0.5s
+Campaign builder seed=721 run=10 wave=15 clear lives=10 route=154 towers=[62, 26, 11, 6, 0] sim=5.8m wall=1.2s
+Campaign builder seed=721 run=10 wave=20 clear lives=10 route=220 towers=[100, 43, 18, 10, 0] sim=9.1m wall=2.6s
+Campaign builder seed=721 run=10 wave=25 clear lives=10 route=292 towers=[146, 63, 26, 16, 0] sim=13.4m wall=5.5s
+Campaign builder seed=721 run=10 wave=30 clear lives=10 route=386 towers=[202, 87, 35, 22, 0] sim=18.3m wall=11.4s
+Campaign builder seed=721 run=10 wave=35 clear lives=10 route=476 towers=[250, 107, 43, 26, 0] sim=24.6m wall=22.5s
+Campaign builder seed=721 run=10 wave=40 clear lives=10 route=476 towers=[250, 107, 43, 26, 0] sim=33.8m wall=44.6s
+Campaign builder seed=721 run=10 wave=45 clear lives=10 route=476 towers=[250, 107, 43, 26, 0] sim=44.5m wall=74.5s
+Campaign builder seed=721 run=10 wave=50 clear lives=10 route=476 towers=[250, 107, 43, 26, 0] sim=58.2m wall=119.2s
+Campaign builder seed=721 run=10 wave=55 clear lives=10 route=476 towers=[250, 107, 43, 26, 0] sim=75.5m wall=171.2s
+Campaign builder seed=721 run=10 wave=60 clear lives=10 route=476 towers=[250, 107, 43, 26, 0] sim=95.5m wall=230.0s
+Campaign RESULT: builder run=10 cleared=60 last_wave=60 outcome=cap diamonds=159 skills=40
+Campaign report: /tmp/td-campaign-final/builder-721.json
