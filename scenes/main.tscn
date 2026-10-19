@@ -1,0 +1,149 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
+[ext_resource type="Script" path="res://scripts/board.gd" id="2_board"]
+[ext_resource type="Script" path="res://scripts/wave_manager.gd" id="3_wave"]
+[ext_resource type="Script" path="res://scripts/hud.gd" id="4_hud"]
+
+[node name="Main" type="Node2D"]
+script = ExtResource("1_main")
+
+[node name="Board" type="Node2D" parent="."]
+script = ExtResource("2_board")
+
+[node name="Towers" type="Node2D" parent="Board"]
+
+[node name="Enemies" type="Node2D" parent="Board"]
+
+[node name="WaveManager" type="Node" parent="."]
+script = ExtResource("3_wave")
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="UILayout" type="Control" parent="HUD"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("4_hud")
+
+[node name="RightPanel" type="PanelContainer" parent="HUD/UILayout"]
+layout_mode = 0
+offset_left = 1280.0
+offset_right = 1600.0
+offset_bottom = 900.0
+mouse_filter = 0
+
+[node name="Margin" type="MarginContainer" parent="HUD/UILayout/RightPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="VBox" type="VBoxContainer" parent="HUD/UILayout/RightPanel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="TitleLabel" type="Label" parent="HUD/UILayout/RightPanel/Margin/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "Unnamed TD Game"
+horizontal_alignment = 1
+
+[node name="TitleSeparator" type="HSeparator" parent="HUD/UILayout/RightPanel/Margin/VBox"]
+layout_mode = 2
+
+[node name="CurrencyLabel" type="Label" parent="HUD/UILayout/RightPanel/Margin/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Currency: 200"
+
+[node name="LivesLabel" type="Label" parent="HUD/UILayout/RightPanel/Margin/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Lives: 10"
+
+[node name="WaveLabel" type="Label" parent="HUD/UILayout/RightPanel/Margin/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Wave: 0 / 3"
+
+[node name="EnemiesLabel" type="Label" parent="HUD/UILayout/RightPanel/Margin/VBox"]
+layout_mode = 2
+text = "Enemies: 0 active, 0 to spawn"
+
+[node name="StateLabel" type="Label" parent="HUD/UILayout/RightPanel/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.85, 0.4, 1)
+theme_override_font_sizes/font_size = 20
+text = "READY"
+
+[node name="ControlsSeparator" type="HSeparator" parent="HUD/UILayout/RightPanel/Margin/VBox"]
+layout_mode = 2
+
+[node name="TowerInfoLabel" type="Label" parent="HUD/UILayout/RightPanel/Margin/VBox"]
+layout_mode = 2
+text = "Tower: 60 currency"
+autowrap_mode = 3
+
+[node name="BuildButton" type="Button" parent="HUD/UILayout/RightPanel/Margin/VBox"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+focus_mode = 0
+text = "Build Tower (60)"
+
+[node name="CancelButton" type="Button" parent="HUD/UILayout/RightPanel/Margin/VBox"]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+focus_mode = 0
+disabled = true
+text = "Cancel Build"
+
+[node name="StartWaveButton" type="Button" parent="HUD/UILayout/RightPanel/Margin/VBox"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+focus_mode = 0
+text = "Start Wave"
+
+[node name="RestartButton" type="Button" parent="HUD/UILayout/RightPanel/Margin/VBox"]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+focus_mode = 0
+text = "Restart"
+
+[node name="BottomPanel" type="PanelContainer" parent="HUD/UILayout"]
+layout_mode = 0
+offset_top = 768.0
+offset_right = 1280.0
+offset_bottom = 900.0
+mouse_filter = 0
+
+[node name="Margin" type="MarginContainer" parent="HUD/UILayout/BottomPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 10
+
+[node name="VBox" type="VBoxContainer" parent="HUD/UILayout/BottomPanel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="ModeLabel" type="Label" parent="HUD/UILayout/BottomPanel/Margin/VBox"]
+layout_mode = 2
+text = "Click Build Tower to place towers."
+
+[node name="MessageLabel" type="Label" parent="HUD/UILayout/BottomPanel/Margin/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = ""
+
+[node name="InstructionsLabel" type="Label" parent="HUD/UILayout/BottomPanel/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
+text = "Controls: Build Tower -> left-click tile to place | Right-click / Esc: cancel | Start Wave: launch next wave | Restart: new game. Keep a route open from IN (green) to OUT (orange)."
+autowrap_mode = 3

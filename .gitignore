@@ -1,0 +1,7 @@
+# Godot 4 generated cache (not source)
+.godot/
+*.translation
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
