@@ -51,6 +51,7 @@ func make_game() -> TDGame:
 	var game := preload("res://scenes/main.tscn").instantiate() as TDGame
 	root.add_child(game)
 	game.process_mode = Node.PROCESS_MODE_DISABLED
+	game.waves.set_run_seed(721)
 	return game
 
 
@@ -78,48 +79,46 @@ func _test_cadence_and_rewards() -> void:
 	var game := make_game()
 	game.start_wave()
 	game.start_wave()
-	check(game.waves.current_wave == 1 and game.waves.remaining_to_spawn == 8, "repeated start does not stack waves")
+	var count := game.waves.wave_size
+	check(game.waves.current_wave == 1 and game.waves.remaining_to_spawn == count, "repeated start does not stack waves")
 	check(game.phase == TDGame.Phase.WAVE_ACTIVE and game.hud.start_button.disabled, "active wave disables Start Wave")
 	game.waves._process(0.001)
-	check(game.waves.active_count == 1 and game.waves.remaining_to_spawn == 7, "first spawn counted")
-	var first := game.board.get_node("Enemies").get_child(0) as Enemy
-	check(first.health == 45, "wave 1 enemy has 45 HP")
-	game.waves._process(1.198)
+	check(game.waves.active_count == 1 and game.waves.remaining_to_spawn == count - 1, "first spawn counted")
+	var first := game.board.active_enemies()[0] as Enemy
+	check(first.health > 0 and first.speed > 0 and first.bounty > 0, "spawn applies generated profile")
+	game.waves._process(game.waves.spawn_interval - 0.002)
 	check(game.waves.active_count == 1, "does not spawn early")
 	game.waves._process(0.002)
-	check(game.waves.active_count == 2, "second spawn at 1.2 seconds")
-	first.take_damage(45)
-	first.take_damage(45)
-	check(game.currency == 212 and game.waves.active_count == 1, "kill gives 12 once and resolves one enemy")
+	check(game.waves.active_count == 2, "second spawn uses generated interval")
+	var reward := first.bounty
+	first.take_damage(first.health + first.shield + first.armor)
+	first.take_damage(9999)
+	check(game.currency == 200 + reward and game.waves.active_count == 1, "type-specific bounty given once")
 	var second := game.board.active_enemies()[0] as Enemy
-	second._process(30.0)
-	check(game.lives == 9 and game.currency == 212 and game.waves.active_count == 0, "escape costs 1 life and gives no bounty")
+	second._process(100.0)
+	check(game.lives == 9 and game.currency == 200 + reward and game.waves.active_count == 0, "escape costs one life with no bounty")
 	check(game.phase == TDGame.Phase.WAVE_ACTIVE, "wave waits for unspawned enemies")
-	game.waves._process(10.0)
-	check(game.waves.remaining_to_spawn == 0 and game.waves.active_count == 6, "all scheduled enemies spawn")
+	game.waves._process(100.0)
+	check(game.waves.remaining_to_spawn == 0 and game.waves.active_count == count - 2, "exact scheduled count spawns")
+	var expected := game.currency + GameConfig.WAVE_CLEAR_BONUS
 	for node in game.board.active_enemies():
-		(node as Enemy).take_damage(45)
-	check(game.currency == 212 + 6 * 12 + 30, "wave 1 bonus awarded once after all resolve")
-	check(game.phase == TDGame.Phase.BETWEEN_WAVES and not game.hud.start_button.disabled, "next wave requires button")
-	game.waves._process(100)
-	check(game.waves.current_wave == 1, "waves do not start automatically")
-	game.start_wave()
-	game.waves._process(20)
-	check(game.waves.active_count == 12 and (game.board.active_enemies()[0] as Enemy).health == 60, "wave 2 count and HP")
-	for node in game.board.active_enemies():
-		(node as Enemy).take_damage(60)
-	check(game.currency == 212 + 6 * 12 + 30 + 12 * 12 + 30, "wave 2 gives bounty and 30 bonus")
-	game.start_wave()
-	game.waves._process(20)
-	check(game.waves.active_count == 16 and (game.board.active_enemies()[0] as Enemy).health == 75, "wave 3 count and HP")
-	for node in game.board.active_enemies():
-		(node as Enemy).take_damage(75)
-	check(game.phase == TDGame.Phase.VICTORY and game.lives == 9, "third wave triggers victory")
-	check(game.currency == 212 + 6 * 12 + 30 + 12 * 12 + 30 + 16 * 12, "no wave 3 bonus")
-	check(not game.purchase_tower(Vector2i(4, 4)), "no purchases after victory")
-	game.start_wave()
-	game.select_tower()
-	check(game.waves.current_wave == 3 and not game.building and game.hud.start_button.disabled and game.hud.build_button.disabled, "victory disables gameplay intents")
+		var enemy := node as Enemy
+		expected += enemy.bounty
+		enemy.take_damage(enemy.health + enemy.shield + enemy.armor)
+	check(game.currency == expected, "wave clear awards all actual bounties and one bonus")
+	check(game.phase == TDGame.Phase.BETWEEN_WAVES and not game.hud.start_button.disabled, "wave waits for button")
+	game.waves._process(100.0)
+	check(game.waves.current_wave == 1 and game.currency == expected, "no automatic start or repeated bonus")
+	for wave in range(2, 9):
+		game.start_wave()
+		game.waves._process(100.0)
+		check(game.waves.current_wave == wave and game.waves.active_count == game.waves.wave_size, "wave %d scheduled count" % wave)
+		for node in game.board.active_enemies():
+			var enemy := node as Enemy
+			expected += enemy.bounty
+			enemy.take_damage(enemy.health + enemy.shield + enemy.armor)
+		expected += GameConfig.WAVE_CLEAR_BONUS
+		check(game.phase == TDGame.Phase.BETWEEN_WAVES and game.currency == expected and game.lives == 9, "wave %d clears and endless play continues" % wave)
 	game.free()
 
 
@@ -154,27 +153,36 @@ func _test_combat() -> void:
 
 
 func _test_playable_sessions() -> void:
-	# Drive production movement, spawning, targeting and combat at a fixed delta.
-	# No injected damage, speed, money, or lives; the 3 starting towers can win.
-	var game := make_game()
-	for cell in [Vector2i(3, 11), Vector2i(6, 11), Vector2i(9, 11)]:
-		game.purchase_tower(cell)
-	for wave in range(1, 4):
-		game.start_wave()
-		for frame in range(120 * 60):
-			if game.phase != TDGame.Phase.WAVE_ACTIVE:
+	# Fixed-seed, real combat/economy. Spend only currency earned in gameplay.
+	for run_seed in [721, 109, 1337, 9001, 2026]:
+		var game := make_game()
+		game.waves.set_run_seed(run_seed)
+		var build_cells: Array[Vector2i] = []
+		for y in [11, 13]:
+			for x in range(3, 38, 3):
+				build_cells.append(Vector2i(x, y))
+		var next_cell := 0
+		for wave in range(1, 13):
+			while game.currency >= GameConfig.TOWER_COST and next_cell < build_cells.size():
+				game.purchase_tower(build_cells[next_cell])
+				next_cell += 1
+			game.start_wave()
+			for frame in range(120 * 60):
+				if game.phase != TDGame.Phase.WAVE_ACTIVE:
+					break
+				game.waves._process(1.0 / 60.0)
+				for node in game.board.active_enemies():
+					(node as Enemy)._process(1.0 / 60.0)
+				for node in game.board.get_node("Towers").get_children():
+					(node as Tower)._process(1.0 / 60.0)
+			check(game.waves.current_wave == wave and game.waves.active_count == 0 and game.phase == TDGame.Phase.BETWEEN_WAVES, "natural combat clears endless wave %d" % wave)
+			if game.is_finished():
 				break
-			game.waves._process(1.0 / 60.0)
-			for node in game.board.active_enemies():
-				(node as Enemy)._process(1.0 / 60.0)
-			for node in game.board.get_node("Towers").get_children():
-				(node as Tower)._process(1.0 / 60.0)
-		check(game.waves.current_wave == wave and game.waves.active_count == 0, "natural combat resolves all enemies in wave %d" % wave)
-	check(game.phase == TDGame.Phase.VICTORY and game.lives > 0, "playable three-wave victory using only production combat")
-	print("Victory session: lives=%d, currency=%d" % [game.lives, game.currency])
-	game.free()
-	game = make_game()
-	for wave in range(1, 3):
+		check(game.lives > 0 and game.waves.current_wave == 12, "twelve-wave session using only earned money and production combat")
+		print("Endless session: seed=%d, wave=%d, lives=%d, currency=%d" % [run_seed, game.waves.current_wave, game.lives, game.currency])
+		game.free()
+	var game := make_game()
+	for wave in range(1, 4):
 		game.start_wave()
 		for frame in range(120 * 60):
 			if game.phase != TDGame.Phase.WAVE_ACTIVE:
@@ -184,8 +192,10 @@ func _test_playable_sessions() -> void:
 				if game.is_finished():
 					break
 				(node as Enemy)._process(1.0 / 60.0)
+		if game.is_finished():
+			break
 	check(game.phase == TDGame.Phase.DEFEAT and game.lives == 0, "unprotected base loses on tenth escaped enemy")
-	check(game.currency == 230, "escapes grant no bounty; surviving wave 1 gives only its 30 bonus")
+	check(game.currency == 230, "escapes give no bounty; surviving wave 1 gives 30")
 	var active := game.waves.active_count
 	game.waves._process(100)
 	game.start_wave()

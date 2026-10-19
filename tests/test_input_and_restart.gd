@@ -41,7 +41,7 @@ func _run() -> void:
 	await process_frame
 	var right := game.hud.get_node("RightPanel") as Control
 	var bottom := game.hud.get_node("BottomPanel") as Control
-	check(right.position == Vector2(1280, 0) and right.size == Vector2(320, 900), "right panel stays inside its 320x900 region")
+	check(right.position == Vector2(1280, 0) and right.size == Vector2(320, 900), "right panel stays inside its 320x900 region (actual %s)" % right.size)
 	check(bottom.position == Vector2(0, 768) and bottom.size == Vector2(1280, 132), "bottom panel stays below the 1280x768 board")
 	check(game.hud.mouse_filter == Control.MOUSE_FILTER_IGNORE, "transparent UI root allows board clicks")
 	check(game.hud.get_node("RightPanel").mouse_filter == Control.MOUSE_FILTER_STOP and game.hud.get_node("BottomPanel").mouse_filter == Control.MOUSE_FILTER_STOP, "panels consume UI clicks")
@@ -62,11 +62,25 @@ func _run() -> void:
 	check(not game.building, "Escape cancels")
 	click(Vector2(240, 240))
 	check(game.currency == 140 and not game.board.is_blocked(Vector2i(7, 7)), "click outside build mode does nothing")
+	click(Vector2(144, 144))
+	check(game.selected_tower != null and not game.building and not game.hud.damage_button.disabled, "clicking existing tower opens management")
+	click(game.hud.damage_button.get_global_rect().get_center())
+	check(game.currency == 80 and game.selected_tower.damage() == 27 and game.hud.range_button.disabled and game.hud.speed_button.disabled, "damage upgrade button charges once and locks other tracks")
+	click(game.hud.remove_button.get_global_rect().get_center())
+	check(game.currency == 110 and game.selected_tower == null and not game.board.is_blocked(Vector2i(4, 4)), "remove button refunds 30 and reopens cell")
+	click(game.hud.build_button.get_global_rect().get_center())
+	click(Vector2(144, 144))
+	check(game.currency == 50 and game.board.is_blocked(Vector2i(4, 4)), "removed cell can be rebuilt")
 	click(game.hud.start_button.get_global_rect().get_center())
 	click(game.hud.start_button.get_global_rect().get_center())
 	check(game.phase == TDGame.Phase.WAVE_ACTIVE and game.waves.current_wave == 1 and game.hud.start_button.disabled, "real Start Wave button starts exactly one wave")
 	game.waves._process(0.01)
 	check(game.waves.active_count > 0, "restart fixture includes active enemies")
+	click(Vector2(144, 144))
+	await process_frame
+	await process_frame
+	check(game.hud.get_node("RightPanel").size == Vector2(320, 900) and game.hud.get_node("BottomPanel").size == Vector2(1280, 132), "management and active-wave text stay within panel bounds")
+	check(game.hud.cancel_button.disabled == false, "Cancel is enabled while a tower is selected")
 	game._finish(TDGame.Phase.DEFEAT)
 	var restart_button := game.hud.get_node("RightPanel/Margin/Items/Restart") as Button
 	click(restart_button.get_global_rect().get_center())
@@ -78,12 +92,12 @@ func _run() -> void:
 	check(restarted.board.get_node("Enemies").get_child_count() == 0 and restarted.board.get_node("Towers").get_child_count() == 0, "restart removes all enemy/tower instances")
 	check(not restarted.board.is_blocked(Vector2i(4, 4)) and restarted.board.revision == 0 and restarted.board.path_is_valid(restarted.board.find_path(), GameConfig.SPAWN), "restart restores open navigation")
 	check(not restarted.hud.start_button.disabled and not restarted.hud.build_button.disabled and not restarted.building, "restart restores buttons and selection")
-	restarted._finish(TDGame.Phase.VICTORY)
+	restarted.start_wave()
 	restart_button = restarted.hud.get_node("RightPanel/Margin/Items/Restart") as Button
 	await process_frame
 	click(restart_button.get_global_rect().get_center())
 	await scene_changed
 	restarted = current_scene as TDGame
-	check(restarted.phase == TDGame.Phase.READY and restarted.currency == 200 and get_nodes_in_group("enemies").is_empty(), "repeated restart from victory is clean")
+	check(restarted.phase == TDGame.Phase.READY and restarted.currency == 200 and get_nodes_in_group("enemies").is_empty(), "repeated restart from active play is clean")
 	print("Input/restart: %d checks, %d failures" % [checks, failures])
 	quit(1 if failures else 0)

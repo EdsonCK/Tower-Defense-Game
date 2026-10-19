@@ -8,6 +8,15 @@ signal navigation_failed(message: String)
 
 var health := 0
 var max_health := 0
+var kind := EnemyProfile.Kind.GRUNT
+var speed := GameConfig.ENEMY_SPEED
+var bounty := GameConfig.KILL_BOUNTY
+var armor := 0
+var shield := 0
+var regeneration := 0.0
+var body_color := Color("f06464")
+var _since_damage := 0.0
+var _regen_fraction := 0.0
 var _alive := true
 var _board: Board
 var _current_cell := GameConfig.SPAWN
@@ -20,9 +29,23 @@ var _navigation_error := false
 
 
 func setup(board: Board, hit_points: int) -> void:
+	# Baseline fixture/scene setup also remains useful for focused movement tests.
+	var profile := EnemyProfile.base(EnemyProfile.Kind.GRUNT)
+	profile.hit_points = hit_points
+	setup_profile(board, profile)
+
+
+func setup_profile(board: Board, profile: EnemyProfile) -> void:
 	_board = board
-	health = hit_points
-	max_health = hit_points
+	health = profile.hit_points
+	max_health = profile.hit_points
+	kind = profile.kind
+	speed = profile.speed
+	bounty = profile.bounty
+	armor = profile.armor
+	shield = profile.shield
+	regeneration = profile.regeneration
+	body_color = profile.color
 	position = _board.cell_to_pixel(_current_cell)
 	_board.navigation_changed.connect(_on_navigation_changed)
 	_plan_at_center()
@@ -46,6 +69,8 @@ func get_committed_cell() -> Vector2i:
 
 
 func _on_navigation_changed(_revision: int) -> void:
+	if not is_alive():
+		return # A resolved enemy may remain queued until the end of this frame.
 	_route_dirty = true
 	# At a center we can replan immediately. In flight, keep the segment intact.
 	if _current_cell == _committed_cell:
@@ -66,7 +91,8 @@ func _plan_at_center() -> bool:
 func _process(delta: float) -> void:
 	if not is_alive() or _board == null or _navigation_error:
 		return
-	var remaining := GameConfig.ENEMY_SPEED * delta
+	_tick_regeneration(delta)
+	var remaining := speed * delta
 	while remaining > 0.0 and is_alive():
 		if _current_cell == _committed_cell:
 			if _current_cell == GameConfig.EXIT:
@@ -103,7 +129,12 @@ func _process(delta: float) -> void:
 func take_damage(damage: int) -> void:
 	if not is_alive() or damage <= 0:
 		return
-	health = maxi(0, health - damage)
+	_since_damage = 0.0
+	var absorbed := mini(shield, damage)
+	shield -= absorbed
+	var unshielded := damage - absorbed
+	if unshielded > 0:
+		health = maxi(0, health - maxi(1, unshielded - armor))
 	queue_redraw()
 	if health == 0:
 		_resolve(true)
@@ -129,10 +160,38 @@ func _report_navigation_error(message: String) -> void:
 	queue_redraw()
 
 
+func _tick_regeneration(delta: float) -> void:
+	var previous := _since_damage
+	_since_damage += delta
+	if regeneration <= 0.0 or health >= max_health:
+		_regen_fraction = 0.0
+		return
+	var healing_time := maxf(0.0, _since_damage - GameConfig.REGEN_DELAY) - maxf(0.0, previous - GameConfig.REGEN_DELAY)
+	_regen_fraction += regeneration * healing_time
+	var healed := floori(_regen_fraction)
+	if healed > 0:
+		health = mini(max_health, health + healed)
+		_regen_fraction -= healed
+		queue_redraw()
+
+
 func _draw() -> void:
-	draw_circle(Vector2.ZERO, 10, Color("f06464") if not _navigation_error else Color.MAGENTA)
-	draw_circle(Vector2(-3, -2), 2, Color("4a1825"))
-	draw_circle(Vector2(3, -2), 2, Color("4a1825"))
-	draw_rect(Rect2(-12, -17, 24, 4), Color("45212c"))
+	var color := body_color if not _navigation_error else Color.MAGENTA
+	match kind:
+		EnemyProfile.Kind.RUNNER:
+			draw_colored_polygon(PackedVector2Array([Vector2(12, 0), Vector2(-9, -8), Vector2(-9, 8)]), color)
+		EnemyProfile.Kind.ARMORED:
+			draw_rect(Rect2(-11, -11, 22, 22), color)
+			draw_rect(Rect2(-7, -7, 14, 14), Color("455866"), false, 2.0)
+		EnemyProfile.Kind.SHIELDED:
+			draw_colored_polygon(PackedVector2Array([Vector2(0, -12), Vector2(11, 0), Vector2(0, 12), Vector2(-11, 0)]), color)
+		_:
+			draw_circle(Vector2.ZERO, 10, color)
+	if kind == EnemyProfile.Kind.REGENERATOR:
+		draw_line(Vector2(-5, 0), Vector2(5, 0), Color.WHITE, 3.0)
+		draw_line(Vector2(0, -5), Vector2(0, 5), Color.WHITE, 3.0)
+	if shield > 0:
+		draw_arc(Vector2.ZERO, 14, 0, TAU, 24, Color("76e7ff"), 2.0)
+	draw_rect(Rect2(-12, -19, 24, 4), Color("45212c"))
 	if max_health > 0:
-		draw_rect(Rect2(-12, -17, 24.0 * health / max_health, 4), Color("89ef88"))
+		draw_rect(Rect2(-12, -19, 24.0 * health / max_health, 4), Color("89ef88"))

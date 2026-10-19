@@ -11,6 +11,8 @@ var _currency := 0
 var _hover_cell := Vector2i(-1, -1)
 var _hover_error := ""
 var _hover_revision := -1
+var _selected_cell := Vector2i(-1, -1)
+var _selected_range := 0.0
 
 
 func _init(fixture_solids: Array[Vector2i] = []) -> void:
@@ -77,6 +79,21 @@ func rollback_placement(cell: Vector2i) -> void:
 func confirm_placement() -> void:
 	revision += 1
 	navigation_changed.emit(revision)
+	queue_redraw()
+
+
+func remove_block(cell: Vector2i) -> bool:
+	# Opening a cell can only add routes; no reachability trial is necessary.
+	if not is_blocked(cell) or cell == GameConfig.SPAWN or cell == GameConfig.EXIT:
+		return false
+	_astar.set_point_solid(cell, false)
+	confirm_placement()
+	return true
+
+
+func show_tower_selection(cell: Vector2i, radius: float) -> void:
+	_selected_cell = cell
+	_selected_range = radius
 	queue_redraw()
 
 
@@ -162,3 +179,6 @@ func _draw() -> void:
 		draw_rect(tile, tint)
 		draw_rect(tile.grow(-1), Color(tint, 0.95), false, 2.0)
 		draw_arc(cell_to_pixel(_hover_cell), GameConfig.TOWER_RANGE, 0, TAU, 64, Color(tint, 0.5), 1.0)
+	if not _building and is_inside(_selected_cell):
+		draw_rect(Rect2(cell_to_pixel(_selected_cell) - Vector2(15, 15), Vector2(30, 30)), Color.WHITE, false, 2)
+		draw_arc(cell_to_pixel(_selected_cell), _selected_range, 0, TAU, 64, Color(0.7, 0.9, 1, 0.65), 1.0)

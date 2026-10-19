@@ -16,7 +16,7 @@ border_width_top = 2
 border_color = Color(0.2, 0.35, 0.4, 1)
 
 [sub_resource type="Theme" id="Theme_ui"]
-default_font_size = 20
+default_font_size = 18
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_main")
@@ -52,22 +52,22 @@ theme_override_styles/panel = SubResource("Style_panel")
 [node name="Margin" type="MarginContainer" parent="HUD/UILayout/RightPanel"]
 layout_mode = 2
 theme_override_constants/margin_left = 22
-theme_override_constants/margin_top = 24
+theme_override_constants/margin_top = 20
 theme_override_constants/margin_right = 22
-theme_override_constants/margin_bottom = 24
+theme_override_constants/margin_bottom = 20
 
 [node name="Items" type="VBoxContainer" parent="HUD/UILayout/RightPanel/Margin"]
 layout_mode = 2
-theme_override_constants/separation = 16
+theme_override_constants/separation = 7
 
 [node name="Title" type="Label" parent="HUD/UILayout/RightPanel/Margin/Items"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 30
+theme_override_font_sizes/font_size = 26
 text = "UNNAMED TD"
 
 [node name="Subtitle" type="Label" parent="HUD/UILayout/RightPanel/Margin/Items"]
 layout_mode = 2
-text = "v0.1 • Maze defense"
+text = "Endless • Maze defense"
 
 [node name="Currency" type="Label" parent="HUD/UILayout/RightPanel/Margin/Items"]
 layout_mode = 2
@@ -89,33 +89,59 @@ text = "READY"
 
 [node name="BuildTower" type="Button" parent="HUD/UILayout/RightPanel/Margin/Items"]
 layout_mode = 2
-custom_minimum_size = Vector2(0, 48)
+custom_minimum_size = Vector2(0, 38)
 text = "Build Tower • 60"
 
 [node name="Cancel" type="Button" parent="HUD/UILayout/RightPanel/Margin/Items"]
 layout_mode = 2
-custom_minimum_size = Vector2(0, 48)
+custom_minimum_size = Vector2(0, 38)
 text = "Cancel (Esc / right-click)"
 
 [node name="StartWave" type="Button" parent="HUD/UILayout/RightPanel/Margin/Items"]
 layout_mode = 2
-custom_minimum_size = Vector2(0, 48)
+custom_minimum_size = Vector2(0, 38)
 text = "Start Wave"
 
 [node name="Restart" type="Button" parent="HUD/UILayout/RightPanel/Margin/Items"]
 layout_mode = 2
-custom_minimum_size = Vector2(0, 48)
+custom_minimum_size = Vector2(0, 38)
 text = "Restart"
+
+[node name="SelectedTower" type="Label" parent="HUD/UILayout/RightPanel/Margin/Items"]
+layout_mode = 2
+autowrap_mode = 2
+text = "No tower selected"
+
+[node name="UpgradeDamage" type="Button" parent="HUD/UILayout/RightPanel/Margin/Items"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 36)
+text = "Damage • 60"
+
+[node name="UpgradeRange" type="Button" parent="HUD/UILayout/RightPanel/Margin/Items"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 36)
+text = "Range • 60"
+
+[node name="UpgradeSpeed" type="Button" parent="HUD/UILayout/RightPanel/Margin/Items"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 36)
+text = "Firing speed • 60"
+
+[node name="RemoveTower" type="Button" parent="HUD/UILayout/RightPanel/Margin/Items"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 36)
+text = "Remove • Refund 30"
 
 [node name="TowerStats" type="Label" parent="HUD/UILayout/RightPanel/Margin/Items"]
 layout_mode = 2
 autowrap_mode = 2
-text = "TOWER\nDamage: 15 • Range: 112 px\nCooldown: 0.8 seconds\nKill bounty: 12\nWave 1–2 bonus: 30"
+theme_override_font_sizes/font_size = 16
+text = "Build 60 • Remove +30\nNo upgrade refunds"
 
-[node name="Goal" type="Label" parent="HUD/UILayout/RightPanel/Margin/Items"]
+[node name="EnemyGuide" type="Label" parent="HUD/UILayout/RightPanel/Margin/Items"]
 layout_mode = 2
-autowrap_mode = 2
-text = "Keep a route open.\nClear 3 waves to win.\nEnemies at exit cost 1 life."
+theme_override_font_sizes/font_size = 14
+text = "ENEMIES (bounty)\nRed circle: grunt (12)\nOrange triangle: fast runner (9)\nSteel square: armor -3/hit (24)\nPurple cross: heals after 2s (20)\nGold diamond: absorbs shots (22)"
 
 [node name="BottomPanel" type="PanelContainer" parent="HUD/UILayout"]
 layout_mode = 0
@@ -138,14 +164,14 @@ theme_override_constants/separation = 8
 
 [node name="Selection" type="Label" parent="HUD/UILayout/BottomPanel/Margin/Items"]
 layout_mode = 2
-text = "No tower selected • Choose Build Tower to begin"
+text = "Click a tower to manage it • Build Tower to add one • Right-click/Esc clears selection"
 
 [node name="Message" type="Label" parent="HUD/UILayout/BottomPanel/Margin/Items"]
 layout_mode = 2
 autowrap_mode = 2
-text = "Create a maze of towers. Keep a route open from the entrance to the exit."
+text = "Create a maze of towers. Survive endless waves; keep every enemy route open."
 
 [node name="Legend" type="Label" parent="HUD/UILayout/BottomPanel/Margin/Items"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 16
-text = "GREEN: entrance    ORANGE: exit    CYAN: tower    RED: enemy • Build before or during waves. No selling."
+text = "GREEN: entrance    ORANGE: exit    CYAN: tower • Click towers to upgrade or remove • Build before or during waves."
