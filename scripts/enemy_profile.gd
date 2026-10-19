@@ -31,7 +31,7 @@ static func base(type: Kind) -> EnemyProfile:
 			result.speed = 40.0
 			result.bounty = 24
 			result.color = Color("a8bccb")
-			result.armor = 3
+			result.armor = 45
 		Kind.REGENERATOR:
 			result.title = "Regenerator"
 			result.hit_points = 68

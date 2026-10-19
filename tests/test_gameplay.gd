@@ -107,7 +107,8 @@ func _test_cadence_and_rewards() -> void:
 	for node in game.board.active_enemies():
 		var enemy := node as Enemy
 		expected += enemy.bounty
-		enemy.take_damage(enemy.health + enemy.shield + enemy.armor)
+		for layer in range(3): # Fixture: one hit per possible layer, not a balance simulation.
+			enemy.take_damage(enemy.health + enemy.shield + enemy.armor)
 	check(game.currency == expected, "wave clear awards all actual bounties and one bonus")
 	check(game.phase == TDGame.Phase.BETWEEN_WAVES and not game.hud.start_button.disabled, "wave waits for button")
 	game.waves._process(100.0)
@@ -120,7 +121,8 @@ func _test_cadence_and_rewards() -> void:
 		for node in game.board.active_enemies():
 			var enemy := node as Enemy
 			expected += enemy.bounty
-			enemy.take_damage(enemy.health + enemy.shield + enemy.armor)
+			for layer in range(3): # Fixture: one hit per possible layer, not a balance simulation.
+				enemy.take_damage(enemy.health + enemy.shield + enemy.armor)
 		expected += GameConfig.WAVE_CLEAR_BONUS
 		check(game.phase == TDGame.Phase.BETWEEN_WAVES and game.currency == expected and game.lives == 9, "wave %d clears and endless play continues" % wave)
 	game.free()

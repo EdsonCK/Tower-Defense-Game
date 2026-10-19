@@ -1,12 +1,16 @@
 [gd_scene load_steps=3 format=3]
 [ext_resource type="Script" path="res://scripts/skill_tree_menu.gd" id="1"]
 [sub_resource type="StyleBoxFlat" id="PanelStyle"]
-bg_color = Color(0.045, 0.07, 0.11, 1)
-border_width_left = 3
-border_width_top = 3
-border_width_right = 3
-border_width_bottom = 3
-border_color = Color(0.5, 0.7, 1, 1)
+bg_color = Color(0.043, 0.065, 0.105, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.28, 0.45, 0.6, 1)
+corner_radius_top_left = 18
+corner_radius_top_right = 18
+corner_radius_bottom_left = 18
+corner_radius_bottom_right = 18
 
 [node name="SkillTree" type="Control"]
 visible = false
@@ -20,227 +24,63 @@ script = ExtResource("1")
 layout_mode = 0
 offset_right = 1600.0
 offset_bottom = 900.0
-color = Color(0, 0, 0, 0.8)
+color = Color(0.015, 0.025, 0.05, 0.88)
 mouse_filter = 2
 
 [node name="Panel" type="PanelContainer" parent="."]
 layout_mode = 0
-offset_left = 140.0
-offset_top = 45.0
-offset_right = 1460.0
-offset_bottom = 855.0
+offset_left = 120.0
+offset_top = 32.0
+offset_right = 1480.0
+offset_bottom = 868.0
 theme_override_styles/panel = SubResource("PanelStyle")
 
 [node name="Margin" type="MarginContainer" parent="Panel"]
 layout_mode = 2
 theme_override_constants/margin_left = 24
 theme_override_constants/margin_right = 24
-theme_override_constants/margin_top = 24
-theme_override_constants/margin_bottom = 24
+theme_override_constants/margin_top = 22
+theme_override_constants/margin_bottom = 22
 
 [node name="Items" type="VBoxContainer" parent="Panel/Margin"]
 layout_mode = 2
-theme_override_constants/separation = 14
+theme_override_constants/separation = 12
 
 [node name="Balance" type="Label" parent="Panel/Margin/Items"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 28
-text = "Permanent skills • Diamonds: 0"
+theme_override_font_sizes/font_size = 30
+text = "RESEARCH LAB"
 
 [node name="Message" type="Label" parent="Panel/Margin/Items"]
 layout_mode = 2
+custom_minimum_size = Vector2(0, 40)
 autowrap_mode = 2
-custom_minimum_size = Vector2(0, 48)
-text = "Earn one diamond per completed wave. Tesla is the first unlock."
+text = "Permanent research"
 
-[node name="Skills" type="GridContainer" parent="Panel/Margin/Items"]
+[node name="Root" type="HBoxContainer" parent="Panel/Margin/Items"]
+layout_mode = 2
+
+[node name="Scroll" type="ScrollContainer" parent="Panel/Margin/Items"]
 layout_mode = 2
 size_flags_vertical = 3
-columns = 4
-theme_override_constants/h_separation = 18
-theme_override_constants/v_separation = 14
+horizontal_scroll_mode = 0
 
-[node name="tesla" type="VBoxContainer" parent="Panel/Margin/Items/Skills"]
+[node name="Branches" type="HBoxContainer" parent="Panel/Margin/Items/Scroll"]
 layout_mode = 2
 size_flags_horizontal = 3
-custom_minimum_size = Vector2(290, 145)
-
-[node name="Buy" type="Button" parent="Panel/Margin/Items/Skills/tesla"]
-layout_mode = 2
-custom_minimum_size = Vector2(0, 44)
-theme_override_font_sizes/font_size = 15
-text = "tesla"
-
-[node name="Description" type="Label" parent="Panel/Margin/Items/Skills/tesla"]
-layout_mode = 2
-autowrap_mode = 2
-theme_override_font_sizes/font_size = 15
-text = ""
-
-[node name="basic_training" type="VBoxContainer" parent="Panel/Margin/Items/Skills"]
-layout_mode = 2
-size_flags_horizontal = 3
-custom_minimum_size = Vector2(290, 145)
-
-[node name="Buy" type="Button" parent="Panel/Margin/Items/Skills/basic_training"]
-layout_mode = 2
-custom_minimum_size = Vector2(0, 44)
-theme_override_font_sizes/font_size = 15
-text = "basic_training"
-
-[node name="Description" type="Label" parent="Panel/Margin/Items/Skills/basic_training"]
-layout_mode = 2
-autowrap_mode = 2
-theme_override_font_sizes/font_size = 15
-text = ""
-
-[node name="tesla_training" type="VBoxContainer" parent="Panel/Margin/Items/Skills"]
-layout_mode = 2
-size_flags_horizontal = 3
-custom_minimum_size = Vector2(290, 145)
-
-[node name="Buy" type="Button" parent="Panel/Margin/Items/Skills/tesla_training"]
-layout_mode = 2
-custom_minimum_size = Vector2(0, 44)
-theme_override_font_sizes/font_size = 15
-text = "tesla_training"
-
-[node name="Description" type="Label" parent="Panel/Margin/Items/Skills/tesla_training"]
-layout_mode = 2
-autowrap_mode = 2
-theme_override_font_sizes/font_size = 15
-text = ""
-
-[node name="salvage" type="VBoxContainer" parent="Panel/Margin/Items/Skills"]
-layout_mode = 2
-size_flags_horizontal = 3
-custom_minimum_size = Vector2(290, 145)
-
-[node name="Buy" type="Button" parent="Panel/Margin/Items/Skills/salvage"]
-layout_mode = 2
-custom_minimum_size = Vector2(0, 44)
-theme_override_font_sizes/font_size = 15
-text = "salvage"
-
-[node name="Description" type="Label" parent="Panel/Margin/Items/Skills/salvage"]
-layout_mode = 2
-autowrap_mode = 2
-theme_override_font_sizes/font_size = 15
-text = ""
-
-[node name="piercing" type="VBoxContainer" parent="Panel/Margin/Items/Skills"]
-layout_mode = 2
-size_flags_horizontal = 3
-custom_minimum_size = Vector2(290, 145)
-
-[node name="Buy" type="Button" parent="Panel/Margin/Items/Skills/piercing"]
-layout_mode = 2
-custom_minimum_size = Vector2(0, 44)
-theme_override_font_sizes/font_size = 15
-text = "piercing"
-
-[node name="Description" type="Label" parent="Panel/Margin/Items/Skills/piercing"]
-layout_mode = 2
-autowrap_mode = 2
-theme_override_font_sizes/font_size = 15
-text = ""
-
-[node name="static_field" type="VBoxContainer" parent="Panel/Margin/Items/Skills"]
-layout_mode = 2
-size_flags_horizontal = 3
-custom_minimum_size = Vector2(290, 145)
-
-[node name="Buy" type="Button" parent="Panel/Margin/Items/Skills/static_field"]
-layout_mode = 2
-custom_minimum_size = Vector2(0, 44)
-theme_override_font_sizes/font_size = 15
-text = "static_field"
-
-[node name="Description" type="Label" parent="Panel/Margin/Items/Skills/static_field"]
-layout_mode = 2
-autowrap_mode = 2
-theme_override_font_sizes/font_size = 15
-text = ""
-
-[node name="gold_mastery" type="VBoxContainer" parent="Panel/Margin/Items/Skills"]
-layout_mode = 2
-size_flags_horizontal = 3
-custom_minimum_size = Vector2(290, 145)
-
-[node name="Buy" type="Button" parent="Panel/Margin/Items/Skills/gold_mastery"]
-layout_mode = 2
-custom_minimum_size = Vector2(0, 44)
-theme_override_font_sizes/font_size = 15
-text = "gold_mastery"
-
-[node name="Description" type="Label" parent="Panel/Margin/Items/Skills/gold_mastery"]
-layout_mode = 2
-autowrap_mode = 2
-theme_override_font_sizes/font_size = 15
-text = ""
-
-[node name="sluggish" type="VBoxContainer" parent="Panel/Margin/Items/Skills"]
-layout_mode = 2
-size_flags_horizontal = 3
-custom_minimum_size = Vector2(290, 145)
-
-[node name="Buy" type="Button" parent="Panel/Margin/Items/Skills/sluggish"]
-layout_mode = 2
-custom_minimum_size = Vector2(0, 44)
-theme_override_font_sizes/font_size = 15
-text = "sluggish"
-
-[node name="Description" type="Label" parent="Panel/Margin/Items/Skills/sluggish"]
-layout_mode = 2
-autowrap_mode = 2
-theme_override_font_sizes/font_size = 15
-text = ""
-
-[node name="fragile" type="VBoxContainer" parent="Panel/Margin/Items/Skills"]
-layout_mode = 2
-size_flags_horizontal = 3
-custom_minimum_size = Vector2(290, 145)
-
-[node name="Buy" type="Button" parent="Panel/Margin/Items/Skills/fragile"]
-layout_mode = 2
-custom_minimum_size = Vector2(0, 44)
-theme_override_font_sizes/font_size = 15
-text = "fragile"
-
-[node name="Description" type="Label" parent="Panel/Margin/Items/Skills/fragile"]
-layout_mode = 2
-autowrap_mode = 2
-theme_override_font_sizes/font_size = 15
-text = ""
-
-[node name="engineering" type="VBoxContainer" parent="Panel/Margin/Items/Skills"]
-layout_mode = 2
-size_flags_horizontal = 3
-custom_minimum_size = Vector2(290, 145)
-
-[node name="Buy" type="Button" parent="Panel/Margin/Items/Skills/engineering"]
-layout_mode = 2
-custom_minimum_size = Vector2(0, 44)
-theme_override_font_sizes/font_size = 15
-text = "Tower Engineering"
-
-[node name="Description" type="Label" parent="Panel/Margin/Items/Skills/engineering"]
-layout_mode = 2
-autowrap_mode = 2
-theme_override_font_sizes/font_size = 15
-text = ""
+theme_override_constants/separation = 16
 
 [node name="Footer" type="HBoxContainer" parent="Panel/Margin/Items"]
 layout_mode = 2
-theme_override_constants/separation = 20
+theme_override_constants/separation = 16
 
 [node name="Close" type="Button" parent="Panel/Margin/Items/Footer"]
 layout_mode = 2
-custom_minimum_size = Vector2(0, 44)
+custom_minimum_size = Vector2(0, 42)
 size_flags_horizontal = 3
-text = "Close • Continue building"
+text = "Continue building    →"
 
 [node name="Retry" type="Button" parent="Panel/Margin/Items/Footer"]
 layout_mode = 2
-custom_minimum_size = Vector2(0, 44)
+custom_minimum_size = Vector2(0, 42)
 text = "Retry Save"

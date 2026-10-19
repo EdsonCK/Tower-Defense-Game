@@ -93,6 +93,9 @@ func _run() -> void:
 	game._finish(TDGame.Phase.DEFEAT)
 	var restart_button := game.hud.get_node("RightPanel/Margin/Items/Restart") as Button
 	click(restart_button.get_global_rect().get_center())
+	check(game.hud.restart_dialog.visible and current_scene == game, "restart first opens confirmation and preserves current run")
+	await process_frame
+	click(Vector2(game.hud.restart_dialog.position) + game.hud.restart_dialog.get_ok_button().get_global_rect().get_center())
 	await scene_changed
 	var restarted := current_scene as TDGame
 	check(restarted != null and restarted != game, "Restart button reloads the main scene")
@@ -106,6 +109,8 @@ func _run() -> void:
 	restart_button = restarted.hud.get_node("RightPanel/Margin/Items/Restart") as Button
 	await process_frame
 	click(restart_button.get_global_rect().get_center())
+	await process_frame
+	click(Vector2(restarted.hud.restart_dialog.position) + restarted.hud.restart_dialog.get_ok_button().get_global_rect().get_center())
 	await scene_changed
 	restarted = current_scene as TDGame
 	check(restarted.phase == TDGame.Phase.READY and restarted.currency == 200 and get_nodes_in_group("enemies").is_empty(), "repeated restart from active play is clean")

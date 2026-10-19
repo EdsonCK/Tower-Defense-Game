@@ -18,7 +18,9 @@ func generate(wave: int) -> Array[EnemyProfile]:
 	assert(wave > 0)
 	# Clamp before multiplication so even extremely late wave indices stay safe.
 	var difficulty := mini(wave - 1, 100000)
-	var count := clampi(8 + mini(difficulty, 28) * 2 + _rng.randi_range(-1, 1), 8, GameConfig.MAX_WAVE_ENEMIES)
+	var count := clampi(8 + mini(difficulty, 28) * 2 + _rng.randi_range(-1, 1), 8, 64)
+	if wave > 30:
+		count = late_wave_count(wave)
 	var unlocked := 2
 	if wave >= 2:
 		unlocked = 3
@@ -40,7 +42,8 @@ func generate(wave: int) -> Array[EnemyProfile]:
 		var pressure := 1.0 + GameConfig.VETERAN_HEALTH_PER_WAVE * veteran
 		var scale := (1.0 + 0.08 * difficulty + 0.012 * late * late) * pressure * _rng.randf_range(0.95, 1.05)
 		if kind == EnemyProfile.Kind.ARMORED:
-			profile.armor += mini(12, floori(difficulty / 6.0) + floori(veteran / GameConfig.VETERAN_ARMOR_INTERVAL))
+			var plating := 1.0 + 0.10 * mini(12, floori(difficulty / 6.0) + floori(veteran / GameConfig.VETERAN_ARMOR_INTERVAL))
+			profile.armor = clampi(roundi(profile.armor * plating * scale), 1, GameConfig.MAX_ENEMY_HEALTH)
 		profile.hit_points = clampi(roundi(profile.hit_points * scale), 1, GameConfig.MAX_ENEMY_HEALTH)
 		profile.speed *= _rng.randf_range(0.97, 1.03)
 		profile.shield = mini(roundi(profile.shield * scale), GameConfig.MAX_ENEMY_HEALTH)
@@ -54,6 +57,15 @@ func generate(wave: int) -> Array[EnemyProfile]:
 	return result
 
 
+static func late_wave_count(wave: int) -> int:
+	var late := mini(maxi(wave - 30, 0), 100000)
+	return mini(GameConfig.MAX_WAVE_ENEMIES, 64 + 4 * late + floori(0.02 * late * late))
+
+
 func interval_for(wave: int) -> float:
+	if wave > 30:
+		# Count grows faster than cadence: spawn windows lengthen as density rises.
+		# Both plateau together at the node budget, rather than shortening forever.
+		return maxf(GameConfig.MIN_SPAWN_INTERVAL, 0.678 * pow(late_wave_count(wave) / 64.0, -0.45))
 	var base := GameConfig.SPAWN_INTERVAL - 0.018 * mini(wave - 1, 50)
-	return maxf(GameConfig.MIN_SPAWN_INTERVAL, base * _rng.randf_range(0.96, 1.04))
+	return maxf(0.45, base * _rng.randf_range(0.96, 1.04))

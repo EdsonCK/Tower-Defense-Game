@@ -12,7 +12,13 @@ var kind := EnemyProfile.Kind.GRUNT
 var speed := GameConfig.ENEMY_SPEED
 var bounty := GameConfig.KILL_BOUNTY
 var armor := 0
+var max_armor := 0
 var shield := 0
+var max_shield := 0
+
+const HEALTH_COLOR := Color("63df96")
+const ARMOR_COLOR := Color("f1f5fc")
+const SHIELD_COLOR := Color("b987ff")
 var regeneration := 0.0
 var body_color := Color("f06464")
 var _slow_factor := 1.0
@@ -45,7 +51,9 @@ func setup_profile(board: Board, profile: EnemyProfile) -> void:
 	speed = profile.speed
 	bounty = profile.bounty
 	armor = profile.armor
+	max_armor = armor
 	shield = profile.shield
+	max_shield = shield
 	regeneration = profile.regeneration
 	body_color = profile.color
 	position = _board.cell_to_pixel(_current_cell)
@@ -132,15 +140,24 @@ func _process(delta: float) -> void:
 			return
 
 
-func take_damage(damage: int, penetration: int = 0) -> void:
-	if not is_alive() or damage <= 0:
+func take_damage(health_damage: int, armor_damage: int = -1, shield_damage: int = -1) -> void:
+	if not is_alive():
+		return
+	# A hit spends its layer-specific stat on ONE pool. Overkill never spills.
+	var amount := health_damage
+	if shield > 0:
+		amount = health_damage if shield_damage < 0 else shield_damage
+	elif armor > 0:
+		amount = health_damage if armor_damage < 0 else armor_damage
+	if amount <= 0:
 		return
 	_since_damage = 0.0
-	var absorbed := mini(shield, damage)
-	shield -= absorbed
-	var unshielded := damage - absorbed
-	if unshielded > 0:
-		health = maxi(0, health - maxi(1, unshielded - maxi(0, armor - maxi(0, penetration))))
+	if shield > 0:
+		shield = maxi(0, shield - amount)
+	elif armor > 0:
+		armor = maxi(0, armor - amount)
+	else:
+		health = maxi(0, health - amount)
 	queue_redraw()
 	if health == 0:
 		_resolve(true)
@@ -204,7 +221,16 @@ func _draw() -> void:
 		draw_line(Vector2(-5, 0), Vector2(5, 0), Color.WHITE, 3.0)
 		draw_line(Vector2(0, -5), Vector2(0, 5), Color.WHITE, 3.0)
 	if shield > 0:
-		draw_arc(Vector2.ZERO, 14, 0, TAU, 24, Color("76e7ff"), 2.0)
-	draw_rect(Rect2(-12, -19, 24, 4), Color("45212c"))
-	if max_health > 0:
-		draw_rect(Rect2(-12, -19, 24.0 * health / max_health, 4), Color("89ef88"))
+		draw_arc(Vector2.ZERO, 14, 0, TAU, 24, SHIELD_COLOR, 2.0)
+	# Fixed stack positions; depleted layers disappear without moving health.
+	_draw_bar(-18.0, health, max_health, HEALTH_COLOR)
+	if armor > 0:
+		_draw_bar(-23.0, armor, max_armor, ARMOR_COLOR)
+	if shield > 0:
+		_draw_bar(-28.0, shield, max_shield, SHIELD_COLOR)
+
+
+func _draw_bar(y: float, current: int, maximum: int, color: Color) -> void:
+	draw_rect(Rect2(-13, y - 1, 26, 5), Color("101827"))
+	if maximum > 0:
+		draw_rect(Rect2(-12, y, 24.0 * current / maximum, 3), color)

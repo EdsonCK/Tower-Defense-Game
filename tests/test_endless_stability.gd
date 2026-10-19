@@ -57,7 +57,7 @@ func _test_generation() -> void:
 		check(valid and wave_kinds.size() >= 2, "wave %d finite stats and mixed types" % wave)
 	check(kinds_seen.size() == 5, "soak includes all five types")
 	var extreme := generator.generate(1 << 50)
-	check(extreme.size() <= 64 and extreme[0].hit_points > 0 and generator.interval_for(1 << 50) >= 0.45, "extreme wave index stays bounded without overflow")
+	check(extreme.size() <= GameConfig.MAX_WAVE_ENEMIES and extreme[0].hit_points > 0 and generator.interval_for(1 << 50) >= GameConfig.MIN_SPAWN_INTERVAL, "extreme wave index stays bounded without overflow")
 	var mutable := generator.generate(1)
 	mutable[0].hit_points = 1
 	check(EnemyProfile.base(EnemyProfile.Kind.GRUNT).hit_points == 45, "per-spawn data cannot mutate type templates")
@@ -101,11 +101,12 @@ func _test_scene_lifecycle() -> void:
 		game.waves._process(1000.0)
 		var active := game.board.active_enemies()
 		peak_children = maxi(peak_children, game.board.get_node("Enemies").get_child_count())
-		check(active.size() == game.waves.wave_size and active.size() <= 64, "lifecycle wave %d has bounded live nodes" % wave)
+		check(active.size() == game.waves.wave_size and active.size() <= GameConfig.MAX_WAVE_ENEMIES, "lifecycle wave %d has bounded live nodes" % wave)
 		for node in active:
 			var enemy := node as Enemy
 			expected_currency += enemy.bounty
-			enemy.take_damage(enemy.health + enemy.shield + enemy.armor)
+			for layer in range(3): # Fixture: one hit per possible layer, not a balance simulation.
+				enemy.take_damage(enemy.health + enemy.shield + enemy.armor)
 			enemy.take_damage(9999999)
 		expected_currency += GameConfig.WAVE_CLEAR_BONUS
 		check(game.currency == expected_currency and game.waves.active_count == 0 and game.phase == TDGame.Phase.BETWEEN_WAVES, "lifecycle wave %d settles economy once" % wave)
@@ -120,7 +121,7 @@ func _test_scene_lifecycle() -> void:
 			expected_currency -= 60 + 60 - 30
 			await process_frame
 			check(game.currency == expected_currency and game.board.get_node("Towers").get_child_count() == 0 and not game.board.is_blocked(Vector2i(5, 5)), "soak sale releases node/occupancy without currency exploit")
-	check(peak_children <= 64, "lifecycle never accumulates prior-wave enemy nodes")
+	check(peak_children <= GameConfig.MAX_WAVE_ENEMIES, "lifecycle never accumulates prior-wave enemy nodes")
 	game.free()
 	await process_frame
 

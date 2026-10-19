@@ -19,7 +19,8 @@ func clear_current_wave(game: TDGame) -> void:
 	game.waves._process(1000.0)
 	for node in game.board.active_enemies():
 		var enemy := node as Enemy
-		enemy.take_damage(enemy.health + enemy.shield + enemy.armor)
+		for layer in range(3): # Fixture: one hit per possible layer, not a balance simulation.
+			enemy.take_damage(enemy.health + enemy.shield + enemy.armor)
 
 
 func _run() -> void:

@@ -59,7 +59,7 @@ func award_wave(run_id: String, wave: int) -> bool:
 
 
 func gold_reward(base: int) -> int:
-	var percent := 100 + (20 if has_skill("salvage") else 0) + (20 if has_skill("gold_mastery") else 0)
+	var percent := 100 + (20 if has_skill("salvage") else 0) + (20 if has_skill("gold_mastery") else 0) + (25 if has_skill("gold_mastery_ii") else 0) + (35 if has_skill("gold_mastery_iii") else 0)
 	return floori(base * percent / 100.0)
 
 
@@ -69,6 +69,16 @@ func apply_enemy_nerfs(profile: EnemyProfile) -> void:
 	if has_skill("fragile"):
 		profile.hit_points = maxi(1, roundi(profile.hit_points * 0.85))
 		profile.shield = maxi(0, roundi(profile.shield * 0.85))
+
+	if has_skill("sluggish_ii"):
+		profile.speed *= 0.9
+	if has_skill("fragile_ii"):
+		profile.hit_points = maxi(1, roundi(profile.hit_points * 0.85))
+		profile.shield = maxi(0, roundi(profile.shield * 0.85))
+	if has_skill("exposed_armor"):
+		profile.armor = maxi(0, roundi(profile.armor * 0.8))
+	if has_skill("shield_decay"):
+		profile.shield = maxi(0, roundi(profile.shield * 0.75))
 
 
 func load_profile() -> bool:

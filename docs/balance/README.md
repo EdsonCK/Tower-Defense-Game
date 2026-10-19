@@ -1,3 +1,5 @@
+> Historical v0.3 calibration. Layered defenses and denser waves in v0.4 change these outcomes; see [current results](../ui/README.md). Reproduce this report from commit `2ffad4f`, not the current working revision.
+
 # Single-run bot comparison
 
 Godot `4.7.2.stable.official.ed1daf0bf`, seed **721**, fixed **1/30 s** simulation steps, fresh in-memory profiles, **200-wave maximum per run**. Baseline game source: commit `6e0ec6400e1cfc8f98f3796b08cc4e4396ce20ae`.

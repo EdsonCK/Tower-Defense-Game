@@ -90,7 +90,8 @@ func _test_game_flow() -> void:
 		game.waves._process(1000.0)
 		for node in game.board.active_enemies():
 			var enemy := node as Enemy
-			enemy.take_damage(enemy.health + enemy.shield + enemy.armor)
+			for layer in range(3): # Fixture: one hit per possible layer, not a balance simulation.
+				enemy.take_damage(enemy.health + enemy.shield + enemy.armor)
 		check(game.progression.diamonds == wave, "wave %d earns exactly one diamond" % wave)
 		check(game.skill_tree.visible == (wave % 5 == 0), "skill modal appears exactly at wave %d milestone" % wave)
 		game._on_wave_completed(wave)
@@ -105,11 +106,11 @@ func _test_game_flow() -> void:
 	game.process_mode = Node.PROCESS_MODE_INHERIT
 	root.size = Vector2i(1600, 900)
 	await process_frame
-	click_button(game.skill_tree.get_node("Panel/Margin/Items/Skills/tesla/Buy") as Button)
+	click_button(game.skill_tree.buy_buttons["tesla"] as Button)
 	check(game.progression.has_skill("tesla") and game.progression.diamonds == 7, "real Tesla skill button buys the correct node")
-	click_button(game.skill_tree.get_node("Panel/Margin/Items/Skills/basic_training/Buy") as Button)
+	click_button(game.skill_tree.buy_buttons["basic_training"] as Button)
 	check(game.progression.has_skill("basic_training") and game.progression.diamonds == 4 and game.tower_at_cell(Vector2i(4, 4)).upgrades_enabled, "real training button enables existing basic towers")
-	click_button(game.skill_tree.get_node("Panel/Margin/Items/Skills/tesla_training/Buy") as Button)
+	click_button(game.skill_tree.buy_buttons["tesla_training"] as Button)
 	check(game.progression.has_skill("tesla_training") and game.progression.diamonds == 0, "real Tesla training button is a separate unlock")
 	game.process_mode = Node.PROCESS_MODE_DISABLED
 	# A passive permanent upgrade must refresh already placed towers as well.

@@ -19,8 +19,8 @@ const KILL_BOUNTY := 12
 const SPAWN_INTERVAL := 1.2
 const WAVE_CLEAR_BONUS := 30
 const BASE_DAMAGE := 1
-const MAX_WAVE_ENEMIES := 64
-const MIN_SPAWN_INTERVAL := 0.45
+const MAX_WAVE_ENEMIES := 512
+const MIN_SPAWN_INTERVAL := 0.16
 const MAX_ENEMY_HEALTH := 1000000
 const TOWER_REFUND := int(TOWER_COST * 0.5) # 50% of original construction; upgrades are not refunded.
 const MAX_UPGRADE_LEVEL := 5
@@ -39,5 +39,5 @@ const SKILL_MENU_INTERVAL := 5
 
 # Veteran pressure follows early-game investment without imposing a final wave.
 const VETERAN_START_WAVE := 30
-const VETERAN_HEALTH_PER_WAVE := 0.04
+const VETERAN_HEALTH_PER_WAVE := 0.055
 const VETERAN_ARMOR_INTERVAL := 4.0

@@ -17,6 +17,9 @@ var progression: Progression
 var auto_start_waves := false
 var _run_id := ""
 var _restart_pending := false
+var _restart_confirming := false
+var _prior_board_mode: ProcessMode
+var _prior_wave_mode: ProcessMode
 @export var profile_path := "user://progression.json"
 
 @onready var board: Board = $Board
@@ -41,6 +44,7 @@ func _ready() -> void:
 	hud.build_requested.connect(select_tower)
 	hud.cancel_requested.connect(cancel_build)
 	hud.restart_requested.connect(restart)
+	hud.restart_prompt_changed.connect(_on_restart_prompt_changed)
 	hud.start_wave_requested.connect(start_wave)
 	hud.auto_start_changed.connect(set_auto_start_waves)
 	hud.upgrade_requested.connect(upgrade_selected_tower)
@@ -56,7 +60,7 @@ func is_finished() -> bool:
 
 
 func select_tower(kind: int = Tower.Kind.BASIC) -> void:
-	if is_finished() or skill_tree.visible:
+	if is_finished() or _restart_confirming or skill_tree.visible:
 		return
 	if kind != Tower.Kind.BASIC and kind != Tower.Kind.TESLA:
 		return
@@ -75,6 +79,8 @@ func select_tower(kind: int = Tower.Kind.BASIC) -> void:
 
 
 func cancel_build() -> void:
+	if _restart_confirming:
+		return
 	selected_tower = null
 	building = false
 	_refresh_hud()
@@ -82,6 +88,8 @@ func cancel_build() -> void:
 
 func _input(event: InputEvent) -> void:
 	# The modal consumes every board/gameplay intent, including Escape.
+	if _restart_confirming:
+		return
 	if skill_tree.visible:
 		if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 			close_skill_tree()
@@ -95,7 +103,7 @@ func _input(event: InputEvent) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if is_finished() or skill_tree.visible:
+	if is_finished() or _restart_confirming or skill_tree.visible:
 		return
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		var pixel: Vector2 = board.get_global_transform_with_canvas().affine_inverse() * event.position
@@ -112,7 +120,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func purchase_tower(cell: Vector2i) -> bool:
-	if is_finished() or skill_tree.visible:
+	if is_finished() or _restart_confirming or skill_tree.visible:
 		return false
 	if build_kind == Tower.Kind.TESLA and not progression.has_skill("tesla"):
 		return false
@@ -153,7 +161,7 @@ func tower_at_cell(cell: Vector2i) -> Tower:
 
 
 func select_placed_tower(tower: Tower) -> void:
-	if is_finished() or skill_tree.visible or not _owns_tower(tower):
+	if is_finished() or _restart_confirming or skill_tree.visible or not _owns_tower(tower):
 		return
 	building = false
 	selected_tower = tower
@@ -166,7 +174,7 @@ func _owns_tower(tower: Tower) -> bool:
 
 
 func upgrade_selected_tower(track: int) -> bool:
-	if is_finished() or skill_tree.visible or not _owns_tower(selected_tower):
+	if is_finished() or _restart_confirming or skill_tree.visible or not _owns_tower(selected_tower):
 		return false
 	var error := selected_tower.upgrade_error(track)
 	if not error.is_empty():
@@ -185,7 +193,7 @@ func upgrade_selected_tower(track: int) -> bool:
 
 
 func remove_selected_tower() -> bool:
-	if is_finished() or skill_tree.visible or not _owns_tower(selected_tower):
+	if is_finished() or _restart_confirming or skill_tree.visible or not _owns_tower(selected_tower):
 		return false
 	var tower := selected_tower
 	if not board.remove_block(tower.cell):
@@ -199,6 +207,22 @@ func remove_selected_tower() -> bool:
 	_refresh_hud()
 	hud.show_message("Tower removed • +%d gold" % refund)
 	return true
+
+
+func _on_restart_prompt_changed(open: bool) -> void:
+	if open == _restart_confirming:
+		return
+	_restart_confirming = open
+	if open:
+		_prior_board_mode = board.process_mode
+		_prior_wave_mode = waves.process_mode
+		board.process_mode = Node.PROCESS_MODE_DISABLED
+		waves.process_mode = Node.PROCESS_MODE_DISABLED
+	else:
+		board.process_mode = _prior_board_mode
+		waves.process_mode = _prior_wave_mode
+		call_deferred("_try_auto_start_wave")
+	_refresh_hud()
 
 
 func restart() -> void:
@@ -218,7 +242,7 @@ func _reload_run() -> void:
 
 
 func start_wave() -> void:
-	if is_finished() or skill_tree.visible or phase == Phase.WAVE_ACTIVE:
+	if is_finished() or _restart_confirming or skill_tree.visible or phase == Phase.WAVE_ACTIVE:
 		return
 	if waves.start_next_wave():
 		phase = Phase.WAVE_ACTIVE
@@ -227,7 +251,7 @@ func start_wave() -> void:
 
 
 func set_auto_start_waves(enabled: bool) -> void:
-	if is_finished() or _restart_pending:
+	if is_finished() or _restart_pending or _restart_confirming:
 		return
 	auto_start_waves = enabled
 	_refresh_hud()
@@ -237,7 +261,7 @@ func set_auto_start_waves(enabled: bool) -> void:
 func _try_auto_start_wave() -> void:
 	# Recheck after signal dispatch: menus, cancellation, defeat or restart may
 	# have intervened. start_wave() also prevents duplicate queued requests.
-	if auto_start_waves and not _restart_pending and phase == Phase.BETWEEN_WAVES and not skill_tree.visible:
+	if auto_start_waves and not _restart_pending and phase == Phase.BETWEEN_WAVES and not skill_tree.visible and not _restart_confirming:
 		start_wave()
 
 
@@ -287,7 +311,7 @@ func _on_wave_completed(wave: int) -> void:
 
 
 func open_skill_tree() -> void:
-	if is_finished() or phase == Phase.WAVE_ACTIVE:
+	if is_finished() or _restart_confirming or phase == Phase.WAVE_ACTIVE:
 		return
 	cancel_build()
 	skill_tree.refresh(progression)
@@ -303,7 +327,7 @@ func close_skill_tree() -> void:
 
 
 func purchase_skill(id: String) -> bool:
-	if not skill_tree.visible or phase == Phase.WAVE_ACTIVE or is_finished():
+	if _restart_confirming or not skill_tree.visible or phase == Phase.WAVE_ACTIVE or is_finished():
 		return false
 	var error := progression.purchase_error(id)
 	if not error.is_empty():
@@ -349,7 +373,7 @@ func _refresh_hud() -> void:
 	hud.display(currency, lives, waves.current_wave, status, building, waves.can_start() and not skill_tree.visible, is_finished() or skill_tree.visible)
 	hud.display_progression(progression, phase != Phase.WAVE_ACTIVE and not is_finished(), build_kind)
 	hud.auto_start_button.set_pressed_no_signal(auto_start_waves)
-	hud.auto_start_button.disabled = is_finished() or skill_tree.visible or _restart_pending
+	hud.auto_start_button.disabled = is_finished() or skill_tree.visible or _restart_pending or _restart_confirming
 	var cost := GameConfig.TESLA_COST if build_kind == Tower.Kind.TESLA else GameConfig.TOWER_COST
 	var radius := GameConfig.TESLA_RANGE if build_kind == Tower.Kind.TESLA else GameConfig.TOWER_RANGE
 	board.set_build_preview(building and not skill_tree.visible, currency, cost, radius)

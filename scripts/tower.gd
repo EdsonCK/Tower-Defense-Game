@@ -8,6 +8,10 @@ var kind := Kind.BASIC
 var upgrades_enabled := false
 var special_enabled := false
 var _permanent_damage_factor := 1.0
+var _armor_factor := 1.0
+var _shield_factor := 1.0
+var _range_factor := 1.0
+var _interval_factor := 1.0
 
 var cell := Vector2i.ZERO
 var upgrade_type := Upgrade.NONE
@@ -18,7 +22,11 @@ var _shot_endpoints: Array[Vector2] = []
 
 
 func configure_progression(profile: Progression) -> void:
-	_permanent_damage_factor = 1.1 if profile.has_skill("engineering") else 1.0
+	_permanent_damage_factor = 1.0 + (0.1 if profile.has_skill("engineering") else 0.0) + (0.15 if profile.has_skill("engineering_ii") else 0.0) + (0.25 if profile.has_skill("engineering_iii") else 0.0)
+	_armor_factor = 1.0 + (0.25 if profile.has_skill("armor_breaker") else 0.0) + (0.4 if profile.has_skill("armor_breaker_ii") else 0.0)
+	_shield_factor = 1.0 + (0.25 if profile.has_skill("overcharge") else 0.0) + (0.4 if profile.has_skill("overcharge_ii") else 0.0)
+	_range_factor = 1.0 + (0.08 if profile.has_skill("optics") else 0.0) + (0.12 if profile.has_skill("optics_ii") else 0.0)
+	_interval_factor = (0.92 if profile.has_skill("rapid_fire") else 1.0) * (0.88 if profile.has_skill("rapid_fire_ii") else 1.0)
 	upgrades_enabled = profile.has_skill("tesla_training" if kind == Kind.TESLA else "basic_training")
 	special_enabled = profile.has_skill("static_field" if kind == Kind.TESLA else "piercing")
 
@@ -40,14 +48,25 @@ func damage() -> int:
 	return roundi(base * _permanent_damage_factor)
 
 
+func armor_damage() -> int:
+	var ratio := 0.5 if kind == Kind.TESLA else 1.6
+	var bonus := 15 * upgrade_level if kind == Kind.BASIC and upgrade_type == Upgrade.SPECIAL else 0
+	return maxi(1, roundi((damage() * ratio + bonus) * _armor_factor))
+
+
+func shield_damage() -> int:
+	var ratio := 2.0 if kind == Kind.TESLA else 0.55
+	return maxi(1, roundi(damage() * ratio * _shield_factor))
+
+
 func attack_range() -> float:
 	var base := GameConfig.TESLA_RANGE if kind == Kind.TESLA else GameConfig.TOWER_RANGE
-	return base + ((12.0 if kind == Kind.TESLA else GameConfig.RANGE_PER_LEVEL) * upgrade_level if upgrade_type == Upgrade.RANGE else 0.0)
+	return (base + ((12.0 if kind == Kind.TESLA else GameConfig.RANGE_PER_LEVEL) * upgrade_level if upgrade_type == Upgrade.RANGE else 0.0)) * _range_factor
 
 
 func attack_interval() -> float:
 	var base := GameConfig.TESLA_COOLDOWN if kind == Kind.TESLA else GameConfig.TOWER_COOLDOWN
-	return base * (pow(GameConfig.SPEED_FACTOR_PER_LEVEL, upgrade_level) if upgrade_type == Upgrade.SPEED else 1.0)
+	return base * (pow(GameConfig.SPEED_FACTOR_PER_LEVEL, upgrade_level) if upgrade_type == Upgrade.SPEED else 1.0) * _interval_factor
 
 
 func next_upgrade_cost() -> int:
@@ -119,8 +138,7 @@ func attack(target: Enemy) -> void:
 		return
 	_shot_endpoints.append(to_local(target.global_position))
 	_flash_remaining = GameConfig.SHOT_FLASH_DURATION
-	var penetration := 3 * upgrade_level if kind == Kind.BASIC and upgrade_type == Upgrade.SPECIAL else 0
-	target.take_damage(damage(), penetration)
+	target.take_damage(damage(), armor_damage(), shield_damage())
 	if kind == Kind.TESLA and upgrade_type == Upgrade.SPECIAL and target.is_alive():
 		target.apply_slow(0.85 - 0.05 * upgrade_level, 0.8)
 	queue_redraw()

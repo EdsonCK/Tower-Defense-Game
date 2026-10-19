@@ -18,7 +18,7 @@ func check(condition: bool, description: String) -> void:
 func _run() -> void:
 	var game := preload("res://scenes/main.tscn").instantiate() as TDGame
 	game.progression = Progression.new("")
-	game.progression.unlocked.assign(SkillCatalog.IDS)
+	game.progression.unlocked.assign(["tesla", "basic_training", "tesla_training", "piercing", "static_field"])
 	game.progression.unlocked.erase("engineering") # Isolate unique-track combat from the passive damage bonus.
 	root.add_child(game)
 	game.process_mode = Node.PROCESS_MODE_DISABLED
@@ -43,7 +43,7 @@ func _run() -> void:
 	game.free()
 	game = preload("res://scenes/main.tscn").instantiate() as TDGame
 	game.progression = Progression.new("")
-	game.progression.unlocked.assign(SkillCatalog.IDS)
+	game.progression.unlocked.assign(["tesla", "basic_training", "tesla_training", "piercing", "static_field"])
 	game.progression.unlocked.erase("engineering") # Isolate unique-track combat from the passive damage bonus.
 	root.add_child(game)
 	game.process_mode = Node.PROCESS_MODE_DISABLED
@@ -71,7 +71,7 @@ func _run() -> void:
 	armored.setup_profile(game.board, EnemyProfile.base(EnemyProfile.Kind.ARMORED))
 	armored.position = basic.position + Vector2(30, 0)
 	basic.attack(armored)
-	check(armored.health == 82, "level-one piercing shot deals 23 through three armor")
+	check(armored.health == 105 and armored.armor == 0, "level-one piercing shot depletes 45 plating without health spill")
 	game.free()
 	print("Tesla/unique upgrades: %d checks, %d failures" % [checks, failures])
 	quit(1 if failures else 0)

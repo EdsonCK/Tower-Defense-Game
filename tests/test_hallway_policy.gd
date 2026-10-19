@@ -61,24 +61,24 @@ func _run() -> void:
 				armored_profile = profile
 		if wave <= 30:
 			var original: Dictionary = hallway.waves[wave - 1].combat
-			check(hp == int(original.max_hp) and armor == int(original.max_armor), "wave %d preserves measured early-game strength" % wave)
+			check(hp == int(original.max_hp), "wave %d preserves measured early-game HP" % wave)
 	check(armored_profile != null, "wave-50 fixture contains an armored enemy")
 	var enemy := preload("res://scenes/enemy.tscn").instantiate() as Enemy
 	game.board.get_node("Enemies").add_child(enemy)
 	enemy.setup_profile(game.board, armored_profile)
 	var first := game.tower_at_cell(Vector2i(0, 11))
-	var hp_before := enemy.health
+	var armor_before := enemy.armor
 	first.attack(enemy)
-	check(enemy.health == hp_before - 1, "late armor meaningfully counters unupgraded basic hits")
+	check(enemy.health == enemy.max_health and enemy.armor == armor_before - first.armor_damage(), "late plating absorbs basic armor-specific damage")
 	# A separate training fixture demonstrates that armor does not cause immunity.
 	game.progression.unlocked.assign(["tesla", "basic_training"])
 	first.configure_progression(game.progression)
 	game.select_placed_tower(first)
 	for level in range(5):
 		check(game.upgrade_selected_tower(Tower.Upgrade.DAMAGE), "trained damage level remains purchasable")
-	hp_before = enemy.health
+	armor_before = enemy.armor
 	first.attack(enemy)
-	check(enemy.health == hp_before - 60, "upgraded tower still deals 60 damage through late armor")
+	check(enemy.health == enemy.max_health and enemy.armor == armor_before - first.armor_damage() and first.armor_damage() == 120, "damage upgrades meaningfully improve plating damage without bypassing it")
 	game.free()
 	print("Hallway policy: %d checks, %d failures" % [checks, failures])
 	quit(1 if failures else 0)
