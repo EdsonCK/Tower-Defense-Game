@@ -2,6 +2,16 @@ class_name Hud
 extends Control
 ## Displays game state, forwards button presses as intent signals and shows messages.
 ## Holds no currency, lives or pathfinding logic.
+##
+## Layout contract (keeps UI off the playable board, whatever is added later):
+## - The board lives inside BoardArea, a fixed-size slot in the same HBox/VBox
+##   container layout as the panels, so panels can never overlap it.
+## - Panel content sits in ScrollContainers: too much (or too wide) content scrolls,
+##   so panels never grow or push the board.
+## - Only nodes in PASSTHROUGH_GROUP (pure layout containers that draw nothing and
+##   ignore the mouse) may span the board. tests/test_layout.gd enforces all of this,
+##   and _verify_layout() reports any overlap at runtime in debug builds.
+## - Scripts reference nodes by unique name (%Name), so layout can be rearranged freely.
 
 signal build_pressed
 signal cancel_pressed
@@ -10,34 +20,43 @@ signal restart_pressed
 signal upgrade_pressed(path: int)
 signal sell_pressed
 
+const PASSTHROUGH_GROUP: StringName = &"hud_passthrough"
+const PASSTHROUGH_CLASSES: Array[String] = ["Control", "HBoxContainer", "VBoxContainer"]
 const COLOR_INFO: Color = Color(0.9, 0.9, 0.9)
 const COLOR_ERROR: Color = Color(1.0, 0.45, 0.4)
 
-@onready var _currency_label: Label = $RightPanel/Margin/VBox/CurrencyLabel
-@onready var _lives_label: Label = $RightPanel/Margin/VBox/LivesLabel
-@onready var _wave_label: Label = $RightPanel/Margin/VBox/WaveLabel
-@onready var _enemies_label: Label = $RightPanel/Margin/VBox/EnemiesLabel
-@onready var _state_label: Label = $RightPanel/Margin/VBox/StateLabel
-@onready var _next_wave_label: Label = $RightPanel/Margin/VBox/NextWaveLabel
-@onready var _tower_info_label: Label = $RightPanel/Margin/VBox/TowerInfoLabel
-@onready var _build_button: Button = $RightPanel/Margin/VBox/BuildButton
-@onready var _cancel_button: Button = $RightPanel/Margin/VBox/CancelButton
-@onready var _start_wave_button: Button = $RightPanel/Margin/VBox/StartWaveButton
-@onready var _restart_button: Button = $RightPanel/Margin/VBox/RestartButton
-@onready var _selection_box: VBoxContainer = $RightPanel/Margin/VBox/SelectionBox
-@onready var _selection_label: Label = $RightPanel/Margin/VBox/SelectionBox/SelectionLabel
-@onready var _upgrade_damage_button: Button = $RightPanel/Margin/VBox/SelectionBox/UpgradeDamageButton
-@onready var _upgrade_range_button: Button = $RightPanel/Margin/VBox/SelectionBox/UpgradeRangeButton
-@onready var _upgrade_speed_button: Button = $RightPanel/Margin/VBox/SelectionBox/UpgradeSpeedButton
-@onready var _sell_button: Button = $RightPanel/Margin/VBox/SelectionBox/SellButton
-@onready var _mode_label: Label = $BottomPanel/Margin/VBox/ModeLabel
-@onready var _message_label: Label = $BottomPanel/Margin/VBox/MessageLabel
-@onready var _seed_label: Label = $RightPanel/Margin/VBox/SeedLabel
+@onready var _board_area: Control = %BoardArea
+@onready var _right_panel: Control = %RightPanel
+@onready var _bottom_panel: Control = %BottomPanel
+@onready var _currency_label: Label = %CurrencyLabel
+@onready var _lives_label: Label = %LivesLabel
+@onready var _wave_label: Label = %WaveLabel
+@onready var _enemies_label: Label = %EnemiesLabel
+@onready var _state_label: Label = %StateLabel
+@onready var _next_wave_label: Label = %NextWaveLabel
+@onready var _tower_info_label: Label = %TowerInfoLabel
+@onready var _build_button: Button = %BuildButton
+@onready var _cancel_button: Button = %CancelButton
+@onready var _start_wave_button: Button = %StartWaveButton
+@onready var _restart_button: Button = %RestartButton
+@onready var _selection_box: VBoxContainer = %SelectionBox
+@onready var _selection_label: Label = %SelectionLabel
+@onready var _upgrade_damage_button: Button = %UpgradeDamageButton
+@onready var _upgrade_range_button: Button = %UpgradeRangeButton
+@onready var _upgrade_speed_button: Button = %UpgradeSpeedButton
+@onready var _sell_button: Button = %SellButton
+@onready var _mode_label: Label = %ModeLabel
+@onready var _message_label: Label = %MessageLabel
+@onready var _seed_label: Label = %SeedLabel
 
 
 func _ready() -> void:
 	# The transparent full-screen layout must not swallow board clicks; panels stop them.
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_board_area.custom_minimum_size = Vector2(GameConfig.BOARD_WIDTH, GameConfig.BOARD_HEIGHT)
+	if OS.is_debug_build():
+		for panel: Control in [_right_panel, _bottom_panel, _board_area]:
+			panel.item_rect_changed.connect(_verify_layout, CONNECT_DEFERRED)
 	_build_button.pressed.connect(build_pressed.emit)
 	_cancel_button.pressed.connect(cancel_pressed.emit)
 	_start_wave_button.pressed.connect(start_wave_pressed.emit)
@@ -128,3 +147,20 @@ func show_error(text: String) -> void:
 
 func get_message() -> String:
 	return _message_label.text
+
+
+## Screen rect reserved for the board (the Board node is a child of this area).
+func get_board_rect() -> Rect2:
+	return _board_area.get_global_rect()
+
+
+## Reports an error if a panel ever overlaps the reserved board area.
+func _verify_layout() -> void:
+	var board_rect: Rect2 = get_board_rect()
+	if board_rect.size != Vector2(GameConfig.BOARD_WIDTH, GameConfig.BOARD_HEIGHT):
+		push_error("HUD layout: board area is %s, expected %dx%d" % [board_rect.size, GameConfig.BOARD_WIDTH, GameConfig.BOARD_HEIGHT])
+	if not get_viewport_rect().encloses(board_rect):
+		push_error("HUD layout: board area %s is pushed outside the view" % board_rect)
+	for panel: Control in [_right_panel, _bottom_panel]:
+		if panel.get_global_rect().intersects(board_rect):
+			push_error("HUD layout: %s overlaps the board area" % panel.name)

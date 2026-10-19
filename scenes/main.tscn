@@ -9,13 +9,6 @@
 [node name="Main" type="Node2D"]
 script = ExtResource("1_main")
 
-[node name="Board" type="Node2D" parent="."]
-script = ExtResource("2_board")
-
-[node name="Towers" type="Node2D" parent="Board"]
-
-[node name="Enemies" type="Node2D" parent="Board"]
-
 [node name="WaveManager" type="Node" parent="."]
 script = ExtResource("3_wave")
 
@@ -24,7 +17,8 @@ script = ExtResource("5_window")
 
 [node name="HUD" type="CanvasLayer" parent="."]
 
-[node name="UILayout" type="Control" parent="HUD"]
+[node name="UILayout" type="Control" parent="HUD" groups=["hud_passthrough"]]
+unique_name_in_owner = true
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -34,176 +28,254 @@ grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("4_hud")
 
-[node name="RightPanel" type="PanelContainer" parent="HUD/UILayout"]
-layout_mode = 0
-offset_left = 1280.0
-offset_right = 1600.0
-offset_bottom = 900.0
+[node name="Root" type="HBoxContainer" parent="HUD/UILayout" groups=["hud_passthrough"]]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/separation = 0
+
+[node name="LeftColumn" type="VBoxContainer" parent="HUD/UILayout/Root" groups=["hud_passthrough"]]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_constants/separation = 0
+
+[node name="BoardArea" type="Control" parent="HUD/UILayout/Root/LeftColumn" groups=["hud_passthrough"]]
+unique_name_in_owner = true
+clip_contents = true
+custom_minimum_size = Vector2(1280, 768)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Board" type="Node2D" parent="HUD/UILayout/Root/LeftColumn/BoardArea"]
+unique_name_in_owner = true
+script = ExtResource("2_board")
+
+[node name="Towers" type="Node2D" parent="HUD/UILayout/Root/LeftColumn/BoardArea/Board"]
+
+[node name="Enemies" type="Node2D" parent="HUD/UILayout/Root/LeftColumn/BoardArea/Board"]
+
+[node name="BottomPanel" type="PanelContainer" parent="HUD/UILayout/Root/LeftColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
 mouse_filter = 0
 
-[node name="Margin" type="MarginContainer" parent="HUD/UILayout/RightPanel"]
+[node name="Scroll" type="ScrollContainer" parent="HUD/UILayout/Root/LeftColumn/BottomPanel"]
 layout_mode = 2
-theme_override_constants/margin_left = 16
-theme_override_constants/margin_top = 16
-theme_override_constants/margin_right = 16
-theme_override_constants/margin_bottom = 16
+horizontal_scroll_mode = 1
+vertical_scroll_mode = 1
 
-[node name="VBox" type="VBoxContainer" parent="HUD/UILayout/RightPanel/Margin"]
+[node name="Margin" type="MarginContainer" parent="HUD/UILayout/Root/LeftColumn/BottomPanel/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 8
+
+[node name="VBox" type="VBoxContainer" parent="HUD/UILayout/Root/LeftColumn/BottomPanel/Scroll/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="ModeLabel" type="Label" parent="HUD/UILayout/Root/LeftColumn/BottomPanel/Scroll/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Click Build Tower to place towers."
+autowrap_mode = 3
+
+[node name="MessageLabel" type="Label" parent="HUD/UILayout/Root/LeftColumn/BottomPanel/Scroll/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = ""
+autowrap_mode = 3
+
+[node name="InstructionsLabel" type="Label" parent="HUD/UILayout/Root/LeftColumn/BottomPanel/Scroll/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
+text = "Controls: Build Tower -> left-click tile to place | Right-click / Esc: cancel | Start Wave: next wave | Click a tower: upgrade/sell | Restart: new run | F11: fullscreen. Keep a route open from IN (green) to OUT (orange)."
+autowrap_mode = 3
+
+[node name="RightPanel" type="PanelContainer" parent="HUD/UILayout/Root"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(320, 0)
+layout_mode = 2
+mouse_filter = 0
+
+[node name="Scroll" type="ScrollContainer" parent="HUD/UILayout/Root/RightPanel"]
+layout_mode = 2
+horizontal_scroll_mode = 1
+vertical_scroll_mode = 1
+
+[node name="Margin" type="MarginContainer" parent="HUD/UILayout/Root/RightPanel/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 10
+
+[node name="VBox" type="VBoxContainer" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin"]
 layout_mode = 2
 theme_override_constants/separation = 7
 
-[node name="TitleLabel" type="Label" parent="HUD/UILayout/RightPanel/Margin/VBox"]
+[node name="TitleLabel" type="Label" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 22
 text = "Unnamed TD Game"
+autowrap_mode = 3
 horizontal_alignment = 1
 
-[node name="CurrencyLabel" type="Label" parent="HUD/UILayout/RightPanel/Margin/VBox"]
+[node name="CurrencyLabel" type="Label" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox"]
+unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 18
 text = "Currency: 200"
+autowrap_mode = 3
 
-[node name="LivesLabel" type="Label" parent="HUD/UILayout/RightPanel/Margin/VBox"]
+[node name="LivesLabel" type="Label" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox"]
+unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 18
 text = "Lives: 10"
+autowrap_mode = 3
 
-[node name="WaveLabel" type="Label" parent="HUD/UILayout/RightPanel/Margin/VBox"]
+[node name="WaveLabel" type="Label" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox"]
+unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 18
 text = "Wave: 0"
+autowrap_mode = 3
 
-[node name="StateLabel" type="Label" parent="HUD/UILayout/RightPanel/Margin/VBox"]
+[node name="StateLabel" type="Label" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox"]
+unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 18
 theme_override_colors/font_color = Color(1, 0.85, 0.4, 1)
 text = "READY"
+autowrap_mode = 3
 
-[node name="EnemiesLabel" type="Label" parent="HUD/UILayout/RightPanel/Margin/VBox"]
+[node name="EnemiesLabel" type="Label" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox"]
+unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 14
 text = "Enemies: 0 active, 0 to spawn"
+autowrap_mode = 3
 
-[node name="NextWaveLabel" type="Label" parent="HUD/UILayout/RightPanel/Margin/VBox"]
+[node name="NextWaveLabel" type="Label" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox"]
+unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 14
-custom_minimum_size = Vector2(288, 0)
-autowrap_mode = 3
 text = "Next (wave 1):"
+autowrap_mode = 3
 
-[node name="ControlsSeparator" type="HSeparator" parent="HUD/UILayout/RightPanel/Margin/VBox"]
+[node name="ControlsSeparator" type="HSeparator" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox"]
 layout_mode = 2
 
-[node name="TowerInfoLabel" type="Label" parent="HUD/UILayout/RightPanel/Margin/VBox"]
+[node name="TowerInfoLabel" type="Label" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox"]
+unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 14
-custom_minimum_size = Vector2(288, 0)
-autowrap_mode = 3
 text = "Tower: 60 currency"
+autowrap_mode = 3
 
-[node name="BuildButton" type="Button" parent="HUD/UILayout/RightPanel/Margin/VBox"]
+[node name="BuildButton" type="Button" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox"]
+unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 40)
 layout_mode = 2
 focus_mode = 0
 text = "Build Tower (60)"
+clip_text = true
 
-[node name="CancelButton" type="Button" parent="HUD/UILayout/RightPanel/Margin/VBox"]
+[node name="CancelButton" type="Button" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox"]
+unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
 focus_mode = 0
 disabled = true
 text = "Cancel Build"
+clip_text = true
 
-[node name="StartWaveButton" type="Button" parent="HUD/UILayout/RightPanel/Margin/VBox"]
+[node name="StartWaveButton" type="Button" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox"]
+unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 40)
 layout_mode = 2
 focus_mode = 0
 text = "Start Wave"
+clip_text = true
 
-[node name="RestartButton" type="Button" parent="HUD/UILayout/RightPanel/Margin/VBox"]
+[node name="RestartButton" type="Button" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox"]
+unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
 focus_mode = 0
 text = "Restart"
+clip_text = true
 
-[node name="SelectionBox" type="VBoxContainer" parent="HUD/UILayout/RightPanel/Margin/VBox"]
+[node name="SelectionBox" type="VBoxContainer" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox"]
+unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="SelectionSeparator" type="HSeparator" parent="HUD/UILayout/RightPanel/Margin/VBox/SelectionBox"]
+[node name="SelectionSeparator" type="HSeparator" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/SelectionBox"]
 layout_mode = 2
 
-[node name="SelectionLabel" type="Label" parent="HUD/UILayout/RightPanel/Margin/VBox/SelectionBox"]
+[node name="SelectionLabel" type="Label" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/SelectionBox"]
+unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 14
-custom_minimum_size = Vector2(288, 0)
 theme_override_colors/font_color = Color(1, 1, 0.55, 1)
-autowrap_mode = 3
 text = "SELECTED TOWER"
+autowrap_mode = 3
 
-[node name="UpgradeDamageButton" type="Button" parent="HUD/UILayout/RightPanel/Margin/VBox/SelectionBox"]
+[node name="UpgradeDamageButton" type="Button" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/SelectionBox"]
+unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
 focus_mode = 0
 text = "Upgrade Damage"
+clip_text = true
 
-[node name="UpgradeRangeButton" type="Button" parent="HUD/UILayout/RightPanel/Margin/VBox/SelectionBox"]
+[node name="UpgradeRangeButton" type="Button" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/SelectionBox"]
+unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
 focus_mode = 0
 text = "Upgrade Range"
+clip_text = true
 
-[node name="UpgradeSpeedButton" type="Button" parent="HUD/UILayout/RightPanel/Margin/VBox/SelectionBox"]
+[node name="UpgradeSpeedButton" type="Button" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/SelectionBox"]
+unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
 focus_mode = 0
 text = "Upgrade Hit speed"
+clip_text = true
 
-[node name="SellButton" type="Button" parent="HUD/UILayout/RightPanel/Margin/VBox/SelectionBox"]
+[node name="SellButton" type="Button" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/SelectionBox"]
+unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
 focus_mode = 0
 text = "Sell"
+clip_text = true
 
-[node name="Spacer" type="Control" parent="HUD/UILayout/RightPanel/Margin/VBox"]
+[node name="Spacer" type="Control" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
+mouse_filter = 2
 
-[node name="SeedLabel" type="Label" parent="HUD/UILayout/RightPanel/Margin/VBox"]
+[node name="SeedLabel" type="Label" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox"]
+unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
 theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
 text = "Run seed: 0"
-
-[node name="BottomPanel" type="PanelContainer" parent="HUD/UILayout"]
-layout_mode = 0
-offset_top = 768.0
-offset_right = 1280.0
-offset_bottom = 900.0
-mouse_filter = 0
-
-[node name="Margin" type="MarginContainer" parent="HUD/UILayout/BottomPanel"]
-layout_mode = 2
-theme_override_constants/margin_left = 16
-theme_override_constants/margin_top = 10
-theme_override_constants/margin_right = 16
-theme_override_constants/margin_bottom = 10
-
-[node name="VBox" type="VBoxContainer" parent="HUD/UILayout/BottomPanel/Margin"]
-layout_mode = 2
-theme_override_constants/separation = 6
-
-[node name="ModeLabel" type="Label" parent="HUD/UILayout/BottomPanel/Margin/VBox"]
-layout_mode = 2
-text = "Click Build Tower to place towers."
-
-[node name="MessageLabel" type="Label" parent="HUD/UILayout/BottomPanel/Margin/VBox"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 18
-text = ""
-
-[node name="InstructionsLabel" type="Label" parent="HUD/UILayout/BottomPanel/Margin/VBox"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
-text = "Controls: Build Tower -> left-click tile to place | Right-click / Esc: cancel | Start Wave: next wave | Click a tower: upgrade/sell | Restart: new run | F11: fullscreen. Keep a route open from IN (green) to OUT (orange)."
 autowrap_mode = 3

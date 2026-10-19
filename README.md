@@ -21,6 +21,23 @@ The game draws at a fixed 1600×900 logical resolution and scales to whatever si
 - in the Game tab's toolbar, set the embedded size mode to **Keep Aspect** (or **Stretch**) rather than the fixed project-settings size, or
 - turn off **Embed Game on Next Play** in the Game tab so the game opens in its own window, where the automatic fitting above applies.
 
+### Screen layout (rules for future changes)
+
+The screen is a fixed 1600×900 layout: the 1280×768 board in the top-left, a 320 px panel on the right and a 132 px strip below. **UI never covers the board.** This is guaranteed by the structure:
+
+- **The board sits inside the UI layout.** The Board node lives inside `BoardArea`, a fixed 1280×768 slot in the same HBox/VBox containers as the panels. Containers can't overlap their siblings, so a panel can't land on a tile.
+- **Panels scroll, never grow.** Each panel's content is inside a `ScrollContainer`. Too much content, or content too wide, gets a scrollbar instead of pushing into the board.
+- **Scripts find HUD nodes by unique name** (`%CurrencyLabel`, `%Board`, …), so moving nodes around in the scene doesn't break code.
+- **Guards:**
+  - `tests/test_layout.gd` fails if any visible UI element overlaps the board or leaves the 1600×900 view. It checks extreme states and simulates 40 extra rows of future UI.
+  - In debug builds, the HUD logs an error if a panel ever overlaps or pushes the board area.
+
+When adding UI:
+- Put it **inside `RightPanel` or `BottomPanel`'s `VBox`**.
+- Give labels **autowrap** and buttons **clip text**.
+- Mark a node with the `hud_passthrough` group only if it is a pure, invisible layout container.
+- Run `test_layout.gd`.
+
 ## Controls
 
 | Action | Control |
@@ -78,7 +95,7 @@ Tuning lives in `scripts/game_config.gd` (economy, towers, upgrades, wave sizes)
 
 ```text
 project.godot             main scene, 1600x900 window, canvas_items stretch, Compatibility renderer
-scenes/main.tscn          Main → Board(Towers, Enemies), WaveManager, WindowFit, HUD/UILayout(RightPanel, BottomPanel)
+scenes/main.tscn          Main → WaveManager, WindowFit, HUD/UILayout/Root(LeftColumn(BoardArea/Board(Towers, Enemies), BottomPanel), RightPanel)
 scenes/enemy.tscn         Node2D + enemy.gd (drawn in code)
 scenes/tower.tscn         Node2D + tower.gd (drawn in code)
 scripts/game_config.gd    tuning constants only (class_name GameConfig)
@@ -95,6 +112,7 @@ tests/test_base.gd        shared headless test harness and game-invariant checke
 tests/test_pathfinding.gd pathfinding, placement, movement, combat, defeat/restart
 tests/test_gameplay.gd    wave generator, enemy types and traits, endless flow, upgrades, selling, selection
 tests/test_stability.gd   randomized fuzzing and long-run simulations
+tests/test_layout.gd      HUD layout guard: nothing may cover the board or leave the view
 ```
 
 ## Tests
@@ -107,6 +125,7 @@ godot --headless --path . --quit-after 180         # runtime smoke test
 godot --headless --path . --script res://tests/test_pathfinding.gd
 godot --headless --path . --script res://tests/test_gameplay.gd
 godot --headless --path . --script res://tests/test_stability.gd   # ~10 s
+godot --headless --path . --script res://tests/test_layout.gd
 ```
 
 Each script prints `ok` / `FAIL` per check and exits with code 0 only if every check passes.
@@ -126,3 +145,7 @@ Each script prints `ok` / `FAIL` per check and exits with code 0 only if every c
   - 6,000 randomized build/sell/upgrade/wave steps, checking every game invariant every 5 steps (board ↔ tower bookkeeping, routes from spawn and every enemy waypoint, no enemy on a tower, counters, currency, lives);
   - a long run where scripted towers fight real generated waves until defeat, with per-wave bounded-time checks;
   - 25 mid-wave restarts that must leave nothing behind.
+- **test_layout:**
+  - the reserved board area is exactly 1280×768 and the Board node sits on it;
+  - no visible HUD element covers the board or leaves the view: across 9 extreme HUD states, during real gameplay with a tower selected, and on the defeat screen;
+  - panels keep their size and scroll when overloaded with 40 extra rows and a label that refuses to wrap.

@@ -15,9 +15,9 @@ var selected_tower: Tower = null
 
 var _towers_by_cell: Dictionary = {}  # Vector2i -> Tower
 
-@onready var board: Board = $Board
+@onready var board: Board = %Board
 @onready var wave_manager: WaveManager = $WaveManager
-@onready var hud: Hud = $HUD/UILayout
+@onready var hud: Hud = %UILayout
 
 
 func _ready() -> void:

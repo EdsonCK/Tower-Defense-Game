@@ -34,7 +34,8 @@ func _run_all() -> void:
 	for test: Callable in tests:
 		_current_test = test.get_method()
 		var started: int = Time.get_ticks_msec()
-		test.call()
+		# Tests may be coroutines (e.g. layout tests that wait for frames).
+		await test.call()
 		_cleanup_root()
 		print("  ..   [%s] finished in %d ms" % [_current_test, Time.get_ticks_msec() - started])
 	print("")
