@@ -35,6 +35,8 @@ func _run() -> void:
 	)
 	root.size = Vector2i(1600, 900)
 	var game := preload("res://scenes/main.tscn").instantiate() as TDGame
+	game.progression = Progression.new("")
+	game.progression.unlocked.assign(["tesla", "basic_training"])
 	root.add_child(game)
 	current_scene = game
 	await process_frame
@@ -45,6 +47,11 @@ func _run() -> void:
 	check(bottom.position == Vector2(0, 768) and bottom.size == Vector2(1280, 132), "bottom panel stays below the 1280x768 board")
 	check(game.hud.mouse_filter == Control.MOUSE_FILTER_IGNORE, "transparent UI root allows board clicks")
 	check(game.hud.get_node("RightPanel").mouse_filter == Control.MOUSE_FILTER_STOP and game.hud.get_node("BottomPanel").mouse_filter == Control.MOUSE_FILTER_STOP, "panels consume UI clicks")
+	click(game.hud.skills_button.get_global_rect().get_center())
+	check(game.skill_tree.visible, "real Skills button opens modal between waves")
+	var close_button := game.skill_tree.get_node("Panel/Margin/Items/Footer/Close") as Button
+	click(close_button.get_global_rect().get_center())
+	check(not game.skill_tree.visible, "real Close button dismisses modal")
 	click(game.hud.build_button.get_global_rect().get_center())
 	check(game.building, "real Build Tower button enters build mode")
 	click(Vector2(144, 144))
@@ -81,12 +88,15 @@ func _run() -> void:
 	await process_frame
 	check(game.hud.get_node("RightPanel").size == Vector2(320, 900) and game.hud.get_node("BottomPanel").size == Vector2(1280, 132), "management and active-wave text stay within panel bounds")
 	check(game.hud.cancel_button.disabled == false, "Cancel is enabled while a tower is selected")
+	game.progression.award_wave("input-fixture", 1)
+	var permanent_balance := game.progression.diamonds
 	game._finish(TDGame.Phase.DEFEAT)
 	var restart_button := game.hud.get_node("RightPanel/Margin/Items/Restart") as Button
 	click(restart_button.get_global_rect().get_center())
 	await scene_changed
 	var restarted := current_scene as TDGame
 	check(restarted != null and restarted != game, "Restart button reloads the main scene")
+	check(restarted.progression.diamonds == permanent_balance and restarted.progression.has_skill("basic_training"), "Restart preserves diamonds and skill unlocks")
 	check(restarted.currency == 200 and restarted.lives == 10 and restarted.phase == TDGame.Phase.READY, "restart restores currency, lives, and READY state")
 	check(restarted.waves.current_wave == 0 and restarted.waves.active_count == 0 and restarted.waves.remaining_to_spawn == 0, "restart resets wave counters")
 	check(restarted.board.get_node("Enemies").get_child_count() == 0 and restarted.board.get_node("Towers").get_child_count() == 0, "restart removes all enemy/tower instances")

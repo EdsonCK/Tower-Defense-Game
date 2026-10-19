@@ -18,6 +18,7 @@ func check(condition: bool, description: String) -> void:
 
 func _test_purchases() -> void:
 	var game := load("res://scenes/main.tscn").instantiate() as TDGame
+	game.progression = Progression.new("")
 	root.add_child(game)
 	game.set_process_input(false)
 	game.set_process_unhandled_input(false)
@@ -49,6 +50,7 @@ func _test_purchases() -> void:
 
 func make_game() -> TDGame:
 	var game := preload("res://scenes/main.tscn").instantiate() as TDGame
+	game.progression = Progression.new("")
 	root.add_child(game)
 	game.process_mode = Node.PROCESS_MODE_DISABLED
 	game.waves.set_run_seed(721)
@@ -69,6 +71,7 @@ func _test_blocked_route_economy() -> void:
 		container.name = container_name
 		board.add_child(container)
 	game.add_child(board)
+	game.progression = Progression.new("")
 	root.add_child(game)
 	check(not game.purchase_tower(Vector2i(20, 12)), "Main rejects purchase sealing last gap")
 	check(game.currency == 200 and not board.is_blocked(Vector2i(20, 12)) and board.revision == 0 and board.get_node("Towers").get_child_count() == 0, "route rejection leaves all transaction state unchanged")
@@ -110,6 +113,7 @@ func _test_cadence_and_rewards() -> void:
 	game.waves._process(100.0)
 	check(game.waves.current_wave == 1 and game.currency == expected, "no automatic start or repeated bonus")
 	for wave in range(2, 9):
+		game.close_skill_tree()
 		game.start_wave()
 		game.waves._process(100.0)
 		check(game.waves.current_wave == wave and game.waves.active_count == game.waves.wave_size, "wave %d scheduled count" % wave)
@@ -163,6 +167,7 @@ func _test_playable_sessions() -> void:
 				build_cells.append(Vector2i(x, y))
 		var next_cell := 0
 		for wave in range(1, 13):
+			game.close_skill_tree()
 			while game.currency >= GameConfig.TOWER_COST and next_cell < build_cells.size():
 				game.purchase_tower(build_cells[next_cell])
 				next_cell += 1
@@ -183,6 +188,7 @@ func _test_playable_sessions() -> void:
 		game.free()
 	var game := make_game()
 	for wave in range(1, 4):
+		game.close_skill_tree()
 		game.start_wave()
 		for frame in range(120 * 60):
 			if game.phase != TDGame.Phase.WAVE_ACTIVE:

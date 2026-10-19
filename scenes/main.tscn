@@ -1,9 +1,11 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/board.gd" id="2_board"]
 [ext_resource type="Script" path="res://scripts/hud.gd" id="3_hud"]
 [ext_resource type="Script" path="res://scripts/wave_manager.gd" id="4_waves"]
+
+[ext_resource type="PackedScene" path="res://scenes/skill_tree.tscn" id="5_skills"]
 
 [sub_resource type="StyleBoxFlat" id="Style_panel"]
 bg_color = Color(0.07, 0.1, 0.14, 1)
@@ -58,7 +60,7 @@ theme_override_constants/margin_bottom = 20
 
 [node name="Items" type="VBoxContainer" parent="HUD/UILayout/RightPanel/Margin"]
 layout_mode = 2
-theme_override_constants/separation = 7
+theme_override_constants/separation = 5
 
 [node name="Title" type="Label" parent="HUD/UILayout/RightPanel/Margin/Items"]
 layout_mode = 2
@@ -71,7 +73,11 @@ text = "Endless • Maze defense"
 
 [node name="Currency" type="Label" parent="HUD/UILayout/RightPanel/Margin/Items"]
 layout_mode = 2
-text = "Currency: 200"
+text = "Gold: 200"
+
+[node name="Diamonds" type="Label" parent="HUD/UILayout/RightPanel/Margin/Items"]
+layout_mode = 2
+text = "Diamonds: 0"
 
 [node name="Lives" type="Label" parent="HUD/UILayout/RightPanel/Margin/Items"]
 layout_mode = 2
@@ -79,7 +85,7 @@ text = "Base lives: 10"
 
 [node name="Wave" type="Label" parent="HUD/UILayout/RightPanel/Margin/Items"]
 layout_mode = 2
-text = "Wave: 0 / 3"
+text = "Wave: 0 • Endless"
 
 [node name="Status" type="Label" parent="HUD/UILayout/RightPanel/Margin/Items"]
 layout_mode = 2
@@ -89,22 +95,32 @@ text = "READY"
 
 [node name="BuildTower" type="Button" parent="HUD/UILayout/RightPanel/Margin/Items"]
 layout_mode = 2
-custom_minimum_size = Vector2(0, 38)
+custom_minimum_size = Vector2(0, 36)
 text = "Build Tower • 60"
+
+[node name="BuildTesla" type="Button" parent="HUD/UILayout/RightPanel/Margin/Items"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 36)
+text = "Tesla • Skill locked"
 
 [node name="Cancel" type="Button" parent="HUD/UILayout/RightPanel/Margin/Items"]
 layout_mode = 2
-custom_minimum_size = Vector2(0, 38)
+custom_minimum_size = Vector2(0, 36)
 text = "Cancel (Esc / right-click)"
 
 [node name="StartWave" type="Button" parent="HUD/UILayout/RightPanel/Margin/Items"]
 layout_mode = 2
-custom_minimum_size = Vector2(0, 38)
+custom_minimum_size = Vector2(0, 36)
 text = "Start Wave"
+
+[node name="Skills" type="Button" parent="HUD/UILayout/RightPanel/Margin/Items"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 36)
+text = "Permanent Skills"
 
 [node name="Restart" type="Button" parent="HUD/UILayout/RightPanel/Margin/Items"]
 layout_mode = 2
-custom_minimum_size = Vector2(0, 38)
+custom_minimum_size = Vector2(0, 36)
 text = "Restart"
 
 [node name="SelectedTower" type="Label" parent="HUD/UILayout/RightPanel/Margin/Items"]
@@ -127,6 +143,11 @@ layout_mode = 2
 custom_minimum_size = Vector2(0, 36)
 text = "Firing speed • 60"
 
+[node name="UpgradeSpecial" type="Button" parent="HUD/UILayout/RightPanel/Margin/Items"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 36)
+text = "Unique upgrade • Skill locked"
+
 [node name="RemoveTower" type="Button" parent="HUD/UILayout/RightPanel/Margin/Items"]
 layout_mode = 2
 custom_minimum_size = Vector2(0, 36)
@@ -137,11 +158,6 @@ layout_mode = 2
 autowrap_mode = 2
 theme_override_font_sizes/font_size = 16
 text = "Build 60 • Remove +30\nNo upgrade refunds"
-
-[node name="EnemyGuide" type="Label" parent="HUD/UILayout/RightPanel/Margin/Items"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 14
-text = "ENEMIES (bounty)\nRed circle: grunt (12)\nOrange triangle: fast runner (9)\nSteel square: armor -3/hit (24)\nPurple cross: heals after 2s (20)\nGold diamond: absorbs shots (22)"
 
 [node name="BottomPanel" type="PanelContainer" parent="HUD/UILayout"]
 layout_mode = 0
@@ -175,3 +191,5 @@ text = "Create a maze of towers. Survive endless waves; keep every enemy route o
 layout_mode = 2
 theme_override_font_sizes/font_size = 16
 text = "GREEN: entrance    ORANGE: exit    CYAN: tower • Click towers to upgrade or remove • Build before or during waves."
+
+[node name="SkillTree" parent="HUD/UILayout" instance=ExtResource("5_skills")]

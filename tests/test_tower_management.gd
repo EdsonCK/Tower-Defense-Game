@@ -17,6 +17,8 @@ func check(condition: bool, description: String) -> void:
 
 func make_game() -> TDGame:
 	var game := preload("res://scenes/main.tscn").instantiate() as TDGame
+	game.progression = Progression.new("")
+	game.progression.unlocked.assign(["tesla", "basic_training"])
 	root.add_child(game)
 	game.process_mode = Node.PROCESS_MODE_DISABLED
 	return game

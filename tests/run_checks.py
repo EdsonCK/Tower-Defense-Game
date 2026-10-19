@@ -22,6 +22,9 @@ SUITES = (
     "test_enemy_traits",
     "test_tower_management",
     "test_endless_stability",
+    "test_progression",
+    "test_tesla",
+    "test_balance",
 )
 ERRORS = re.compile(r"SCRIPT ERROR:|ERROR:|FAIL:|leaked at exit|resources still in use")
 COUNTS = re.compile(r"(\d+) checks, (\d+) failures")
@@ -77,7 +80,7 @@ def main():
                 print(f"FAIL {name} (exit {result.returncode})", file=sys.stderr)
                 return 1
             for line in output.splitlines():
-                if COUNTS.search(line) or line.startswith("Endless session:") or name == "version":
+                if COUNTS.search(line) or (line.startswith("Endless session:") or line.startswith("Balance bot:")) or name == "version":
                     print(line)
             if counts:
                 total += int(counts[1])

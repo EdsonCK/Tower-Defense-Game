@@ -1,0 +1,246 @@
+[gd_scene load_steps=3 format=3]
+[ext_resource type="Script" path="res://scripts/skill_tree_menu.gd" id="1"]
+[sub_resource type="StyleBoxFlat" id="PanelStyle"]
+bg_color = Color(0.045, 0.07, 0.11, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.5, 0.7, 1, 1)
+
+[node name="SkillTree" type="Control"]
+visible = false
+layout_mode = 0
+offset_right = 1600.0
+offset_bottom = 900.0
+mouse_filter = 0
+script = ExtResource("1")
+
+[node name="Shade" type="ColorRect" parent="."]
+layout_mode = 0
+offset_right = 1600.0
+offset_bottom = 900.0
+color = Color(0, 0, 0, 0.8)
+mouse_filter = 2
+
+[node name="Panel" type="PanelContainer" parent="."]
+layout_mode = 0
+offset_left = 140.0
+offset_top = 45.0
+offset_right = 1460.0
+offset_bottom = 855.0
+theme_override_styles/panel = SubResource("PanelStyle")
+
+[node name="Margin" type="MarginContainer" parent="Panel"]
+layout_mode = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_bottom = 24
+
+[node name="Items" type="VBoxContainer" parent="Panel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="Balance" type="Label" parent="Panel/Margin/Items"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 28
+text = "Permanent skills • Diamonds: 0"
+
+[node name="Message" type="Label" parent="Panel/Margin/Items"]
+layout_mode = 2
+autowrap_mode = 2
+custom_minimum_size = Vector2(0, 48)
+text = "Earn one diamond per completed wave. Tesla is the first unlock."
+
+[node name="Skills" type="GridContainer" parent="Panel/Margin/Items"]
+layout_mode = 2
+size_flags_vertical = 3
+columns = 4
+theme_override_constants/h_separation = 18
+theme_override_constants/v_separation = 14
+
+[node name="tesla" type="VBoxContainer" parent="Panel/Margin/Items/Skills"]
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(290, 145)
+
+[node name="Buy" type="Button" parent="Panel/Margin/Items/Skills/tesla"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 44)
+theme_override_font_sizes/font_size = 15
+text = "tesla"
+
+[node name="Description" type="Label" parent="Panel/Margin/Items/Skills/tesla"]
+layout_mode = 2
+autowrap_mode = 2
+theme_override_font_sizes/font_size = 15
+text = ""
+
+[node name="basic_training" type="VBoxContainer" parent="Panel/Margin/Items/Skills"]
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(290, 145)
+
+[node name="Buy" type="Button" parent="Panel/Margin/Items/Skills/basic_training"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 44)
+theme_override_font_sizes/font_size = 15
+text = "basic_training"
+
+[node name="Description" type="Label" parent="Panel/Margin/Items/Skills/basic_training"]
+layout_mode = 2
+autowrap_mode = 2
+theme_override_font_sizes/font_size = 15
+text = ""
+
+[node name="tesla_training" type="VBoxContainer" parent="Panel/Margin/Items/Skills"]
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(290, 145)
+
+[node name="Buy" type="Button" parent="Panel/Margin/Items/Skills/tesla_training"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 44)
+theme_override_font_sizes/font_size = 15
+text = "tesla_training"
+
+[node name="Description" type="Label" parent="Panel/Margin/Items/Skills/tesla_training"]
+layout_mode = 2
+autowrap_mode = 2
+theme_override_font_sizes/font_size = 15
+text = ""
+
+[node name="salvage" type="VBoxContainer" parent="Panel/Margin/Items/Skills"]
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(290, 145)
+
+[node name="Buy" type="Button" parent="Panel/Margin/Items/Skills/salvage"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 44)
+theme_override_font_sizes/font_size = 15
+text = "salvage"
+
+[node name="Description" type="Label" parent="Panel/Margin/Items/Skills/salvage"]
+layout_mode = 2
+autowrap_mode = 2
+theme_override_font_sizes/font_size = 15
+text = ""
+
+[node name="piercing" type="VBoxContainer" parent="Panel/Margin/Items/Skills"]
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(290, 145)
+
+[node name="Buy" type="Button" parent="Panel/Margin/Items/Skills/piercing"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 44)
+theme_override_font_sizes/font_size = 15
+text = "piercing"
+
+[node name="Description" type="Label" parent="Panel/Margin/Items/Skills/piercing"]
+layout_mode = 2
+autowrap_mode = 2
+theme_override_font_sizes/font_size = 15
+text = ""
+
+[node name="static_field" type="VBoxContainer" parent="Panel/Margin/Items/Skills"]
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(290, 145)
+
+[node name="Buy" type="Button" parent="Panel/Margin/Items/Skills/static_field"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 44)
+theme_override_font_sizes/font_size = 15
+text = "static_field"
+
+[node name="Description" type="Label" parent="Panel/Margin/Items/Skills/static_field"]
+layout_mode = 2
+autowrap_mode = 2
+theme_override_font_sizes/font_size = 15
+text = ""
+
+[node name="gold_mastery" type="VBoxContainer" parent="Panel/Margin/Items/Skills"]
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(290, 145)
+
+[node name="Buy" type="Button" parent="Panel/Margin/Items/Skills/gold_mastery"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 44)
+theme_override_font_sizes/font_size = 15
+text = "gold_mastery"
+
+[node name="Description" type="Label" parent="Panel/Margin/Items/Skills/gold_mastery"]
+layout_mode = 2
+autowrap_mode = 2
+theme_override_font_sizes/font_size = 15
+text = ""
+
+[node name="sluggish" type="VBoxContainer" parent="Panel/Margin/Items/Skills"]
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(290, 145)
+
+[node name="Buy" type="Button" parent="Panel/Margin/Items/Skills/sluggish"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 44)
+theme_override_font_sizes/font_size = 15
+text = "sluggish"
+
+[node name="Description" type="Label" parent="Panel/Margin/Items/Skills/sluggish"]
+layout_mode = 2
+autowrap_mode = 2
+theme_override_font_sizes/font_size = 15
+text = ""
+
+[node name="fragile" type="VBoxContainer" parent="Panel/Margin/Items/Skills"]
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(290, 145)
+
+[node name="Buy" type="Button" parent="Panel/Margin/Items/Skills/fragile"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 44)
+theme_override_font_sizes/font_size = 15
+text = "fragile"
+
+[node name="Description" type="Label" parent="Panel/Margin/Items/Skills/fragile"]
+layout_mode = 2
+autowrap_mode = 2
+theme_override_font_sizes/font_size = 15
+text = ""
+
+[node name="engineering" type="VBoxContainer" parent="Panel/Margin/Items/Skills"]
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(290, 145)
+
+[node name="Buy" type="Button" parent="Panel/Margin/Items/Skills/engineering"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 44)
+theme_override_font_sizes/font_size = 15
+text = "Tower Engineering"
+
+[node name="Description" type="Label" parent="Panel/Margin/Items/Skills/engineering"]
+layout_mode = 2
+autowrap_mode = 2
+theme_override_font_sizes/font_size = 15
+text = ""
+
+[node name="Footer" type="HBoxContainer" parent="Panel/Margin/Items"]
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="Close" type="Button" parent="Panel/Margin/Items/Footer"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 44)
+size_flags_horizontal = 3
+text = "Close • Continue building"
+
+[node name="Retry" type="Button" parent="Panel/Margin/Items/Footer"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 44)
+text = "Retry Save"

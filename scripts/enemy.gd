@@ -15,6 +15,8 @@ var armor := 0
 var shield := 0
 var regeneration := 0.0
 var body_color := Color("f06464")
+var _slow_factor := 1.0
+var _slow_remaining := 0.0
 var _since_damage := 0.0
 var _regen_fraction := 0.0
 var _alive := true
@@ -92,7 +94,11 @@ func _process(delta: float) -> void:
 	if not is_alive() or _board == null or _navigation_error:
 		return
 	_tick_regeneration(delta)
-	var remaining := speed * delta
+	var slowed_time := minf(delta, _slow_remaining)
+	var remaining := speed * (slowed_time * _slow_factor + delta - slowed_time)
+	_slow_remaining = maxf(0.0, _slow_remaining - delta)
+	if _slow_remaining == 0.0:
+		_slow_factor = 1.0
 	while remaining > 0.0 and is_alive():
 		if _current_cell == _committed_cell:
 			if _current_cell == GameConfig.EXIT:
@@ -126,7 +132,7 @@ func _process(delta: float) -> void:
 			return
 
 
-func take_damage(damage: int) -> void:
+func take_damage(damage: int, penetration: int = 0) -> void:
 	if not is_alive() or damage <= 0:
 		return
 	_since_damage = 0.0
@@ -134,10 +140,17 @@ func take_damage(damage: int) -> void:
 	shield -= absorbed
 	var unshielded := damage - absorbed
 	if unshielded > 0:
-		health = maxi(0, health - maxi(1, unshielded - armor))
+		health = maxi(0, health - maxi(1, unshielded - maxi(0, armor - maxi(0, penetration))))
 	queue_redraw()
 	if health == 0:
 		_resolve(true)
+
+
+func apply_slow(factor: float, duration: float) -> void:
+	if not is_alive() or not is_finite(factor) or not is_finite(duration) or duration <= 0:
+		return
+	_slow_factor = minf(_slow_factor, clampf(factor, 0.25, 1.0))
+	_slow_remaining = maxf(_slow_remaining, minf(duration, 10.0))
 
 
 func _resolve(killed: bool) -> void:

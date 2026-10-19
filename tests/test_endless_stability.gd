@@ -85,6 +85,8 @@ func _test_wave_manager() -> void:
 
 func _test_scene_lifecycle() -> void:
 	var game := preload("res://scenes/main.tscn").instantiate() as TDGame
+	game.progression = Progression.new("")
+	game.progression.unlocked.assign(["tesla", "basic_training"])
 	root.add_child(game)
 	game.process_mode = Node.PROCESS_MODE_DISABLED
 	game.waves.set_run_seed(9193)
@@ -94,6 +96,7 @@ func _test_scene_lifecycle() -> void:
 	# Instant kills are deliberate here: test accounting, allocation, deferred frees
 	# and signal cleanup, not balance (the gameplay suite uses natural combat).
 	for wave in range(1, 301):
+		game.close_skill_tree()
 		game.start_wave()
 		game.waves._process(1000.0)
 		var active := game.board.active_enemies()
@@ -108,6 +111,7 @@ func _test_scene_lifecycle() -> void:
 		check(game.currency == expected_currency and game.waves.active_count == 0 and game.phase == TDGame.Phase.BETWEEN_WAVES, "lifecycle wave %d settles economy once" % wave)
 		await process_frame
 		check(game.board.get_node("Enemies").get_child_count() == 0 and get_nodes_in_group("enemies").is_empty() and game.get_child_count() == baseline_nodes, "lifecycle wave %d releases nodes/groups/signals" % wave)
+		game.close_skill_tree()
 		if wave % 50 == 0:
 			check(game.purchase_tower(Vector2i(5, 5)), "soak builds tower")
 			game.select_placed_tower(game.tower_at_cell(Vector2i(5, 5)))

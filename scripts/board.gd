@@ -8,6 +8,8 @@ var revision := 0
 var _astar := AStarGrid2D.new()
 var _building := false
 var _currency := 0
+var _build_cost := GameConfig.TOWER_COST
+var _build_range := GameConfig.TOWER_RANGE
 var _hover_cell := Vector2i(-1, -1)
 var _hover_error := ""
 var _hover_revision := -1
@@ -63,13 +65,13 @@ func active_enemies() -> Array[Node]:
 	return result
 
 
-func placement_error(cell: Vector2i, currency: int) -> String:
-	return _test_placement(cell, currency, false)
+func placement_error(cell: Vector2i, currency: int, cost: int = GameConfig.TOWER_COST) -> String:
+	return _test_placement(cell, currency, false, cost)
 
 
-func try_block_cell(cell: Vector2i, currency: int) -> String:
+func try_block_cell(cell: Vector2i, currency: int, cost: int = GameConfig.TOWER_COST) -> String:
 	# Leaves occupancy provisional; Main confirms only after instantiation succeeds.
-	return _test_placement(cell, currency, true)
+	return _test_placement(cell, currency, true, cost)
 
 
 func rollback_placement(cell: Vector2i) -> void:
@@ -97,15 +99,15 @@ func show_tower_selection(cell: Vector2i, radius: float) -> void:
 	queue_redraw()
 
 
-func _test_placement(cell: Vector2i, currency: int, retain: bool) -> String:
+func _test_placement(cell: Vector2i, currency: int, retain: bool, cost: int) -> String:
 	if not is_inside(cell):
 		return "Outside the board"
 	if cell == GameConfig.SPAWN or cell == GameConfig.EXIT:
 		return "Entrance and exit are reserved"
 	if is_blocked(cell):
 		return "Occupied tile"
-	if currency < GameConfig.TOWER_COST:
-		return "Insufficient currency"
+	if currency < cost:
+		return "Insufficient gold"
 	var enemies := active_enemies()
 	for enemy in enemies:
 		if cell == Vector2i(enemy.call("get_current_cell")) or cell == Vector2i(enemy.call("get_committed_cell")):
@@ -125,9 +127,11 @@ func _test_placement(cell: Vector2i, currency: int, retain: bool) -> String:
 	return error
 
 
-func set_build_preview(building: bool, currency: int) -> void:
+func set_build_preview(building: bool, currency: int, cost: int = GameConfig.TOWER_COST, radius: float = GameConfig.TOWER_RANGE) -> void:
 	_building = building
 	_currency = currency
+	_build_cost = cost
+	_build_range = radius
 	_hover_revision = -1
 	queue_redraw()
 
@@ -145,7 +149,7 @@ func _process(_delta: float) -> void:
 	if cell != _hover_cell or _hover_revision != revision:
 		_hover_cell = cell
 		_hover_revision = revision
-		_hover_error = placement_error(cell, _currency)
+		_hover_error = placement_error(cell, _currency, _build_cost)
 		queue_redraw()
 
 
@@ -178,7 +182,7 @@ func _draw() -> void:
 		var tile := Rect2(cell_to_pixel(_hover_cell) - Vector2(16, 16), Vector2(32, 32))
 		draw_rect(tile, tint)
 		draw_rect(tile.grow(-1), Color(tint, 0.95), false, 2.0)
-		draw_arc(cell_to_pixel(_hover_cell), GameConfig.TOWER_RANGE, 0, TAU, 64, Color(tint, 0.5), 1.0)
+		draw_arc(cell_to_pixel(_hover_cell), _build_range, 0, TAU, 64, Color(tint, 0.5), 1.0)
 	if not _building and is_inside(_selected_cell):
 		draw_rect(Rect2(cell_to_pixel(_selected_cell) - Vector2(15, 15), Vector2(30, 30)), Color.WHITE, false, 2)
 		draw_arc(cell_to_pixel(_selected_cell), _selected_range, 0, TAU, 64, Color(0.7, 0.9, 1, 0.65), 1.0)

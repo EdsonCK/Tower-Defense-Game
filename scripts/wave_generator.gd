@@ -34,7 +34,11 @@ func generate(wave: int) -> Array[EnemyProfile]:
 		elif i > 1 and _rng.randf() < 0.55:
 			kind = _rng.randi_range(0, unlocked - 1) as EnemyProfile.Kind
 		var profile := EnemyProfile.base(kind)
-		var scale := (1.0 + 0.08 * difficulty) * _rng.randf_range(0.95, 1.05)
+		# Early waves teach placement; later HP follows investment in tower levels.
+		var late := maxf(0.0, difficulty - 4.0)
+		var scale := (1.0 + 0.08 * difficulty + 0.012 * late * late) * _rng.randf_range(0.95, 1.05)
+		if kind == EnemyProfile.Kind.ARMORED:
+			profile.armor += mini(12, floori(difficulty / 6.0))
 		profile.hit_points = clampi(roundi(profile.hit_points * scale), 1, GameConfig.MAX_ENEMY_HEALTH)
 		profile.speed *= _rng.randf_range(0.97, 1.03)
 		profile.shield = mini(roundi(profile.shield * scale), GameConfig.MAX_ENEMY_HEALTH)
