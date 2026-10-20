@@ -3,6 +3,16 @@ extends RefCounted
 ## Stone plinths, brass fittings, crystal facets and directional iron weapons.
 
 static func draw_tower(c: CanvasItem, kind: int, aim: float = -PI / 2.0, recoil: float = 0.0) -> void:
+	draw_base(c, kind)
+	draw_weapon(c, kind, aim, recoil)
+
+
+static func draw_weapon(c: CanvasItem, kind: int, aim: float, recoil: float) -> void:
+	if kind == 0 or kind == 4:
+		_weapon(c, aim, recoil, kind == 4)
+
+
+static func draw_base(c: CanvasItem, kind: int) -> void:
 	var accent: Color = TowerCatalog.DATA[kind].color
 	DrawKit.ellipse(c, Vector2(1, 10), Vector2(16, 7), Color(0.01, 0.02, 0.04, 0.65))
 	DrawKit.poly(c, PackedVector2Array([Vector2(-13, -9), Vector2(-8, -14), Vector2(9, -14), Vector2(14, -8), Vector2(14, 9), Vector2(8, 14), Vector2(-9, 14), Vector2(-14, 8)]), Color("3a454e"), DrawKit.INK, 2.3)
@@ -15,7 +25,6 @@ static func draw_tower(c: CanvasItem, kind: int, aim: float = -PI / 2.0, recoil:
 	match kind:
 		0:
 			c.draw_arc(Vector2(0, -1), 8, 0, TAU, 24, Color("c3a46d"), 2, true)
-			_weapon(c, aim, recoil, false)
 		1:
 			for y in [3, -1, -5]:
 				DrawKit.ellipse(c, Vector2(0, y), Vector2(8, 3), Color("8c719b"), DrawKit.INK, 1.5)
@@ -42,7 +51,6 @@ static func draw_tower(c: CanvasItem, kind: int, aim: float = -PI / 2.0, recoil:
 			for x in [-8, 8]:
 				DrawKit.ellipse(c, Vector2(x, 4), Vector2(3, 6), Color("5d6258"), DrawKit.INK, 1.5)
 				c.draw_line(Vector2(x, 0), Vector2(x, 8), Color("aea67e"), 1.5, true)
-			_weapon(c, aim, recoil, true)
 
 
 static func _weapon(c: CanvasItem, aim: float, recoil: float, cannon: bool) -> void:

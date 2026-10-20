@@ -66,7 +66,26 @@ func setup_profile(board: Board, profile: EnemyProfile) -> void:
 	_board.invalidate_hover()
 
 
+func _enter_tree() -> void:
+	set_notify_local_transform(true)
+	var owner_board := get_parent().get_parent() as Board if get_parent() != null else null
+	if owner_board != null:
+		_board = owner_board
+		_board.enemy_index.update(self)
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_LOCAL_TRANSFORM_CHANGED and is_inside_tree() and is_instance_valid(_board):
+		_board.enemy_index.update(self)
+
+
+func _exit_tree() -> void:
+	if is_instance_valid(_board):
+		_board.enemy_index.remove(self)
+
+
 func _ready() -> void:
+	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	add_to_group("enemies")
 
 
@@ -233,7 +252,7 @@ func _tick_regeneration(delta: float) -> void:
 func _draw() -> void:
 	var offset := visual_offset()
 	draw_set_transform(offset)
-	MonsterArt.draw_monster(self, kind, _animation_time + visual_seed * 0.71, _hit_flash / 0.12)
+	CombatArt.monster(self, kind, _animation_time + visual_seed * 0.71, _hit_flash / 0.12)
 	if _navigation_error:
 		draw_arc(Vector2.ZERO, 16, 0, TAU, 24, Color.MAGENTA, 2)
 	if shield > 0:

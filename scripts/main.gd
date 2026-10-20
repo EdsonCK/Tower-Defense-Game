@@ -17,6 +17,7 @@ var progression: Progression
 var auto_start_waves := false
 var _run_id := ""
 var _enemy_serial := 0
+var _hud_refresh_queued := false
 var _restart_pending := false
 var _restart_confirming := false
 var _prior_board_mode: ProcessMode
@@ -277,7 +278,7 @@ func _spawn_enemy(profile: EnemyProfile) -> void:
 	board.get_node("Enemies").add_child(enemy)
 	progression.apply_enemy_nerfs(profile)
 	enemy.setup_profile(board, profile)
-	_refresh_hud()
+	_request_hud_refresh()
 
 
 func _on_enemy_died(enemy: Enemy) -> void:
@@ -285,7 +286,7 @@ func _on_enemy_died(enemy: Enemy) -> void:
 		return
 	currency += progression.gold_reward(enemy.bounty)
 	waves.enemy_resolved()
-	_refresh_hud()
+	_request_hud_refresh()
 
 
 func _on_enemy_reached_exit(_enemy: Enemy) -> void:
@@ -381,7 +382,21 @@ func _on_navigation_failed(message: String) -> void:
 	hud.show_message("NAVIGATION ERROR: " + message)
 
 
+func _request_hud_refresh() -> void:
+	# Spawn/death bursts change authoritative counters immediately. Build the
+	# visual sidebar once before rendering instead of once per actor resolved.
+	if not _hud_refresh_queued:
+		_hud_refresh_queued = true
+		_flush_hud_refresh.call_deferred()
+
+
+func _flush_hud_refresh() -> void:
+	if _hud_refresh_queued:
+		_refresh_hud()
+
+
 func _refresh_hud() -> void:
+	_hud_refresh_queued = false
 	var status: String = Phase.keys()[phase].replace("_", " ")
 	if phase == Phase.WAVE_ACTIVE:
 		status += "\n%d active • %d to spawn" % [waves.active_count, waves.remaining_to_spawn]

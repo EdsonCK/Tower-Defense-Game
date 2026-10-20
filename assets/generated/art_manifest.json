@@ -1,0 +1,17 @@
+{
+	"frames": 64,
+	"frequencies": [
+		6.0,
+		12.0,
+		6.0,
+		4.0,
+		3.0
+	],
+	"source_hashes": {
+		"scripts/draw_kit.gd": "17e7c3b4854087ff5c4e7f4db2f9c467cba15afa96a6107965231d906f71887b",
+		"scripts/monster_art.gd": "fe25bfffe4d52fb1bda1b77c0e6331563325a57d8000faf58dd2f75337a47a08",
+		"scripts/tower_art.gd": "95f27769209b3a7226250d0087e2e89485abd0870b93200392283904d3657eb6",
+		"scripts/tower_catalog.gd": "d94a5139e7d80a6f8ef3fde34eded9f5eddf5a2565864e54260478a7c7d23a02"
+	},
+	"tile": 96
+}

@@ -1,8 +1,8 @@
 # Unnamed TD Game — Earned Progression (v0.6)
 
-Godot **4.7.2 Stable**, GDScript, original vector artwork, no plugins or external assets. Open the repository-root `project.godot` and press **F5**. Development is on **Codex-Workspace**.
+Godot **4.7.2 Stable**, GDScript, original procedural artwork with shared animation textures, no plugins or external assets. Open the repository-root `project.godot` and press **F5**. Development is on **Codex-Workspace**.
 
-[Artwork, gameplay and branching research previews](docs/visual-overhaul/README.md) · [Advanced bot and progression balance](docs/progression-balance/README.md)
+[Artwork, gameplay and branching research previews](docs/visual-overhaul/README.md) · [Advanced bot and progression balance](docs/progression-balance/README.md) · [Late-wave performance](docs/performance/README.md)
 
 ## Playing
 
@@ -109,6 +109,8 @@ The [progression balance report](docs/progression-balance/README.md) records nat
 - `scripts/tower_catalog.gd`: five types' construction/combat/research defaults.
 - `scripts/tower.gd`: mixed upgrade counts, tower passives, target selection and firing.
 - `scripts/combat_projectile.gd`: shell/icicle/cannon flight, AoE and swept collision.
+- `scripts/combat_index.gd`: ordered spatial broad phase for targeting and projectile collisions.
+- `scripts/combat_art.gd`, `assets/generated/`, `tools/bake_combat_art.gd`: shared artwork caches and source-hash-checked regeneration.
 - `scripts/monster_art.gd`, `tower_art.gd`, `draw_kit.gd`: original procedural vector illustrations.
 - `scripts/skill_catalog.gd`, `progression.gd`: permanent unlocks and atomic local saving.
 - `scripts/skill_tree_menu.gd`, `research_graph.gd`, `research_icon.gd`: branching icons, prerequisite edges, hover information and purchase intents.
@@ -126,11 +128,11 @@ Run with your actual Godot 4.7.2 Stable executable:
 python3 tests/run_checks.py --godot /path/to/Godot_v4.7.2-stable_linux.x86_64
 ```
 
-The standard-library runner imports the editor project, starts the game for 180 frames and executes **16 suites**. It rejects timeouts, nonzero exits, logged engine/script/leak errors, missing check counts and failed assertions. It uses isolated writable temporary Linux XDG directories without modifying HOME.
+The standard-library runner imports the editor project, starts the game for 180 frames and executes **17 suites**. It rejects timeouts, nonzero exits, logged engine/script/leak errors, missing check counts and failed assertions. It uses isolated writable temporary Linux XDG directories without modifying HOME.
 
 Coverage includes pathfinding/placement transactions, moving-enemy reroutes, economy, real HUD/restart input, persistent diamond accounting, 40-node research/save compatibility, layer-specific damage, mixed upgrade limits and per-type sixth slots. Suites also exercise real hover/click input on icon nodes, mortar flight/AoE, cannon piercing and first-tower collision, live tower construction/removal, ice slow/freeze timing/chance, snapshot damage, dead targets/sold sources, projectile pause and wave cleanup, and repeated blast lifecycles.
 
-Long-run regression includes **10,000 generated waves / 5,086,314 profiles**, **1,000 scheduled waves**, **300 scene lifecycle waves**, **100 build/remove cycles**, and **80 repeated projectile lifecycles**. Lifecycle fixtures intentionally inject resources or resolve actors; natural placement tests and retained-profile campaigns remain separate. The advanced-bot suite checks safe maze completion, actual gold/research transactions, sparse slow coverage and a real cannon shot through the entrance lane. Rendering checks are separate from headless tests. Optional long campaigns use `tests/sweep_campaigns.py`; see the progression report for commands, seeds, outcomes and wave-cap limitations.
+Long-run regression includes **10,000 generated waves / 5,086,314 profiles**, **1,000 scheduled waves**, **300 scene lifecycle waves**, **100 build/remove cycles**, and **80 repeated projectile lifecycles**. Lifecycle fixtures intentionally inject resources or resolve actors; natural placement tests and retained-profile campaigns remain separate. The advanced-bot suite checks safe maze completion, actual gold/research transactions, sparse slow coverage and a real cannon shot through the entrance lane. The optimization suite adds spatial-vs-linear and flood-fill-vs-A* comparisons, route-cache invalidation, index cleanup and burst-death HUD checks. Rendering checks are separate from headless tests. Optional long campaigns use `tests/sweep_campaigns.py`; see the progression report for commands, seeds, outcomes and wave-cap limitations.
 
 ## Manual F5 checks
 

@@ -60,7 +60,7 @@ func _process(delta: float) -> void:
 func _explode() -> void:
 	_impact = true
 	_age = 0.0
-	for candidate in get_tree().get_nodes_in_group("enemies"):
+	for candidate in board.enemy_index.query(Rect2(position - Vector2.ONE * splash_radius, Vector2.ONE * splash_radius * 2)):
 		if is_queued_for_deletion():
 			return # Last kill can clear the wave and dispose all in-flight effects.
 		var enemy := candidate as Enemy
@@ -95,14 +95,15 @@ func _tick_cannon(delta: float) -> void:
 		return
 	var end := position + direction * distance
 	var wall_fraction := INF
-	for child in board.get_node("Towers").get_children():
+	var segment_bounds := Rect2(position, Vector2.ZERO).expand(end)
+	for child in board.tower_index.query(segment_bounds.grow(15.0 + CANNON_RADIUS)):
 		if child.get_instance_id() == source_id or child.is_queued_for_deletion():
 			continue
 		var tower := child as Tower
 		if tower != null:
 			wall_fraction = minf(wall_fraction, rect_fraction(position, end, Rect2(tower.position - Vector2(15, 15), Vector2(30, 30)).grow(CANNON_RADIUS)))
 	var hits: Array[Dictionary] = []
-	for candidate in get_tree().get_nodes_in_group("enemies"):
+	for candidate in board.enemy_index.query(segment_bounds.grow(10.0 + CANNON_RADIUS)):
 		var enemy := candidate as Enemy
 		if enemy == null or not enemy.is_alive() or _hit_ids.has(enemy.get_instance_id()):
 			continue

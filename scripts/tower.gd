@@ -4,7 +4,17 @@ extends Node2D
 enum Upgrade { NONE, DAMAGE, RANGE, SPEED, SPECIAL }
 enum Kind { BASIC, TESLA, MORTAR, ICE, CANNON }
 
-var kind := Kind.BASIC
+var kind := Kind.BASIC:
+	set(value):
+		kind = value
+		_stats_dirty = true
+		queue_redraw()
+var _stats_dirty := true
+var _damage := 0
+var _armor_damage := 0
+var _shield_damage := 0
+var _range := 0.0
+var _interval := 0.0
 var upgrades_enabled := false
 var special_enabled := false
 var _sixth_unlocked := false
@@ -25,10 +35,33 @@ var _flash_remaining := 0.0
 var _aim := -PI / 2.0
 var _last_endpoint := Vector2.ZERO
 var _pulse_number := 0
+var _board: Board
 var _rng := RandomNumberGenerator.new()
 
 
+func _enter_tree() -> void:
+	set_notify_local_transform(true)
+	_board = get_parent().get_parent() as Board if get_parent() != null else null
+	if _board != null: _board.tower_index.update(self)
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_LOCAL_TRANSFORM_CHANGED and is_inside_tree() and is_instance_valid(_board):
+		_board.tower_index.update(self)
+
+
+func _exit_tree() -> void:
+	if is_instance_valid(_board): _board.tower_index.remove(self)
+
+
+func _nearby_enemies() -> Array:
+	if _board == null:
+		return get_tree().get_nodes_in_group("enemies")
+	return _board.enemy_index.query_global(global_position, attack_range(), _board.get_node("Enemies"))
+
+
 func _ready() -> void:
+	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	# Local RNG never disturbs the run's wave generator. Cell/kind seed is replayable.
 	_rng.seed = cell.x * 7349 + cell.y * 193 + kind * 32771 + 17
 
@@ -57,6 +90,7 @@ func configure_progression(profile: Progression) -> void:
 	_area_unlocked = profile.has_skill("mortar_area")
 	_freeze_unlocked = profile.has_skill("ice_freeze")
 	_distance_unlocked = profile.has_skill("cannon_distance")
+	_stats_dirty = true
 	_cooldown = minf(_cooldown, attack_interval())
 	queue_redraw()
 
@@ -69,25 +103,42 @@ func refund() -> int:
 	return floori(build_cost() * 0.5)
 
 
+func _refresh_stats() -> void:
+	if not _stats_dirty:
+		return
+	_stats_dirty = false
+	var stats := data()
+	_damage = roundi((int(stats.damage) + int(stats.damage_step) * levels(Upgrade.DAMAGE) + int(stats.special_damage) * levels(Upgrade.SPECIAL)) * _permanent_damage_factor)
+	var bonus := 15 * levels(Upgrade.SPECIAL) if kind == Kind.BASIC else 0
+	_armor_damage = maxi(1, roundi((_damage * float(stats.armor_ratio) + bonus) * _armor_factor))
+	_shield_damage = maxi(1, roundi(_damage * float(stats.shield_ratio) * _shield_factor))
+	_range = (float(stats.range) + float(stats.range_step) * levels(Upgrade.RANGE)) * _range_factor
+	_interval = float(stats.interval) * pow(GameConfig.SPEED_FACTOR_PER_LEVEL, levels(Upgrade.SPEED)) * _interval_factor
+
+
 func damage() -> int:
-	return roundi((int(data().damage) + int(data().damage_step) * levels(Upgrade.DAMAGE) + int(data().special_damage) * levels(Upgrade.SPECIAL)) * _permanent_damage_factor)
+	_refresh_stats()
+	return _damage
 
 
 func armor_damage() -> int:
-	var bonus := 15 * levels(Upgrade.SPECIAL) if kind == Kind.BASIC else 0
-	return maxi(1, roundi((damage() * float(data().armor_ratio) + bonus) * _armor_factor))
+	_refresh_stats()
+	return _armor_damage
 
 
 func shield_damage() -> int:
-	return maxi(1, roundi(damage() * float(data().shield_ratio) * _shield_factor))
+	_refresh_stats()
+	return _shield_damage
 
 
 func attack_range() -> float:
-	return (float(data().range) + float(data().range_step) * levels(Upgrade.RANGE)) * _range_factor
+	_refresh_stats()
+	return _range
 
 
 func attack_interval() -> float:
-	return float(data().interval) * pow(GameConfig.SPEED_FACTOR_PER_LEVEL, levels(Upgrade.SPEED)) * _interval_factor
+	_refresh_stats()
+	return _interval
 
 
 func blast_radius() -> float:
@@ -143,6 +194,7 @@ func apply_upgrade(track: int) -> bool:
 		return false
 	_levels[track] += 1
 	# Any category can share the budget. No purchase grants an immediate free shot.
+	_stats_dirty = true
 	_cooldown = minf(_cooldown, attack_interval())
 	queue_redraw()
 	return true
@@ -167,7 +219,7 @@ func _process(delta: float) -> void:
 func _nearest_target() -> Enemy:
 	var nearest: Enemy = null
 	var nearest_distance := attack_range() * attack_range()
-	for candidate in get_tree().get_nodes_in_group("enemies"):
+	for candidate in _nearby_enemies():
 		var enemy := candidate as Enemy
 		if enemy == null or not enemy.is_alive():
 			continue
@@ -195,7 +247,7 @@ func attack(target: Enemy) -> void:
 
 func attack_area() -> void:
 	var hit := false
-	for candidate in get_tree().get_nodes_in_group("enemies"):
+	for candidate in _nearby_enemies():
 		var enemy := candidate as Enemy
 		if enemy != null and enemy.is_alive() and global_position.distance_to(enemy.global_position) <= attack_range():
 			attack(enemy)
@@ -230,7 +282,7 @@ func _launch(target_enemy: Enemy) -> void:
 
 
 func _draw() -> void:
-	TowerArt.draw_tower(self, kind, _aim, clampf(_flash_remaining / 0.18, 0, 1))
+	CombatArt.tower(self, kind, _aim, clampf(_flash_remaining / 0.18, 0, 1))
 	if upgrade_level > 0:
 		var colors := [Color.TRANSPARENT, Color("efb876"), Color("aada91"), Color("c3a0ef"), Color("8bddeb")]
 		var slot := 0

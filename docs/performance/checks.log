@@ -1,0 +1,74 @@
+$ /workspace/tools/godot-4.7.2/Godot_v4.7.2-stable_linux.x86_64 --version
+4.7.2.stable.official.ed1daf0bf
+PASS version (exit 0; no logged errors)
+$ /workspace/tools/godot-4.7.2/Godot_v4.7.2-stable_linux.x86_64 --headless --editor --path /workspace/Tower-Defense-Game --quit
+PASS import (exit 0; no logged errors)
+$ /workspace/tools/godot-4.7.2/Godot_v4.7.2-stable_linux.x86_64 --headless --path /workspace/Tower-Defense-Game --quit-after 180
+PASS startup (exit 0; no logged errors)
+$ /workspace/tools/godot-4.7.2/Godot_v4.7.2-stable_linux.x86_64 --headless --path /workspace/Tower-Defense-Game --script res://tests/test_pathfinding.gd
+Pathfinding: 33 checks, 0 failures
+PASS test_pathfinding (exit 0; no logged errors)
+$ /workspace/tools/godot-4.7.2/Godot_v4.7.2-stable_linux.x86_64 --headless --path /workspace/Tower-Defense-Game --script res://tests/test_movement.gd
+Movement: 15 checks, 0 failures
+PASS test_movement (exit 0; no logged errors)
+$ /workspace/tools/godot-4.7.2/Godot_v4.7.2-stable_linux.x86_64 --headless --path /workspace/Tower-Defense-Game --script res://tests/test_gameplay.gd
+Endless session: seed=721, wave=9, lives=0, currency=714
+Endless session: seed=109, wave=9, lives=0, currency=778
+Endless session: seed=1337, wave=9, lives=0, currency=680
+Endless session: seed=9001, wave=9, lives=0, currency=820
+Endless session: seed=2026, wave=9, lives=0, currency=700
+Gameplay: 133 checks, 0 failures
+PASS test_gameplay (exit 0; no logged errors)
+$ /workspace/tools/godot-4.7.2/Godot_v4.7.2-stable_linux.x86_64 --headless --path /workspace/Tower-Defense-Game --script res://tests/test_input_and_restart.gd
+Input/restart: 29 checks, 0 failures
+PASS test_input_and_restart (exit 0; no logged errors)
+$ /workspace/tools/godot-4.7.2/Godot_v4.7.2-stable_linux.x86_64 --headless --path /workspace/Tower-Defense-Game --script res://tests/test_enemy_traits.gd
+Enemy traits: 23 checks, 0 failures
+PASS test_enemy_traits (exit 0; no logged errors)
+$ /workspace/tools/godot-4.7.2/Godot_v4.7.2-stable_linux.x86_64 --headless --path /workspace/Tower-Defense-Game --script res://tests/test_tower_management.gd
+Tower management: 468 checks, 0 failures
+PASS test_tower_management (exit 0; no logged errors)
+$ /workspace/tools/godot-4.7.2/Godot_v4.7.2-stable_linux.x86_64 --headless --path /workspace/Tower-Defense-Game --script res://tests/test_endless_stability.gd
+Endless stability: 34130 checks, 0 failures; 5086314 generated enemies; 10000 generated / 1000 scheduled / 300 scene waves
+PASS test_endless_stability (exit 0; no logged errors)
+$ /workspace/tools/godot-4.7.2/Godot_v4.7.2-stable_linux.x86_64 --headless --path /workspace/Tower-Defense-Game --script res://tests/test_progression.gd
+Progression: 72 checks, 0 failures
+PASS test_progression (exit 0; no logged errors)
+$ /workspace/tools/godot-4.7.2/Godot_v4.7.2-stable_linux.x86_64 --headless --path /workspace/Tower-Defense-Game --script res://tests/test_tesla.gd
+Tesla/unique upgrades: 9 checks, 0 failures
+PASS test_tesla (exit 0; no logged errors)
+$ /workspace/tools/godot-4.7.2/Godot_v4.7.2-stable_linux.x86_64 --headless --path /workspace/Tower-Defense-Game --script res://tests/test_balance.gd
+Balance bot: seed=721 policy=builder cleared=10 wave=11 lives=0 route=86
+Balance bot: seed=721 policy=poor cleared=1 wave=2 lives=0 route=40
+Balance bot: seed=109 policy=builder cleared=10 wave=11 lives=0 route=86
+Balance bot: seed=109 policy=poor cleared=1 wave=2 lives=0 route=40
+Balance bot: seed=1337 policy=builder cleared=11 wave=12 lives=0 route=86
+Balance bot: seed=1337 policy=poor cleared=1 wave=2 lives=0 route=40
+Balance bot: seed=9001 policy=builder cleared=11 wave=12 lives=0 route=86
+Balance bot: seed=9001 policy=poor cleared=1 wave=2 lives=0 route=40
+Balance bot: seed=2026 policy=builder cleared=10 wave=11 lives=0 route=86
+Balance bot: seed=2026 policy=poor cleared=1 wave=2 lives=0 route=40
+Balance: 154 checks, 0 failures
+PASS test_balance (exit 0; no logged errors)
+$ /workspace/tools/godot-4.7.2/Godot_v4.7.2-stable_linux.x86_64 --headless --path /workspace/Tower-Defense-Game --script res://tests/test_advanced_bot.gd
+Advanced bot: 69 checks, 0 failures
+PASS test_advanced_bot (exit 0; no logged errors)
+$ /workspace/tools/godot-4.7.2/Godot_v4.7.2-stable_linux.x86_64 --headless --path /workspace/Tower-Defense-Game --script res://tests/test_auto_start.gd
+Auto-start: 18 checks, 0 failures
+PASS test_auto_start (exit 0; no logged errors)
+$ /workspace/tools/godot-4.7.2/Godot_v4.7.2-stable_linux.x86_64 --headless --path /workspace/Tower-Defense-Game --script res://tests/test_hallway_policy.gd
+Hallway policy: 85 checks, 0 failures
+PASS test_hallway_policy (exit 0; no logged errors)
+$ /workspace/tools/godot-4.7.2/Godot_v4.7.2-stable_linux.x86_64 --headless --path /workspace/Tower-Defense-Game --script res://tests/test_ui_and_layers.gd
+UI/layers/research: 278 checks, 0 failures
+PASS test_ui_and_layers (exit 0; no logged errors)
+$ /workspace/tools/godot-4.7.2/Godot_v4.7.2-stable_linux.x86_64 --headless --path /workspace/Tower-Defense-Game --script res://tests/test_new_towers.gd
+New towers/projectiles/mixed upgrades: 221 checks, 0 failures
+PASS test_new_towers (exit 0; no logged errors)
+$ /workspace/tools/godot-4.7.2/Godot_v4.7.2-stable_linux.x86_64 --headless --path /workspace/Tower-Defense-Game --script res://tests/test_research_icons.gd
+Research icon input: 921 checks, 0 failures
+PASS test_research_icons (exit 0; no logged errors)
+$ /workspace/tools/godot-4.7.2/Godot_v4.7.2-stable_linux.x86_64 --headless --path /workspace/Tower-Defense-Game --script res://tests/test_optimization.gd
+Optimization: 12331 checks, 0 failures
+PASS test_optimization (exit 0; no logged errors)
+ALL PASSED: 48989 checks across 17 suites; import/startup passed
