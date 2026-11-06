@@ -1,13 +1,12 @@
 class_name Enemy
 extends Node2D
-## Walks cell center to cell center (cardinal only) toward the exit at constant speed.
+## Walks the fixed path from its entrance to the exit, cell center to cell center
+## (cardinal only), at constant speed.
 ## Stats, appearance and traits (layers, regeneration, splitting, lives cost) come from
 ## an EnemyTypes definition. Hit points come in up to three stacked layers: shield on
 ## top, then armor, then health. A hit only damages the top non-empty layer, using the
 ## attacker's damage against that layer; excess damage is lost. The enemy dies when its
 ## health layer is empty. Emits `died` or `reached_exit` exactly once, then frees itself.
-## Route changes are applied only on arriving at a cell center, so the current
-## segment always finishes and the enemy never teleports.
 
 signal died(enemy: Enemy)
 signal reached_exit(enemy: Enemy)
@@ -39,35 +38,35 @@ var shape: String = "diamond"
 ## Wave the enemy was spawned on; split children use it to scale their stats.
 var wave: int = 1
 ## Cell whose center the enemy most recently reached (or is standing on).
-var current_cell: Vector2i = GameConfig.SPAWN_CELL
+var current_cell: Vector2i = GameConfig.EXIT_CELL
 ## Cell whose center the enemy is walking toward; equals current_cell while not moving.
-var next_cell: Vector2i = GameConfig.SPAWN_CELL
+var next_cell: Vector2i = GameConfig.EXIT_CELL
 
 var _board: Board
-var _path: Array[Vector2i] = []
-var _path_index: int = 0  # index in _path of the next cell to walk to
 var _moving: bool = false
-var _route_dirty: bool = true
 var _resolved: bool = false
-var _route_error_reported: bool = false
 var _draw_offset: Vector2 = Vector2.ZERO
 var _slow: float = 0.0       # fraction of speed removed while slowed
 var _slow_left: float = 0.0  # seconds of slow remaining
 
 
-## Configures a freshly spawned enemy at the entrance from a WaveGenerator spawn entry.
-func setup(board: Board, entry: Dictionary, wave_number: int) -> void:
+## Configures a freshly spawned enemy at `spawn_cell` (an entrance) from a
+## WaveGenerator spawn entry. It then follows the path toward the exit.
+func setup(board: Board, entry: Dictionary, wave_number: int, spawn_cell: Vector2i = Vector2i(-1, -1)) -> void:
 	_apply_type(entry, wave_number)
 	_board = board
-	current_cell = GameConfig.SPAWN_CELL
-	next_cell = current_cell
+	if spawn_cell == Vector2i(-1, -1):
+		var entrances: Array[Vector2i] = board.entrances()
+		spawn_cell = entrances[0] if not entrances.is_empty() else board.exit_cell()
+	current_cell = spawn_cell
+	next_cell = board.next_cell(spawn_cell)
+	_moving = current_cell != next_cell
 	position = Board.cell_to_world(current_cell)
-	_register()
-	_plan_route()
+	add_to_group("enemies")
 
 
 ## Configures an enemy spawned where `parent` died, continuing the parent's movement
-## segment so it never stands on or walks into a blocked tile.
+## segment along the path.
 func setup_split_from(parent: Enemy, entry: Dictionary, sibling_index: int) -> void:
 	_apply_type(entry, parent.wave)
 	_board = parent._board
@@ -76,8 +75,7 @@ func setup_split_from(parent: Enemy, entry: Dictionary, sibling_index: int) -> v
 	_moving = parent._moving
 	position = parent.position
 	_draw_offset = Vector2.RIGHT.rotated(TAU * sibling_index / 3.0) * 5.0
-	_register()
-	_route_dirty = true  # re-plan at the next cell center
+	add_to_group("enemies")
 
 
 func _apply_type(entry: Dictionary, wave_number: int) -> void:
@@ -97,11 +95,6 @@ func _apply_type(entry: Dictionary, wave_number: int) -> void:
 	radius = def["radius"]
 	color = def["color"]
 	shape = def["shape"]
-
-
-func _register() -> void:
-	add_to_group("enemies")
-	_board.navigation_changed.connect(_on_navigation_changed)
 
 
 func _process(delta: float) -> void:
@@ -127,7 +120,7 @@ func step(delta: float) -> void:
 func advance(delta: float) -> void:
 	var remaining: float = get_effective_speed() * delta
 	while remaining > 0.0 and not _resolved:
-		if not _moving and not _start_next_segment():
+		if not _moving:
 			return
 		var target: Vector2 = Board.cell_to_world(next_cell)
 		var distance: float = position.distance_to(target)
@@ -203,16 +196,12 @@ func is_moving() -> bool:
 	return _moving
 
 
-## Cells that must not be built on: the current cell and, while moving, the committed next cell.
-func get_occupied_cells() -> Array[Vector2i]:
-	if _moving:
-		return [current_cell, next_cell]
-	return [current_cell]
-
-
-## The cell center from which this enemy will next choose a route.
-func get_committed_waypoint() -> Vector2i:
-	return next_cell if _moving else current_cell
+## Path distance (world px) still to walk to the exit; smaller = further along.
+## Towers use it to target the enemy closest to the exit.
+func remaining_distance() -> float:
+	if not _moving:
+		return float(_board.distance_to_exit(current_cell)) * GameConfig.CELL_SIZE
+	return float(_board.distance_to_exit(next_cell)) * GameConfig.CELL_SIZE + position.distance_to(Board.cell_to_world(next_cell))
 
 
 ## Removes the enemy without emitting died/reached_exit (used by Restart).
@@ -221,48 +210,16 @@ func discard() -> void:
 	queue_free()
 
 
-func _start_next_segment() -> bool:
-	if _route_dirty or _path_index >= _path.size():
-		if not _plan_route():
-			return false
-	var candidate: Vector2i = _path[_path_index]
-	if _board.is_solid(candidate):
-		# Should be impossible given placement validation; replan rather than walk into a tower.
-		if not _plan_route():
-			return false
-		candidate = _path[_path_index]
-	next_cell = candidate
-	_path_index += 1
-	_moving = true
-	return true
-
-
 func _arrive_at(cell: Vector2i) -> void:
 	current_cell = cell
-	next_cell = cell
-	_moving = false
-	if cell == GameConfig.EXIT_CELL:
+	if cell == _board.exit_cell():
+		next_cell = cell
+		_moving = false
 		_resolve()
 		reached_exit.emit(self)
 		queue_free()
-
-
-func _plan_route() -> bool:
-	var path: Array[Vector2i] = _board.find_path(current_cell, GameConfig.EXIT_CELL)
-	if not _board.is_valid_route(path, current_cell, GameConfig.EXIT_CELL) or path.size() < 2:
-		if not _route_error_reported and current_cell != GameConfig.EXIT_CELL:
-			push_error("Enemy at cell %s has no route to the exit; waiting in place." % current_cell)
-			_route_error_reported = true
-		return false
-	_path = path
-	_path_index = 1
-	_route_dirty = false
-	_route_error_reported = false
-	return true
-
-
-func _on_navigation_changed(_revision: int) -> void:
-	_route_dirty = true
+		return
+	next_cell = _board.next_cell(cell)
 
 
 func _resolve() -> void:
@@ -301,18 +258,21 @@ func _draw_layer_bars() -> void:
 	if max_armor > 0.0:
 		layers.append(["armor", armor, max_armor])
 	layers.append(["health", health, max_health])
-	var stack_height: float = layers.size() * (HEALTH_BAR_HEIGHT + HEALTH_BAR_GAP)
-	var origin: Vector2 = _draw_offset + Vector2(-HEALTH_BAR_WIDTH / 2.0, -radius - 6.0 - stack_height)
-	draw_rect(Rect2(origin - Vector2(1, 1), Vector2(HEALTH_BAR_WIDTH + 2, stack_height + 1)), Color(0.05, 0.05, 0.07, 0.85))
+	# Big enemies (bosses) get proportionally wider and thicker bars.
+	var bar_width: float = maxf(HEALTH_BAR_WIDTH, radius * 3.4)
+	var bar_height: float = HEALTH_BAR_HEIGHT * (2.0 if radius > 18.0 else 1.0)
+	var stack_height: float = layers.size() * (bar_height + HEALTH_BAR_GAP)
+	var origin: Vector2 = _draw_offset + Vector2(-bar_width / 2.0, -radius - 6.0 - stack_height)
+	draw_rect(Rect2(origin - Vector2(1, 1), Vector2(bar_width + 2, stack_height + 1)), Color(0.05, 0.05, 0.07, 0.85))
 	for i in layers.size():
 		var layer: Array = layers[i]
 		var ratio: float = clampf(layer[1] / layer[2], 0.0, 1.0) if layer[2] > 0.0 else 0.0
-		var row: Vector2 = origin + Vector2(0, i * (HEALTH_BAR_HEIGHT + HEALTH_BAR_GAP))
+		var row: Vector2 = origin + Vector2(0, i * (bar_height + HEALTH_BAR_GAP))
 		var color: Color = LAYER_COLORS[layer[0]]
 		if layer[0] == "health" and regen_rate > 0.0:
 			color = Color(0.3, 0.95, 0.75)
-		draw_rect(Rect2(row, Vector2(HEALTH_BAR_WIDTH, HEALTH_BAR_HEIGHT)), Color(color, 0.18))
-		draw_rect(Rect2(row, Vector2(HEALTH_BAR_WIDTH * ratio, HEALTH_BAR_HEIGHT)), color)
+		draw_rect(Rect2(row, Vector2(bar_width, bar_height)), Color(color, 0.18))
+		draw_rect(Rect2(row, Vector2(bar_width * ratio, bar_height)), color)
 
 
 func _shape_points() -> PackedVector2Array:

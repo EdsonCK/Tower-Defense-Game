@@ -20,7 +20,7 @@ const DEFS: Dictionary = {
 	BASIC: {
 		"name": "Basic Tower", "short": "Basic", "desc": "Reliable all-rounder. Fires at the nearest enemy.",
 		"cost": GameConfig.TOWER_COST, "range": GameConfig.TOWER_RANGE, "cooldown": GameConfig.TOWER_COOLDOWN,
-		"damage": {"health": GameConfig.TOWER_DAMAGE, "armor": 8, "shield": 6},
+		"damage": {"health": GameConfig.TOWER_DAMAGE, "armor": 8, "shield": 8},
 		"attack": "single", "color": Color(0.2, 0.6, 0.95),
 		"range_per_level": GameConfig.UPGRADE_RANGE_PER_LEVEL,
 		"unique_path": 4,  # Tower.UpgradePath.PIERCE

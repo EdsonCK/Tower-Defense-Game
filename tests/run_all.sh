@@ -26,7 +26,7 @@ run() {
 
 run "import" --editor --quit
 run "smoke (180 frames)" --quit-after 180
-for suite in test_pathfinding test_gameplay test_skills test_layout test_stability test_balance; do
+for suite in test_map test_gameplay test_skills test_layout test_stability test_balance; do
 	run "$suite" --script "res://tests/$suite.gd"
 done
 exit $status

@@ -4,13 +4,25 @@ extends RefCounted
 ## Enemy type stats live in enemy_types.gd; wave scaling formulas in wave_generator.gd.
 
 # --- Board ---
-const GRID_COLUMNS: int = 40
-const GRID_ROWS: int = 24
+## The on-screen board area (pixels). The map is drawn scaled to fit it.
+const BOARD_WIDTH: int = 1280
+const BOARD_HEIGHT: int = 768
+## World size of one map cell before scaling.
 const CELL_SIZE: int = 32
-const BOARD_WIDTH: int = GRID_COLUMNS * CELL_SIZE   # 1280
-const BOARD_HEIGHT: int = GRID_ROWS * CELL_SIZE     # 768
-const SPAWN_CELL: Vector2i = Vector2i(0, 12)
-const EXIT_CELL: Vector2i = Vector2i(39, 12)
+## Full map grid (the visible window grows inside it). The exit sits at the center.
+const GRID_COLUMNS: int = 61
+const GRID_ROWS: int = 37
+const EXIT_CELL: Vector2i = Vector2i(30, 18)
+## The visible window is |dx| <= half_width, |dy| <= floor(3 * half_width / 5) around the
+## exit. It starts small and grows by one ring after every wave up to the full grid.
+const MAP_START_HALF_WIDTH: int = 11
+const MAP_MAX_HALF_WIDTH: int = 30
+const MAP_GROWTH_PER_WAVE: int = 1
+## Path network: branches from the exit, plus forks that create crossroads further out.
+const MAP_ROOT_BRANCHES: int = 2
+const MAP_FORK_BRANCHES: int = 5
+## Waves per biome (art style and tower buffs change every this many waves).
+const BIOME_WAVES: int = 10
 
 # --- Player ---
 const STARTING_CURRENCY: int = 200
@@ -44,15 +56,13 @@ const MAX_ENEMIES_PER_WAVE: int = 320
 ## waves still last longer.
 const SPAWN_RATE_GROWTH: float = 0.03
 const MIN_INTERVAL_SCALE: float = 0.22
-const BOSS_WAVE_INTERVAL: int = 10
-const MAX_BOSSES_PER_WAVE: int = 3
-## Regular-enemy count multiplier on boss waves.
-const BOSS_WAVE_ESCORT_FACTOR: float = 0.5
+## Every Nth wave is a boss wave: a single Colossus with enormous health, no escort.
+const BOSS_WAVE_INTERVAL: int = 15
 ## Enemy health multiplier on wave w: (1 + LINEAR*(w-1)) * GROWTH^(w-1).
 ## Exponential growth outpaces any economy eventually, so endless runs always end;
-## well-built mazes (long routes, upgrades, skills) push that point much further out.
+## strong placement, upgrades and skills push that point much further out.
 const HEALTH_SCALE_LINEAR: float = 0.10
-const HEALTH_SCALE_GROWTH: float = 1.10
+const HEALTH_SCALE_GROWTH: float = 1.065
 const WAVE_CLEAR_BONUS_BASE: int = 30
 const WAVE_CLEAR_BONUS_PER_WAVE: int = 5
 

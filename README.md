@@ -1,8 +1,15 @@
-# Unnamed TD Game — v0.1
+# Unnamed TD Game
 
-As-of-yet unnamed maze-building tower defense made in Godot, mostly written with AI. It draws on Rogue Tower and Sir, We Have an Orc Problem.
+As-of-yet unnamed tower defense made in Godot, mostly written with AI. It draws on Rogue Tower and Sir, We Have an Orc Problem. Built for **Godot 4.7.2 stable** in GDScript.
 
-A maze-building tower defense prototype for **Godot 4.7.2 stable**, written in GDScript. It has one open 40 × 24 map. Towers block tiles, so you build the maze yourself, and you can never fully seal the route. Waves are endless and generated per run, with eight enemy types. Enemies carry stacked **shield, armor and health** layers, and three tower types each deal different damage to each layer. Clearing waves earns **diamonds**, which unlock a permanent 33-skill tree.
+**The game:**
+- **The map:** a winding, fixed path network leads from several entrances, through crossroads, to a single gate at the center. Each run generates a new map from its seed.
+- **Towers** go beside the path, never on it.
+- **Growth:** the map grows a little after every wave, revealing more path and new entrances.
+- **Biomes:** every 10 waves the land changes. Each biome has its own colors and decorations, and buffs one tower type in particular.
+- **Enemies** carry stacked shield, armor and health layers, and three tower types each specialize against one layer.
+- **Bosses:** every 15th wave is a lone Colossus with enormous health bars.
+- **Progression:** clearing waves earns **diamonds**, which unlock a permanent 33-skill tree.
 
 ## Running
 
@@ -45,7 +52,7 @@ When adding UI:
 | Action | Control |
 |---|---|
 | Enter build mode | **Basic Tower / Tesla Tower / Cannon** buttons in the BUILD card. Locked towers say "(Skill Tree)". The active build button is highlighted gold. |
-| Place tower | **Left-click** a highlighted tile (green = valid, red = invalid). Build mode stays on until you cancel or can't afford another tower. |
+| Place tower | **Left-click** a free tile beside the path (green = valid, red = invalid; the path and the gate are never valid). Build mode stays on until you cancel or can't afford another tower. |
 | Select a tower | **Left-click** a tower (outside build mode). The SELECTED TOWER card shows its damage per layer and its upgrades. |
 | Upgrade / sell | The four upgrade buttons and **Sell** in the SELECTED TOWER card |
 | Cancel build mode / deselect | **Right-click**, **Esc**, **Cancel build**, or click empty ground |
@@ -58,18 +65,44 @@ When adding UI:
 ## Rules
 
 Tuning lives in:
-- `scripts/game_config.gd`: economy, upgrades, wave sizes and speed, health scaling, diamonds;
-- `scripts/tower_types.gd`: tower stats and damage per layer;
-- `scripts/enemy_types.gd`: enemy stats and layers;
+- `scripts/game_config.gd`: economy, map size and growth, waves, health scaling, diamonds;
+- `scripts/tower_types.gd`: tower stats;
+- `scripts/enemy_types.gd`: enemy stats;
+- `scripts/biomes.gd`: biome art and buffs;
 - `scripts/skill_tree.gd`: skills.
 
 - Start with 200 gold and 10 lives (more with skills).
 - Kills pay gold. Each cleared wave pays a gold bonus (30 + 5 per wave number) and **1 diamond**. Escaped enemies cost lives and pay nothing.
 - **Endless:** the run ends when lives reach 0.
-- A placement is rejected, at no charge, if it would:
-  - go on the entrance or exit, an occupied tile, or a tile an enemy is on or walking into;
-  - cut off the spawn → exit route;
-  - cut off any in-flight enemy's next waypoint from the exit.
+
+### The map
+
+- **The path network** is generated per run from the run seed (shown in the panel), so every run has a new map.
+  - It is a tree of 1-tile-wide, winding paths that all lead to a **single gate** (the exit) at the center.
+  - Branches run outward to **entrances** (red portals) and split off each other, which creates **crossroads**.
+  - Walking toward the gate never takes an enemy back outward, so routes never leave the visible map.
+- **Towers** can be built on any free tile except the path and the gate.
+- **The map grows after every wave.** It starts at 23×13 tiles and gains a ring each wave until it reaches 61×37 (wave 20), zooming out to fit.
+  - Growing reveals more path, so routes get longer.
+  - Branches that split off further out appear as **new entrances**: 2-4 at the start, 7 on the full map.
+  - Towers keep their tiles as the map grows.
+- **Enemies** are split across the entrances (a pack always shares one entrance) and walk their route to the gate. Single-target towers shoot the enemy in range that is **closest to the gate**.
+- **Placement strategy:** tiles near the gate and just after crossroads see the most traffic; outer branches only see their own entrance's share.
+
+### Biomes
+
+The biome changes every 10 waves (after waves 10, 20, ...) and cycles after the sixth. Every biome uses the same art style (flat shapes, dark outline, soft shadow) and **the same path palette**; only the ground colors and decorations change. Each gives every tower a small buff and its **favored tower** a stronger one.
+
+| Waves | Biome | Look | All towers | Favored tower (total) |
+|---|---|---|---|---|
+| 1-10 | Meadow | green grass, round trees, bushes, flowers | +10% range | **Basic** +25% range |
+| 11-20 | Desert | sand, cacti, rocks, dunes, bones | +5% hit speed | **Cannon** +20% hit speed |
+| 21-30 | Tundra | snow, snowy pines, ice shards, snowy rocks | +5% damage | **Tesla** +25% damage |
+| 31-40 | Volcanic | basalt, glowing lava cracks, stumps, obsidian | +5% damage | **Cannon** +25% damage |
+| 41-50 | Swamp | murky green, reeds, ponds with lilies, mushrooms | +10% range | **Tesla** +30% range |
+| 51-60 | Autumn Forest | golden ground, orange trees, fallen leaves, pumpkins | +5% hit speed | **Basic** +20% hit speed |
+
+The current biome and its buff are shown in the wave card. Buffs apply immediately to every tower, including ones you already built.
 
 ### Health layers and damage types
 
@@ -82,9 +115,9 @@ Enemies have up to three stacked bars above them:
 
 | Tower | Look | Cost | Attack | Damage (health / armor / shield) | Unique upgrade path |
 |---|---|---|---|---|---|
-| Basic | blue square | 60 | nearest enemy within 112 px, every 0.8 s | 15 / 8 / 6 (all-rounder) | **Piercing:** +100% armor damage per level |
+| Basic | blue square | 60 | first enemy within 112 px, every 0.8 s | 15 / 8 / 8 (all-rounder) | **Piercing:** +100% armor damage per level |
 | Tesla | purple hexagon | 80 | **every** enemy within 80 px, every 1.0 s | 10 / 3 / **24** (shield shredder) | **Static field:** slows 15% per level for 1.5 s |
-| Cannon | orange turret | 110 | nearest enemy within 128 px, every 1.6 s | 20 / **48** / 4 (armor cracker) | **Shrapnel:** 50% splash damage, radius 40 → 72 px |
+| Cannon | orange turret | 110 | first enemy within 128 px, every 1.6 s | 20 / **48** / 4 (armor cracker) | **Shrapnel:** 50% splash damage, radius 40 → 72 px |
 
 ### Upgrades and selling
 
@@ -118,8 +151,10 @@ There are 33 skills in 7 branches. **Costs rise with each tier**, roughly 3-5 �
 - Each wave is generated from the **run seed** and the wave number. The **Next wave** preview always matches what you get.
 - **Enemy count:** starts around 8 and grows about 2 per wave. **Past wave 30 it grows much faster**, adding 0.15 × (wave - 30)², up to 320 per wave. On average: wave 40 has 57, wave 60 has 142, wave 80 has 282.
 - **Spawn speed** rises every wave (intervals × 1/(1 + 0.03·(wave-1))). Counts grow faster still, so **later waves still last longer**: about 29 s of spawning at wave 40, 53 s at 60, 83 s at 80.
-- **Enemy health:** every layer grows exponentially, (1 + 0.1·(w-1)) × 1.10^(w-1).
-- **Unlocks:** new types unlock as waves progress. A **Warlord** boss (shield + armor + health) joins every 10th wave, with half the usual escort.
+- **Enemy health:** every layer grows exponentially, (1 + 0.1·(w-1)) × 1.065^(w-1).
+- **Unlocks:** new types unlock as waves progress.
+- **Bosses:** every **15th wave** (15, 30, 45, ...) is a **boss wave**: a single **Colossus** arrives **alone**, with enormous stacked shield, armor and health bars drawn extra-wide above it. It is slow but costs **5 lives** if it reaches the gate. Its gold reward is a placeholder for now.
+- **Count cap:** once the enemy count reaches its 320 cap (around wave 80), the spawn rate stops rising, so waves never get shorter.
 
 ### Enemy types
 
@@ -131,24 +166,35 @@ There are 33 skills in 7 branches. **Costs rise with each tier**, roughly 3-5 �
 | Tank | purple square | 36 | armor 60 + health 90 | 28 | Heavy armor: bring Cannons; costs 2 lives | 5 |
 | Mender | teal hexagon | 55 | health 70 | 18 | Regenerates 5% health per second | 7 |
 | Splitter | orange ring | 50 | health 80 | 15 | Splits into 3 Swarmlings | 8 |
-| Aegis | blue pentagon | 56 | shield 75 + health 50 | 20 | Energy shield: bring Teslas | 11 |
-| Warlord (boss) | large dark-red star | 34 | shield 120 + armor 120 + health 180 | 150 | Slow regeneration; costs **5 lives** | every 10th |
+| Aegis | blue pentagon | 56 | shield 60 + health 50 | 20 | Energy shield: bring Teslas | 11 |
+| Colossus (boss) | huge dark-red star, extra-wide bars | 26 | shield 300 + armor 450 + health 750 (×wave scaling) | 250 (placeholder) | Arrives alone; costs **5 lives** | every 15th |
 
 Slowed enemies show a blue ring.
 
 ### Balance targets (checked by `tests/test_balance.gd`)
 
-| Strategy (scripted bots in `tests/bots.gd`) | Typical result |
-|---|---|
-| Random tower placement | defeated on wave 2 (test: by wave 5) |
-| Towers lining the straight route, no maze, no skills | defeated on waves 16-17 by shields and armor (test: by wave 25) |
-| Tight serpentine maze with Teslas, Cannons, skills and upgrades (fresh save) | reaches waves 31-35, where the late-wave swarm begins (test: survives 30) |
+Balance is tuned against two scripted players in `tests/bots.gd`, on fixed seeds with a fresh save.
 
-Permanent skills from earlier runs push this further. Run `tests/balance_report.gd` to print these numbers after tuning.
+**The strategic bot:**
+- scores every path tile by traffic (how many entrance routes cross it);
+- values a tower spot by the traffic-weighted path inside that tower's range;
+- reads the next wave's shield/armor/health mix and tracks how fast the whole defense strips each layer;
+- each time, buys whichever option most shortens that time per gold: any tower type on any spot, or any upgrade on any tower;
+- buys skills in a sensible order.
+
+As a result it builds where routes merge, adds Teslas when shields are the bottleneck and Cannons for armor, and switches to upgrades once the best spots are taken.
+
+| Strategy | Result |
+|---|---|
+| Random Basic towers, no skills or upgrades | defeated on waves 2-6 (test: by wave 10) |
+| Strategic bot (about 510 Basic, 60 Tesla and 50 Cannon towers, ~310 upgrade levels) | defeated on waves 40-44 (test: between 25 and 50) |
+
+Permanent skills from earlier runs push a real player further. Run `tests/balance_report.gd` to print these numbers after tuning.
 
 ### Performance
 
-With a 414-tower maze on wave 70, the game logic takes about 7 ms per frame (measured headless). Tower target scans are staggered by tile, and the HUD refreshes at most once per frame.
+- **Game logic:** in a full real-time run to wave 33 (310 towers, 7 entrances), it averaged 7 ms per frame (p99 7 ms), measured headless. The occasional longer frames were the test bot's own planning, which doesn't exist in the real game.
+- **Board redraw:** the board redraws only when it changes, such as placing a tower, the map growing or a new biome. A full-map redraw with 520 towers costs about 4 ms.
 
 ## Project layout
 
@@ -168,20 +214,22 @@ scripts/progress_store.gd permanent progress + settings saved as JSON (user://pr
 scripts/enemy_types.gd    enemy type definitions: stats, looks, traits, unlock wave
 scripts/wave_generator.gd seeded endless wave generation and scaling formulas
 scripts/main.gd           currency, lives, game state, purchases, upgrades, sales, selection, defeat, restart
-scripts/board.gd          grid, AStarGrid2D, coordinate helpers, placement validation, rendering, clicks
-scripts/enemy.gd          cell-center movement, safe rerouting, armor/regen/split, died/reached_exit (once each)
+scripts/map_layout.gd     seeded path-network generator (tree to one exit, 1 tile wide, windy) and queries
+scripts/biomes.gd         biome definitions: ground palette, decorations, tower buffs
+scripts/board.gd          visible window and growth, fit-to-screen zoom, placement rules, clicks, map/biome drawing
+scripts/enemy.gd          walks its route to the gate, layered pools, regen/split/slow, died/reached_exit (once each)
 scripts/tower.gd          targeting, cooldown, immediate-hit attack, upgrade path/levels, sell value
 scripts/wave_manager.gd   wave queue, spawn timer, unresolved-enemy count (incl. split children), completion
 scripts/hud.gd            labels, buttons → intent signals, next-wave preview, selection panel, messages
 scripts/window_fit.gd     fits/centers the OS window on its screen, re-centers after resize, F11 fullscreen
 tests/test_base.gd        shared headless test harness and game-invariant checker
-tests/test_pathfinding.gd pathfinding, placement, movement, combat, defeat/restart
+tests/test_map.gd         map generation rules, placement, path following, growth, zoom, clicks, biomes, run flow
 tests/test_gameplay.gd    wave generator, enemy types and traits, endless flow, upgrades, selling, selection
 tests/test_stability.gd   randomized fuzzing and long-run simulations
 tests/test_layout.gd      HUD layout guard: nothing may cover the board or leave the view
 tests/test_skills.gd      diamonds, skill tree, persistence, Tesla, gated/unique upgrades, auto-start
 tests/test_balance.gd     balance guard using scripted bots
-tests/bots.gd             scripted strategies (good maze / random / no-maze) used by balance checks
+tests/bots.gd             scripted players (strategic / random) used by balance checks
 tests/balance_report.gd   tuning tool: prints how far each strategy gets
 tests/run_all.sh          runs everything; fails on any test failure OR any script error
 ```
@@ -191,7 +239,7 @@ tests/run_all.sh          runs everything; fails on any test failure OR any scri
 Run everything from the project root with one command (pass your Godot executable; on Windows use Git Bash or WSL, or run the individual commands below):
 
 ```sh
-tests/run_all.sh path/to/godot      # ~1.5 min
+tests/run_all.sh path/to/godot      # ~2 min
 ```
 
 `run_all.sh` imports the project, runs a 180-frame startup check, then every suite. It fails if any check fails **or if any script error appears in the output**, so errors inside signal handlers can't slip through. Individual commands:
@@ -199,7 +247,7 @@ tests/run_all.sh path/to/godot      # ~1.5 min
 ```sh
 godot --headless --editor --path . --quit          # import once (builds the global class cache)
 godot --headless --path . --quit-after 180         # runtime smoke test
-godot --headless --path . --script res://tests/test_pathfinding.gd
+godot --headless --path . --script res://tests/test_map.gd
 godot --headless --path . --script res://tests/test_gameplay.gd
 godot --headless --path . --script res://tests/test_skills.gd
 godot --headless --path . --script res://tests/test_layout.gd
@@ -210,18 +258,21 @@ godot --headless --path . --script res://tests/balance_report.gd   # tuning repo
 
 Tests never touch your real save file.
 
-- **test_pathfinding:**
-  - every spec §10 case (routes, detours, no solid or diagonal steps, the final-gap rejection, reserved/out-of-bounds/occupied cells, enemy waypoints, unchanged state after invalid placement);
-  - purchase economy and mid-wave rerouting;
-  - the exactly-once death signal, tower range and cooldown;
-  - endless-wave defeat → restart;
-  - window-fit sizing.
+- **test_map** (10 seeds):
+  - **map structure:** every path cell leads to the single gate; the path is exactly 1 tile wide (no touching runs, no 2×2 blocks); it is windy (20%+ of steps are turns, no straight run over 14); it never turns back outward;
+  - **entrances and crossroads:** 2+ entrances at the start, never fewer as the map grows, 5+ and 3+ crossroads on the full map; routes never leave the window and no path is a dead stub; maps are reproducible per seed and differ between seeds;
+  - **placement:** not on the path, the gate, outside the map or on an occupied tile;
+  - **movement:** enemies from every entrance follow their route cardinally to the gate, never teleporting or backtracking;
+  - **growth and zoom:** the map grows one ring per wave to 61×37 while towers keep their tiles; the map is centered and fully visible at every size; real clicks land on the right tile at every zoom;
+  - **biomes:** 6 biomes with distinct art; changes every 10 waves and cycles; small global buff plus a stronger favored-tower buff, applied to towers and shown in the HUD;
+  - **run flow and window:** defeat → restart gives a new seed, map and size; window-fit sizing.
 - **test_gameplay:**
-  - **generator:** reproducible per seed, varies between seeds; 300 waves × 3 seeds have valid sizes, unlocked types, finite stats and rising difficulty; boss schedule;
-  - **late waves:** past wave 30 they get much bigger, spawn faster, and still last longer;
+  - **generator:** reproducible per seed, varies between seeds; 300 waves × 3 seeds have valid sizes, unlocked types, finite stats and rising difficulty; every 15th wave is exactly one boss with an enormous pool, and no other wave has one;
+  - **late waves:** past wave 30 they get much bigger and spawn faster, yet never get shorter (even at the 320-enemy cap);
   - **enemy types and layers:** distinct looks and stats; only the top layer takes damage and nothing spills over; the boss peels shield → armor → health; every trait;
   - **flow:** 30 consecutive waves with exact gold accounting and the 5-wave skill popup;
-  - **towers:** upgrade rules, 50% refunds, mid-wave sell rerouting, selection UI.
+  - **towers:** upgrade rules, 50% refunds, selection UI;
+  - **bosses:** an escaped boss costs 5 lives; bosses are drawn much larger.
 - **test_skills:**
   - **skill data:** complete, every skill reachable, unique menu positions;
   - **unlocks:** Tesla is the only first skill and costs 3; 1 diamond per wave; the popup after waves 5 and 10; the menu pauses the game and swallows board clicks and Esc; menu buttons unlock skills; prerequisite and cost rules;
@@ -237,7 +288,7 @@ Tests never touch your real save file.
   - full-screen modals (skill tree, confirmations) are the only allowed overlays;
   - **no HUD button or label moves or resizes** across 14 states (selecting each tower type, upgrading, build mode, waves, auto-start countdown, huge numbers, long messages, defeat, restart).
 - **test_stability:**
-  - 6,000 randomized steps (both tower types, sells, every upgrade path, skill unlocks, opening and closing the skill tree, auto-start toggling, waves), checking every game invariant every 5 steps;
-  - a 20-wave run by the good bot with invariant checks;
+  - 6,000 randomized steps (all tower types on random tiles including the path, sells, every upgrade path, skill unlocks, opening and closing the skill tree, auto-start toggling, waves), checking every game invariant every 5 steps (no tower on the path, every enemy on the path and heading toward the gate, counters, gold, lives);
+  - a 20-wave run by the strategic bot with invariant checks;
   - 25 mid-wave restarts.
-- **test_balance:** random placement loses by wave 5; the no-maze line loses by wave 25; the good maze survives 30 waves.
+- **test_balance:** random placement loses by wave 10; the strategic bot loses between waves 25 and 50 on two seeds, upgrades as well as builds, and uses every tower type.

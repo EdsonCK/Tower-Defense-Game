@@ -21,8 +21,17 @@ func _wait_frames(count: int) -> void:
 		await process_frame
 
 
+## The reserved board area (the map is drawn inside it, scaled to fit).
 func _board_rect(main: Node2D) -> Rect2:
-	return Rect2(main.board.global_position, Vector2(GameConfig.BOARD_WIDTH, GameConfig.BOARD_HEIGHT))
+	return main.hud.get_board_rect()
+
+
+## Where the visible map window actually lands on screen.
+func _map_screen_rect(main: Node2D) -> Rect2:
+	var board: Board = main.board
+	var world: Rect2 = board.window_rect_world()
+	var xf: Transform2D = board.get_global_transform_with_canvas()
+	return Rect2(xf * world.position, world.size * board.scale)
 
 
 ## Visible rect of `control` after clipping by every clip_contents ancestor.
@@ -116,7 +125,8 @@ func test_board_area_matches_board() -> void:
 	await _wait_frames(3)
 	var area: Rect2 = main.hud.get_board_rect()
 	_check(area.size == Vector2(GameConfig.BOARD_WIDTH, GameConfig.BOARD_HEIGHT), "reserved board area is exactly 1280x768 (%s)" % area.size)
-	_check(area.position == main.board.global_position, "Board node sits exactly on the reserved area (%s vs %s)" % [area.position, main.board.global_position])
+	var map_rect: Rect2 = _map_screen_rect(main)
+	_check(area.grow(0.5).encloses(map_rect) and map_rect.get_center().distance_to(area.get_center()) < 0.5, "the map is drawn centered inside the reserved area (%s in %s)" % [map_rect, area])
 
 
 func test_hud_never_covers_board_in_stress_states() -> void:
@@ -131,7 +141,7 @@ func test_hud_never_covers_board_in_stress_states() -> void:
 			violation = "state %d: %s" % [i, violation]
 			break
 	_check(violation == "", "no HUD element covers the board in %d stress states%s" % [states.size(), "" if violation == "" else " - " + violation])
-	_check(_board_rect(main).position == main.hud.get_board_rect().position, "board did not move under stress")
+	_check(_board_rect(main) == Rect2(0, 0, GameConfig.BOARD_WIDTH, GameConfig.BOARD_HEIGHT) and _board_rect(main).encloses(_map_screen_rect(main)), "board area did not move under stress and still holds the map")
 
 
 func test_overflowing_panels_scroll_instead_of_growing() -> void:
@@ -171,8 +181,8 @@ func test_overflowing_panels_scroll_instead_of_growing() -> void:
 func test_layout_holds_after_real_gameplay() -> void:
 	var main: Node2D = _make_main()
 	main.currency = 100000
-	main.try_buy_tower(Vector2i(10, 12))
-	main._on_board_cell_clicked(Vector2i(10, 12))
+	main.try_buy_tower(_spot(main, 0))
+	main._on_board_cell_clicked(_spot(main, 0))
 	main._on_start_wave_pressed()
 	await _wait_frames(30)
 	_check(_layout_violation(main) == "", "layout clean mid-wave with a tower selected: %s" % _layout_violation(main))
@@ -200,17 +210,17 @@ func test_hud_elements_never_move() -> void:
 	for id: String in ["tesla", "cannon", "basic_upgrades", "tesla_upgrades", "cannon_upgrades", "basic_pierce"]:
 		main.try_unlock_skill(id)
 	main.currency = 100000
-	main.try_buy_tower(Vector2i(10, 12), TowerTypes.BASIC)
-	main.try_buy_tower(Vector2i(12, 3), TowerTypes.TESLA)
-	main.try_buy_tower(Vector2i(14, 3), TowerTypes.CANNON)
+	main.try_buy_tower(_spot(main, 0), TowerTypes.BASIC)
+	main.try_buy_tower(_spot(main, 1), TowerTypes.TESLA)
+	main.try_buy_tower(_spot(main, 2), TowerTypes.CANNON)
 	await _wait_frames(3)
 	var baseline: Dictionary = _hud_rects(main)
 	var states: Array = [
-		["select Basic", func() -> void: main._on_board_cell_clicked(Vector2i(10, 12))],
+		["select Basic", func() -> void: main._on_board_cell_clicked(_spot(main, 0))],
 		["upgrade it", func() -> void: main.try_upgrade_tower(main.selected_tower, Tower.UpgradePath.PIERCE)],
-		["select Tesla", func() -> void: main._on_board_cell_clicked(Vector2i(12, 3))],
-		["select Cannon", func() -> void: main._on_board_cell_clicked(Vector2i(14, 3))],
-		["deselect", func() -> void: main._on_board_cell_clicked(Vector2i(30, 20))],
+		["select Tesla", func() -> void: main._on_board_cell_clicked(_spot(main, 1))],
+		["select Cannon", func() -> void: main._on_board_cell_clicked(_spot(main, 2))],
+		["deselect", func() -> void: main._on_board_cell_clicked(_far_spot(main))],
 		["build mode", func() -> void: main._on_build_pressed(TowerTypes.CANNON)],
 		["cancel build", func() -> void: main._on_cancel_pressed()],
 		["wave active", func() -> void: main._on_start_wave_pressed()],

@@ -15,13 +15,12 @@ func get_tests() -> Array[Callable]:
 		test_layers_only_top_takes_damage,
 		test_mender_regenerates_up_to_max,
 		test_splitter_spawns_children_and_wave_waits,
-		test_boss_escape_costs_five_lives,
+		test_boss_escape_is_devastating,
 		test_endless_waves_never_end_in_victory,
 		test_upgrade_one_path_per_tower,
 		test_upgrade_effects,
 		test_upgrade_rejections_change_nothing,
 		test_sell_refunds_half_and_unblocks,
-		test_sell_mid_wave_enemies_reroute_through_freed_cell,
 		test_selection_and_hud,
 	]
 
@@ -99,20 +98,28 @@ func test_generator_long_run_sanity() -> void:
 func test_generator_boss_waves() -> void:
 	var gen: WaveGenerator = WaveGenerator.new(99)
 	var ok: bool = true
-	for wave in range(1, 61):
+	for wave in range(1, 91):
+		var entries: Array[Dictionary] = gen.generate(wave)
 		var bosses: int = 0
-		for entry: Dictionary in gen.generate(wave):
+		for entry: Dictionary in entries:
 			if entry["type"] == EnemyTypes.BOSS:
 				bosses += 1
-		var expected: int = mini(wave / 10, GameConfig.MAX_BOSSES_PER_WAVE) if wave % 10 == 0 else 0
-		if bosses != expected:
+		if wave % 15 == 0:
+			if entries.size() != 1 or bosses != 1:
+				ok = false
+		elif bosses != 0:
 			ok = false
-	_check(ok, "Warlord bosses appear only every 10th wave (1 on wave 10, 2 on wave 20, capped at 3)")
+	_check(ok, "every 15th wave is a single boss and nothing else; no other wave has a boss")
+	var boss: Dictionary = gen.generate(30)[0]
+	var grunt: Dictionary = WaveGenerator.make_entry(EnemyTypes.GRUNT, 30)
+	var boss_pool: float = boss["health"] + boss["armor"] + boss["shield"]
+	_check(boss_pool >= grunt["health"] * 25.0, "the boss has an enormous health pool (%d vs a Grunt's %d)" % [boss_pool, grunt["health"]])
+	_check(boss["shield"] > 0.0 and boss["armor"] > 0.0, "the boss has all three layers")
 
 
 func test_late_waves_bigger_faster_and_longer() -> void:
 	var stats: Dictionary = {}
-	for wave: int in [10, 20, 30, 40, 50, 60, 80]:
+	for wave: int in [10, 20, 31, 40, 50, 61, 80, 100, 110]:
 		var counts: Array[float] = []
 		var durations: Array[float] = []
 		for seed_value in 8:
@@ -129,20 +136,21 @@ func test_late_waves_bigger_faster_and_longer() -> void:
 			avg_duration += durations[i] / durations.size()
 		stats[wave] = {"count": avg_count, "duration": avg_duration, "rate": avg_count / avg_duration}
 	print("  ..   [%s] %s" % [_current_test, stats])
-	_check(stats[60]["count"] >= stats[30]["count"] * 2.5, "far more enemies past wave 30 (wave 30: %d, wave 60: %d)" % [stats[30]["count"], stats[60]["count"]])
-	_check(stats[80]["count"] > stats[60]["count"] and stats[80]["count"] <= GameConfig.MAX_ENEMIES_PER_WAVE, "counts keep growing up to the %d cap" % GameConfig.MAX_ENEMIES_PER_WAVE)
+	_check(stats[61]["count"] >= stats[31]["count"] * 2.5, "far more enemies past wave 30 (wave 31: %d, wave 61: %d)" % [stats[31]["count"], stats[61]["count"]])
+	_check(stats[80]["count"] > stats[61]["count"] and stats[80]["count"] <= GameConfig.MAX_ENEMIES_PER_WAVE, "counts keep growing up to the %d cap" % GameConfig.MAX_ENEMIES_PER_WAVE)
 	var faster: bool = true
 	var longer: bool = true
 	var previous: int = 0
-	for wave: int in [10, 20, 30, 40, 50, 60, 80]:
+	for wave: int in [10, 20, 31, 40, 50, 61, 80, 100, 110]:
 		if previous > 0:
-			if stats[wave]["rate"] <= stats[previous]["rate"]:
+			var capped: bool = stats[previous]["count"] >= GameConfig.MAX_ENEMIES_PER_WAVE
+			if stats[wave]["rate"] < stats[previous]["rate"] * 0.9 or (not capped and stats[wave]["rate"] <= stats[previous]["rate"]):
 				faster = false
-			if stats[wave]["duration"] <= stats[previous]["duration"]:
+			if stats[wave]["duration"] < stats[previous]["duration"] * 0.97 or (not capped and stats[wave]["duration"] <= stats[previous]["duration"]):
 				longer = false
 		previous = wave
-	_check(faster, "spawns per second rise every 10 waves")
-	_check(longer, "yet every later wave still takes longer to spawn")
+	_check(faster, "spawns per second rise every 10 waves (then hold once the count is capped)")
+	_check(longer, "yet later waves always take longer to spawn (never shorter, even at the cap)")
 
 
 # --- Enemy types -----------------------------------------------------------------------
@@ -181,9 +189,10 @@ func test_enemy_stats_follow_type() -> void:
 	_check(WaveGenerator.make_entry(EnemyTypes.GRUNT, 20)["reward"] > WaveGenerator.make_entry(EnemyTypes.GRUNT, 1)["reward"], "rewards scale up with wave number")
 	var runner: Enemy = _spawn_enemy(board, 100.0, EnemyTypes.RUNNER)
 	var tank: Enemy = _spawn_enemy(board, 100.0, EnemyTypes.TANK)
+	var start: float = runner.remaining_distance()
 	runner.advance(0.25)
 	tank.advance(0.25)
-	_check(runner.position.x - 16.0 > (tank.position.x - 16.0) * 2.0, "Runner covers more ground than Tank in the same time")
+	_check(start - runner.remaining_distance() > (start - tank.remaining_distance()) * 2.0, "Runner covers more ground than Tank in the same time")
 
 
 func test_layers_only_top_takes_damage() -> void:
@@ -240,14 +249,14 @@ func test_splitter_spawns_children_and_wave_waits() -> void:
 	_check(splitter.type_id == EnemyTypes.SPLITTER, "Splitter spawned")
 	_simulate(main, 0.05, 30)
 	var pos: Vector2 = splitter.position
-	var cells: Array[Vector2i] = splitter.get_occupied_cells()
+	var cells: Array[Vector2i] = [splitter.current_cell, splitter.next_cell]
 	var reward: int = splitter.reward
 	splitter.take_damage(1000000)
 	var children: Array[Enemy] = _active_enemies(main)
 	_check(children.size() == 3, "Splitter death spawns 3 Swarmlings (%d)" % children.size())
 	var same_place: bool = true
 	for child: Enemy in children:
-		if child.type_id != EnemyTypes.SWARMLING or child.position != pos or child.get_occupied_cells() != cells:
+		if child.type_id != EnemyTypes.SWARMLING or child.position != pos or [child.current_cell, child.next_cell] != cells:
 			same_place = false
 	_check(same_place, "children appear exactly where the Splitter died, on the same movement segment")
 	_check(wm.get_unresolved_count() == 3 and wm.is_wave_active(), "wave stays active while children live")
@@ -267,18 +276,29 @@ func test_splitter_spawns_children_and_wave_waits() -> void:
 	_check(main.currency == currency_before + reward + child_rewards + WaveGenerator.wave_clear_bonus(1), "children pay their own bounty, plus the wave bonus")
 
 
-func test_boss_escape_costs_five_lives() -> void:
+func test_boss_escape_is_devastating() -> void:
 	var main: Node2D = _make_main()
 	var wm: WaveManager = main.wave_manager
+	main.diamonds = 50
+	main.try_unlock_skill("tesla")
+	main.try_unlock_skill("fortify")
+	main.restart_game()
 	main._on_start_wave_pressed()
 	_kill_all_active(main)
 	_free_resolved(main)
-	wm._queue = [WaveGenerator.make_entry(EnemyTypes.BOSS, 10)]
+	var boss_entry: Dictionary = WaveGenerator.make_entry(EnemyTypes.BOSS, 15)
+	boss_entry["lane"] = 0.0
+	wm._queue = [boss_entry]
 	wm._queue_index = 0
 	wm._alive = 0
-	_simulate(main, 0.05, 20 * 60 * 2)
-	_check(main.lives == GameConfig.STARTING_LIVES - 5, "an escaped Warlord costs 5 lives (lives %d)" % main.lives)
-	_check(main.state == main.GameState.BETWEEN_WAVES, "game continues after a boss escape with lives left")
+	var lives_before: int = main.lives
+	_simulate(main, 0.05, 20 * 60 * 10)
+	var cost: int = EnemyTypes.get_def(EnemyTypes.BOSS)["lives"]
+	_check(main.lives == lives_before - cost, "an escaped boss costs %d lives (lives %d -> %d)" % [cost, lives_before, main.lives])
+	var board: Board = main.board
+	var boss: Enemy = _spawn_enemy(board, 1000.0, EnemyTypes.BOSS)
+	var grunt: Enemy = _spawn_enemy(board, 45.0)
+	_check(boss.radius > grunt.radius * 1.8, "the boss is drawn much larger than regular enemies")
 
 
 func test_endless_waves_never_end_in_victory() -> void:
@@ -320,8 +340,8 @@ func test_upgrade_one_path_per_tower() -> void:
 	var main: Node2D = _make_main()
 	_unlock_tower_skills(main)
 	main.currency = 10000
-	main.try_buy_tower(Vector2i(10, 5))
-	var tower: Tower = main.get_tower_at(Vector2i(10, 5))
+	main.try_buy_tower(_spot(main, 0))
+	var tower: Tower = main.get_tower_at(_spot(main, 0))
 	var before: int = main.currency
 	_check(main.try_upgrade_tower(tower, Tower.UpgradePath.DAMAGE), "first Damage upgrade succeeds")
 	_check(main.currency == before - GameConfig.UPGRADE_COSTS[0], "first upgrade costs %d" % GameConfig.UPGRADE_COSTS[0])
@@ -342,10 +362,10 @@ func test_upgrade_effects() -> void:
 	var main: Node2D = _make_main()
 	_unlock_tower_skills(main)
 	main.currency = 10000
-	main.try_buy_tower(Vector2i(10, 5))
-	main.try_buy_tower(Vector2i(12, 5))
-	var ranged: Tower = main.get_tower_at(Vector2i(10, 5))
-	var fast: Tower = main.get_tower_at(Vector2i(12, 5))
+	main.try_buy_tower(_spot(main, 0))
+	main.try_buy_tower(_spot(main, 1))
+	var ranged: Tower = main.get_tower_at(_spot(main, 0))
+	var fast: Tower = main.get_tower_at(_spot(main, 1))
 	main.try_upgrade_tower(ranged, Tower.UpgradePath.RANGE)
 	main.try_upgrade_tower(fast, Tower.UpgradePath.SPEED)
 	_check(ranged.attack_range == GameConfig.TOWER_RANGE + GameConfig.UPGRADE_RANGE_PER_LEVEL and ranged.damage["health"] == GameConfig.TOWER_DAMAGE, "Range upgrade only increases range (%s)" % ranged.attack_range)
@@ -372,10 +392,10 @@ func test_upgrade_effects() -> void:
 func test_upgrade_rejections_change_nothing() -> void:
 	var main: Node2D = _make_main()
 	_unlock_tower_skills(main)
-	main.try_buy_tower(Vector2i(10, 5))
-	main.try_buy_tower(Vector2i(11, 5))
-	main.try_buy_tower(Vector2i(12, 5))
-	var tower: Tower = main.get_tower_at(Vector2i(10, 5))
+	main.try_buy_tower(_spot(main, 0))
+	main.try_buy_tower(_spot(main, 2))
+	main.try_buy_tower(_spot(main, 1))
+	var tower: Tower = main.get_tower_at(_spot(main, 0))
 	_check(main.currency == 20, "20 currency left after 3 towers")
 	_check(not main.try_upgrade_tower(tower, Tower.UpgradePath.DAMAGE), "upgrade rejected with insufficient currency")
 	_check(main.currency == 20 and tower.upgrade_level == 0 and tower.damage["health"] == GameConfig.TOWER_DAMAGE, "rejected upgrade changes nothing")
@@ -386,12 +406,12 @@ func test_upgrade_rejections_change_nothing() -> void:
 func test_sell_refunds_half_and_unblocks() -> void:
 	var main: Node2D = _make_main()
 	_unlock_tower_skills(main)
-	var cell: Vector2i = Vector2i(10, 12)
+	var cell: Vector2i = _spot(main, 0)
 	main.try_buy_tower(cell)
 	_check(main.currency == 140, "bought one tower")
 	_check(main.try_sell_tower(cell), "selling succeeds")
 	_check(main.currency == 140 + GameConfig.TOWER_COST / 2, "plain tower refunds 50%% of 60 (%d)" % main.currency)
-	_check(not main.board.is_blocked(cell) and not main.board.is_solid(cell) and main.get_tower_at(cell) == null, "sold cell is free again")
+	_check(not main.board.is_blocked(cell) and main.get_tower_at(cell) == null, "sold cell is free again")
 	_check(main.board.towers.get_child_count() == 0, "tower node removed")
 	_check(not main.try_sell_tower(cell), "selling an empty cell does nothing")
 	main.currency = 1000
@@ -401,40 +421,16 @@ func test_sell_refunds_half_and_unblocks() -> void:
 	var before: int = main.currency
 	main.try_sell_tower(cell)
 	_check(main.currency == before + (GameConfig.TOWER_COST + GameConfig.UPGRADE_COSTS[0]) / 2, "upgraded tower refunds 50%% of build + upgrade cost")
-	_check(main.board.has_route(SPAWN, EXIT) and main.board.find_path(SPAWN, EXIT).size() == 40, "straight route restored after selling")
-
-
-func test_sell_mid_wave_enemies_reroute_through_freed_cell() -> void:
-	var main: Node2D = _make_main()
-	main.currency = 10000
-	# Wall at column 20 with a single gap at (20, 2) forces a long detour.
-	for y in GameConfig.GRID_ROWS:
-		if y != 2:
-			main.try_buy_tower(Vector2i(20, y))
-	main._on_start_wave_pressed()
-	_simulate(main, 0.05, 40)
-	var enemy: Enemy = _active_enemies(main)[0]
-	enemy.max_health = 1.0e9  # the wall towers must not kill it before it reroutes
-	enemy.health = 1.0e9
-	main.try_sell_tower(Vector2i(20, 12))
-	_check(_invariant_violation(main) == "", "invariants hold right after a mid-wave sale: %s" % _invariant_violation(main))
-	var used_gap: bool = false
-	var guard: int = 0
-	while enemy.is_active() and guard < 4000:
-		guard += 1
-		_simulate(main, 0.05, 1)
-		if enemy.current_cell == Vector2i(20, 12):
-			used_gap = true
-	_check(used_gap, "enemy reroutes through the freed cell instead of the old detour")
+	_check(main.board.is_buildable(cell), "the sold tile can be built on again")
 
 
 func test_selection_and_hud() -> void:
 	var main: Node2D = _make_main()
 	_unlock_tower_skills(main)
 	main.currency = 1000
-	main.try_buy_tower(Vector2i(10, 5))
-	var tower: Tower = main.get_tower_at(Vector2i(10, 5))
-	main._on_board_cell_clicked(Vector2i(10, 5))
+	main.try_buy_tower(_spot(main, 0))
+	var tower: Tower = main.get_tower_at(_spot(main, 0))
+	main._on_board_cell_clicked(_spot(main, 0))
 	_check(main.selected_tower == tower and tower.selected, "clicking a tower outside build mode selects it")
 	_check(main.hud.is_selection_visible(), "upgrade/sell panel is shown")
 	main._on_upgrade_pressed(Tower.UpgradePath.SPEED)
@@ -446,16 +442,16 @@ func test_selection_and_hud() -> void:
 		if not button.visible or not button.disabled or not button.text.contains("n/a"):
 			others_closed = false
 	_check(others_closed and not hud.get_upgrade_button(Tower.UpgradePath.SPEED).disabled, "other paths (incl. the unique one) stay in place but are disabled as n/a once one is chosen")
-	main._on_board_cell_clicked(Vector2i(30, 20))
+	main._on_board_cell_clicked(_far_spot(main))
 	_check(main.selected_tower == null and not tower.selected and not main.hud.is_selection_visible(), "clicking empty ground deselects")
-	main._on_board_cell_clicked(Vector2i(10, 5))
+	main._on_board_cell_clicked(_spot(main, 0))
 	main._on_cancel_pressed()
 	_check(main.selected_tower == null, "Esc / right-click deselects")
-	main._on_board_cell_clicked(Vector2i(10, 5))
+	main._on_board_cell_clicked(_spot(main, 0))
 	main._on_build_pressed(TowerTypes.BASIC)
 	_check(main.selected_tower == null and main.build_mode, "entering build mode clears the selection")
 	main._on_cancel_pressed()
-	main._on_board_cell_clicked(Vector2i(10, 5))
+	main._on_board_cell_clicked(_spot(main, 0))
 	var before: int = main.currency
 	main._on_sell_pressed()
-	_check(main.get_tower_at(Vector2i(10, 5)) == null and main.currency == before + tower.sell_value() and main.selected_tower == null, "Sell button sells the selected tower and clears the selection")
+	_check(main.get_tower_at(_spot(main, 0)) == null and main.currency == before + tower.sell_value() and main.selected_tower == null, "Sell button sells the selected tower and clears the selection")

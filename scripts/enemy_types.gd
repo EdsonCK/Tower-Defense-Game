@@ -71,16 +71,16 @@ const DEFS: Dictionary = {
 	AEGIS: {
 		"name": "Aegis", "trait": "Energy shield (purple bar): Teslas tear through it",
 		"shape": "pentagon", "color": Color(0.5, 0.55, 1.0), "radius": 10.0,
-		"speed": 56.0, "health": 50.0, "armor": 0.0, "shield": 75.0, "reward": 20, "regen": 0.0, "lives": 1,
+		"speed": 56.0, "health": 50.0, "armor": 0.0, "shield": 60.0, "reward": 20, "regen": 0.0, "lives": 1,
 		"split_into": "", "split_count": 0,
 		"min_wave": 11, "weight": 3.0, "pack": [1, 2], "interval": 1.1,
 	},
 	BOSS: {
-		"name": "Warlord", "trait": "Boss every 10 waves: shield, armor and health; costs 5 lives",
-		"shape": "star", "color": Color(0.55, 0.05, 0.1), "radius": 15.0,
-		"speed": 34.0, "health": 180.0, "armor": 120.0, "shield": 120.0, "reward": 150, "regen": 0.005, "lives": 5,
+		"name": "Colossus", "trait": "Boss every 15th wave: comes alone with enormous shield, armor and health",
+		"shape": "star", "color": Color(0.55, 0.05, 0.1), "radius": 22.0,
+		"speed": 26.0, "health": 750.0, "armor": 450.0, "shield": 300.0, "reward": 250, "regen": 0.0, "lives": 5,
 		"split_into": "", "split_count": 0,
-		"min_wave": 10, "weight": 0.0, "pack": [1, 1], "interval": 2.5,
+		"min_wave": 15, "weight": 0.0, "pack": [1, 1], "interval": 1.0,
 	},
 }
 

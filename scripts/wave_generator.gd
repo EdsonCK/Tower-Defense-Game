@@ -39,19 +39,24 @@ static func base_enemy_count(wave: int) -> float:
 	return count
 
 
-## Multiplier on spawn intervals: spawns get steadily faster as waves progress.
+## Multiplier on spawn intervals: spawns get steadily faster as waves progress. Once the
+## enemy count hits its cap the rate stops rising, so later waves never get shorter.
 static func interval_scale(wave: int) -> float:
-	return maxf(GameConfig.MIN_INTERVAL_SCALE, 1.0 / (1.0 + GameConfig.SPAWN_RATE_GROWTH * float(maxi(wave, 1) - 1)))
+	var effective: int = mini(maxi(wave, 1), count_cap_wave())
+	return maxf(GameConfig.MIN_INTERVAL_SCALE, 1.0 / (1.0 + GameConfig.SPAWN_RATE_GROWTH * float(effective - 1)))
 
 
+## First wave whose expected enemy count reaches MAX_ENEMIES_PER_WAVE.
+static func count_cap_wave() -> int:
+	var wave: int = 1
+	while base_enemy_count(wave) < GameConfig.MAX_ENEMIES_PER_WAVE and wave < 1000:
+		wave += 1
+	return wave
+
+
+## Every BOSS_WAVE_INTERVAL-th wave is a boss wave: one Colossus, nothing else.
 static func is_boss_wave(wave: int) -> bool:
 	return wave > 0 and wave % GameConfig.BOSS_WAVE_INTERVAL == 0
-
-
-static func boss_count(wave: int) -> int:
-	if not is_boss_wave(wave):
-		return 0
-	return mini(floori(float(wave) / GameConfig.BOSS_WAVE_INTERVAL), GameConfig.MAX_BOSSES_PER_WAVE)
 
 
 ## Builds a spawn entry for `type_id` scaled to `wave`. `health_jitter` multiplies every
@@ -72,11 +77,12 @@ static func make_entry(type_id: String, wave: int, health_jitter: float = 1.0, i
 func generate(wave: int) -> Array[Dictionary]:
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = hash([run_seed, wave])
-	var bosses: int = boss_count(wave)
+	if is_boss_wave(wave):
+		var boss: Dictionary = make_entry(EnemyTypes.BOSS, wave, 1.0, 1.0)
+		boss["lane"] = rng.randf()
+		return [boss]
 	var target: float = base_enemy_count(wave) * rng.randf_range(0.9, 1.1)
-	if bosses > 0:
-		target *= GameConfig.BOSS_WAVE_ESCORT_FACTOR  # bosses soak fire, so bring a smaller escort
-	var count: int = clampi(roundi(target), 1, GameConfig.MAX_ENEMIES_PER_WAVE - bosses)
+	var count: int = clampi(roundi(target), 1, GameConfig.MAX_ENEMIES_PER_WAVE)
 	var density: float = interval_scale(wave)
 	var pool: Array[String] = EnemyTypes.random_pool(wave)
 
@@ -85,10 +91,12 @@ func generate(wave: int) -> Array[Dictionary]:
 		var type_id: String = _pick_type(rng, pool)
 		var pack: Array = EnemyTypes.get_def(type_id)["pack"]
 		var pack_size: int = mini(rng.randi_range(pack[0], pack[1]), count - entries.size())
+		# "lane" (0-1) picks the entrance; a pack always shares one entrance.
+		var lane: float = rng.randf()
 		for i in pack_size:
-			entries.append(make_entry(type_id, wave, rng.randf_range(0.92, 1.08), density * rng.randf_range(0.85, 1.15)))
-	for i in bosses:
-		entries.append(make_entry(EnemyTypes.BOSS, wave, rng.randf_range(0.95, 1.05), 1.0))
+			var entry: Dictionary = make_entry(type_id, wave, rng.randf_range(0.92, 1.08), density * rng.randf_range(0.85, 1.15))
+			entry["lane"] = lane
+			entries.append(entry)
 	return entries
 
 

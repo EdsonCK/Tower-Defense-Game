@@ -49,6 +49,7 @@ const STATE_COLORS: Dictionary = {
 @onready var _enemies_label: Label = %EnemiesLabel
 @onready var _state_label: Label = %StateLabel
 @onready var _next_wave_label: Label = %NextWaveLabel
+@onready var _biome_label: Label = %BiomeLabel
 @onready var _build_button: Button = %BuildButton
 @onready var _build_tesla_button: Button = %BuildTeslaButton
 @onready var _build_cannon_button: Button = %BuildCannonButton
@@ -130,6 +131,10 @@ func update_diamonds(diamonds: int) -> void:
 	_skills_button.text = "Skill Tree   (%s diamonds)" % _compact(diamonds)
 
 
+func update_biome(biome_name: String, description: String) -> void:
+	_biome_label.text = "%s  -  %s" % [biome_name, description]
+
+
 func update_enemy_counts(to_spawn: int, active: int) -> void:
 	_enemies_label.text = "%d active  |  %d to spawn" % [active, to_spawn]
 
@@ -166,7 +171,7 @@ func set_build_mode(active: bool, type_name: String = "") -> void:
 	if active:
 		_mode_label.text = "BUILD MODE - %s: left-click a tile to place. Stays on until canceled or out of gold. Right-click / Esc cancels." % type_name
 	else:
-		_mode_label.text = "Build towers to make a maze. Click a tower to inspect, upgrade or sell it."
+		_mode_label.text = "Build towers beside the path to cover every route. Click a tower to inspect, upgrade or sell it."
 
 
 ## `info` is built by Main from the selected tower; see Main._refresh_selection().
@@ -200,11 +205,11 @@ func show_selection(info: Dictionary) -> void:
 ## Shows the empty selection card (same size as a filled one).
 func hide_selection() -> void:
 	_has_selection = false
-	_selection_label.text = "No tower selected"
+	_selection_label.text = "None selected"
 	_selection_level_label.text = ""
 	for layer: String in _damage_labels:
 		_damage_labels[layer].text = "%s -" % layer.capitalize()
-	_selection_stats_label.text = "Click a tower to inspect, upgrade or sell it."
+	_selection_stats_label.text = "Click a tower to inspect it."
 	_selection_note_label.text = ""
 	for button: Button in [_upgrade_damage_button, _upgrade_range_button, _upgrade_speed_button, _upgrade_unique_button]:
 		button.disabled = true

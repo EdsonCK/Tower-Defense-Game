@@ -15,8 +15,10 @@ func get_tests() -> Array[Callable]:
 	]
 
 
-func _random_cell(rng: RandomNumberGenerator) -> Vector2i:
-	return Vector2i(rng.randi_range(0, GameConfig.GRID_COLUMNS - 1), rng.randi_range(0, GameConfig.GRID_ROWS - 1))
+## Random cell in (or just around) the visible window: path, gate, free or occupied.
+func _random_cell(main: Node2D, rng: RandomNumberGenerator) -> Vector2i:
+	var rect: Rect2i = main.board.window_rect_cells().grow(1)
+	return Vector2i(rng.randi_range(rect.position.x, rect.end.x - 1), rng.randi_range(rect.position.y, rect.end.y - 1))
 
 
 ## Random actions (build either tower / sell / upgrade any path / unlock skills / open
@@ -36,7 +38,7 @@ func test_random_build_sell_upgrade_fuzz() -> void:
 		var roll: float = rng.randf()
 		if roll < 0.22:
 			var type_id: String = TowerTypes.ORDER[rng.randi_range(0, TowerTypes.ORDER.size() - 1)]
-			if main.try_buy_tower(_random_cell(rng), type_id):
+			if main.try_buy_tower(_random_cell(main, rng), type_id):
 				actions["tesla" if type_id == TowerTypes.TESLA else "build"] += 1
 		elif roll < 0.29 and main.get_tower_count() > 0:
 			var cells: Array = main._towers_by_cell.keys()
@@ -76,7 +78,7 @@ func test_random_build_sell_upgrade_fuzz() -> void:
 ## The good bot plays real generated waves with every invariant checked every 10 ticks,
 ## and every wave must resolve in bounded time.
 func test_long_run_with_defending_towers() -> void:
-	var main: Node2D = _make_main(31337)
+	var main: Node2D = _make_main(31337, true)
 	var bot = BOTS.new("good", 31337)
 	var violation: Array[String] = [""]
 	var ticks: Array[int] = [0]
@@ -94,7 +96,7 @@ func test_long_run_with_defending_towers() -> void:
 			m.lives = 0
 			m._end_game("invariant violated")
 	var reached: int = bot.play(main, 20, stepper)
-	print("  ..   [%s] good bot reached wave %d, lives %d, towers %d, route %d cells, skills %d" % [_current_test, reached, main.lives, main.get_tower_count(), main.board.find_path(SPAWN, EXIT).size(), main.skills.unlocked_ids().size()])
+	print("  ..   [%s] good bot reached wave %d, lives %d, towers %d, entrances %d, skills %d" % [_current_test, reached, main.lives, main.get_tower_count(), main.board.entrances().size(), main.skills.unlocked_ids().size()])
 	_check(violation[0] == "", "invariants hold (checked every 10 ticks) through a 20-wave run%s" % ("" if violation[0] == "" else " - " + violation[0]))
 	_check(reached == 20 and not main.is_game_over(), "good bot survives 20 waves (reached %d)" % reached)
 
@@ -104,9 +106,9 @@ func test_many_restarts_leave_no_residue() -> void:
 	var clean: bool = true
 	for i in 25:
 		main.currency = 1000
-		main.try_buy_tower(Vector2i(5 + i % 10, 3))
-		main.try_buy_tower(Vector2i(5 + i % 10, 20))
-		main._on_board_cell_clicked(Vector2i(5 + i % 10, 3))
+		main.try_buy_tower(_spot(main, i % 10))
+		main.try_buy_tower(_spot(main, 10 + i % 10))
+		main._on_board_cell_clicked(_spot(main, i % 10))
 		main._on_start_wave_pressed()
 		_simulate(main, 0.05, 50)
 		main.restart_game()

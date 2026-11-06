@@ -131,6 +131,8 @@ func restart_game(seed_value: int = -1) -> void:
 	get_tree().paused = false
 	_select_tower(null)
 	wave_manager.reset(seed_value)
+	board.setup_map(wave_manager.run_seed)
+	board.set_biome(Biomes.index_for_wave(1))
 	for enemy: Node in board.enemies.get_children():
 		(enemy as Enemy).discard()
 	for tower: Node in board.towers.get_children():
@@ -146,7 +148,7 @@ func restart_game(seed_value: int = -1) -> void:
 	build_type = TowerTypes.BASIC
 	_apply_skill_modifiers()
 	_set_build_mode(false)
-	hud.show_message("Build towers to shape a maze, then press Start Wave. Waves are endless - survive as long as you can.")
+	hud.show_message("Build towers beside the path, then press Start Wave. The map grows after every wave - survive as long as you can.")
 	_refresh_hud()
 
 
@@ -173,7 +175,7 @@ func try_buy_tower(cell: Vector2i, type_id: String = "") -> bool:
 	if currency < cost:
 		hud.show_error("Insufficient currency")
 		return false
-	var reason: String = board.try_block_cell_live(cell)
+	var reason: String = board.try_block_cell(cell)
 	if reason != "":
 		hud.show_error(reason)
 		return false
@@ -372,13 +374,17 @@ func _apply_skill_modifiers() -> void:
 		_apply_tower_modifiers(tower)
 
 
+## Skill-tree and biome bonuses for one tower.
 func _apply_tower_modifiers(tower: Tower) -> void:
-	var all_bonus: float = skills.total("tower_damage") + skills.total("damage_" + tower.tower_type)
+	var type_id: String = tower.tower_type
+	var biome: int = board.biome_index
+	var all_bonus: float = skills.total("tower_damage") + skills.total("damage_" + type_id) + Biomes.bonus(biome, type_id, "damage")
 	var layers: Dictionary = {}
 	for layer: String in TowerTypes.LAYERS:
 		layers[layer] = 1.0 + all_bonus + skills.total("dmg_" + layer)
-	var max_level: int = GameConfig.UPGRADE_MAX_LEVEL + roundi(skills.total("max_level_" + tower.tower_type))
-	tower.set_modifiers(layers, 1.0 / (1.0 + skills.total("tower_attack_speed")), max_level)
+	var max_level: int = GameConfig.UPGRADE_MAX_LEVEL + roundi(skills.total("max_level_" + type_id))
+	var attack_speed: float = skills.total("tower_attack_speed") + Biomes.bonus(biome, type_id, "attack_speed")
+	tower.set_modifiers(layers, 1.0 / (1.0 + attack_speed), max_level, 1.0 + Biomes.bonus(biome, type_id, "range"))
 
 
 func _on_skill_menu_closed() -> void:
@@ -420,7 +426,9 @@ func _refresh_hud() -> void:
 			unlocked_types.append(type_id)
 	hud.set_buttons(not is_game_over(), can_start, build_mode, build_type, unlocked_types)
 	hud.set_auto_start(auto_start, _auto_start_left if not is_modal_open() else -1.0)
-	board.set_build_state(build_mode, currency >= TowerTypes.cost(build_type), TowerTypes.get_def(build_type)["range"])
+	var preview_range: float = TowerTypes.get_def(build_type)["range"] * (1.0 + Biomes.bonus(board.biome_index, build_type, "range"))
+	board.set_build_state(build_mode, currency >= TowerTypes.cost(build_type), preview_range)
+	hud.update_biome(Biomes.get_def(board.biome_index)["name"], Biomes.describe(board.biome_index))
 	_refresh_selection()
 
 
@@ -529,10 +537,28 @@ func _on_start_wave_pressed() -> void:
 	wave_manager.start_next_wave()
 
 
+## After a cleared wave: the map grows and, every BIOME_WAVES waves, the biome changes
+## (with its tower buffs). Returns a note for the status message.
+func _advance_map(cleared_wave: int) -> String:
+	var note: String = ""
+	var entrances_before: int = board.entrances().size()
+	if board.half_width < GameConfig.MAP_MAX_HALF_WIDTH:
+		board.set_half_width(board.half_width + GameConfig.MAP_GROWTH_PER_WAVE)
+		note = "  The map grows."
+		if board.entrances().size() > entrances_before:
+			note = "  The map grows - a new entrance opened!"
+	var biome: int = Biomes.index_for_wave(cleared_wave + 1)
+	if biome != board.biome_index:
+		board.set_biome(biome)
+		note += "  Entering the %s: %s." % [Biomes.get_def(biome)["name"], Biomes.describe(biome)]
+	_apply_skill_modifiers()
+	return note
+
+
 func _on_wave_started(wave_number: int) -> void:
 	state = GameState.WAVE_ACTIVE
 	_auto_start_left = -1.0
-	var boss_note: String = "  A Warlord approaches!" if WaveGenerator.is_boss_wave(wave_number) else ""
+	var boss_note: String = "  BOSS: the Colossus approaches alone!" if WaveGenerator.is_boss_wave(wave_number) else ""
 	hud.show_message("Wave %d started!%s" % [wave_number, boss_note])
 	_refresh_hud()
 
@@ -563,7 +589,8 @@ func _on_wave_completed(wave_number: int) -> void:
 	diamonds += earned
 	_save_progress()
 	state = GameState.BETWEEN_WAVES
-	hud.show_message("Wave %d cleared!  +%d gold, +%d diamond%s." % [wave_number, bonus, earned, "" if earned == 1 else "s"])
+	var note: String = _advance_map(wave_number)
+	hud.show_message("Wave %d cleared!  +%d gold, +%d diamond%s.%s" % [wave_number, bonus, earned, "" if earned == 1 else "s", note])
 	_schedule_auto_start()
 	_refresh_hud()
 	if wave_number % GameConfig.SKILL_MENU_WAVE_INTERVAL == 0:

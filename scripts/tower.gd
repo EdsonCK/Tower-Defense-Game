@@ -52,7 +52,7 @@ var tower_type: String = TowerTypes.BASIC
 var cell: Vector2i = Vector2i.ZERO
 var attack_range: float = GameConfig.TOWER_RANGE
 ## Damage per hit against each enemy layer: {"health": .., "armor": .., "shield": ..}.
-var damage: Dictionary = {"health": GameConfig.TOWER_DAMAGE, "armor": 8, "shield": 6}
+var damage: Dictionary = {"health": GameConfig.TOWER_DAMAGE, "armor": 8, "shield": 8}
 var cooldown: float = GameConfig.TOWER_COOLDOWN
 var slow_amount: float = 0.0
 var splash_radius: float = 0.0
@@ -64,6 +64,7 @@ var invested: int = GameConfig.TOWER_COST
 ## Skill modifiers pushed in by Main: damage multiplier per layer, cooldown multiplier.
 var layer_multipliers: Dictionary = {"health": 1.0, "armor": 1.0, "shield": 1.0}
 var cooldown_multiplier: float = 1.0
+var range_multiplier: float = 1.0
 var selected: bool = false:
 	set(value):
 		selected = value
@@ -120,26 +121,29 @@ func step(delta: float) -> void:
 	_scan_left = 0.0
 
 
-## Enemies this tower would hit right now: the nearest one for single-target towers,
-## every enemy in range for area towers. Range is center-to-center distance.
+## Enemies this tower would hit right now: for single-target towers the enemy in range
+## that is closest to the exit ("first"), for area towers every enemy in range.
+## Range is center-to-center distance in world units.
 func find_targets() -> Array[Enemy]:
 	var targets: Array[Enemy] = []
-	var nearest: Enemy = null
-	var nearest_distance: float = attack_range
+	var first: Enemy = null
+	var first_remaining: float = INF
+	var range_squared: float = attack_range * attack_range
 	for node: Node in get_tree().get_nodes_in_group("enemies"):
 		var enemy: Enemy = node as Enemy
 		if enemy == null or not enemy.is_active():
 			continue
-		var distance: float = global_position.distance_to(enemy.global_position)
-		if distance > attack_range:
+		if position.distance_squared_to(enemy.position) > range_squared:
 			continue
 		if is_area():
 			targets.append(enemy)
-		elif distance <= nearest_distance:
-			nearest = enemy
-			nearest_distance = distance
-	if nearest != null:
-		targets.append(nearest)
+		else:
+			var remaining: float = enemy.remaining_distance()
+			if remaining < first_remaining:
+				first = enemy
+				first_remaining = remaining
+	if first != null:
+		targets.append(first)
 	return targets
 
 
@@ -150,11 +154,12 @@ func find_target() -> Enemy:
 	for node: Node in get_tree().get_nodes_in_group("enemies"):
 		var enemy: Enemy = node as Enemy
 		if enemy != null and enemy.is_active():
-			var distance: float = global_position.distance_to(enemy.global_position)
+			var distance: float = position.distance_to(enemy.position)
 			if distance <= best_distance:
 				best = enemy
 				best_distance = distance
 	return best
+
 
 
 ## Immediate-hit attack on every target (plus shrapnel splash). Kept separate so
@@ -166,7 +171,7 @@ func attack(targets: Array[Enemy]) -> void:
 	_flash_left = GameConfig.TOWER_FLASH_DURATION * (2.0 if is_area() or splash_radius > 0.0 else 1.0)
 	_flash_splash = splash_radius
 	queue_redraw()
-	var splash_center: Vector2 = targets[0].global_position
+	var splash_center: Vector2 = targets[0].position
 	for target: Enemy in targets:
 		if slow_amount > 0.0:
 			target.apply_slow(slow_amount, STATIC_SLOW_DURATION)
@@ -177,7 +182,7 @@ func attack(targets: Array[Enemy]) -> void:
 			splash_damage[layer] = damage[layer] * SHRAPNEL_DAMAGE_FACTOR
 		for node: Node in get_tree().get_nodes_in_group("enemies"):
 			var enemy: Enemy = node as Enemy
-			if enemy != null and enemy.is_active() and enemy not in targets and enemy.global_position.distance_to(splash_center) <= splash_radius:
+			if enemy != null and enemy.is_active() and enemy not in targets and enemy.position.distance_to(splash_center) <= splash_radius:
 				enemy.take_hit(splash_damage)
 
 
@@ -220,10 +225,12 @@ func apply_upgrade(path: UpgradePath) -> bool:
 	return true
 
 
-## Skill modifiers: per-layer damage multipliers, cooldown multiplier and max level.
-func set_modifiers(new_layer_multipliers: Dictionary, new_cooldown_multiplier: float, new_max_level: int) -> void:
+## Skill and biome modifiers: per-layer damage multipliers, cooldown multiplier, max
+## level and range multiplier.
+func set_modifiers(new_layer_multipliers: Dictionary, new_cooldown_multiplier: float, new_max_level: int, new_range_multiplier: float = 1.0) -> void:
 	layer_multipliers = new_layer_multipliers
 	cooldown_multiplier = new_cooldown_multiplier
+	range_multiplier = new_range_multiplier
 	max_level = maxi(new_max_level, upgrade_level)
 	_recompute_stats()
 
@@ -258,6 +265,7 @@ func _recompute_stats() -> void:
 	for layer: String in factors:
 		damage[layer] = maxi(1, roundi(base[layer] * factors[layer] * float(layer_multipliers.get(layer, 1.0))))
 	cooldown *= cooldown_multiplier
+	attack_range *= range_multiplier
 	_cooldown_left = minf(_cooldown_left, cooldown)
 	queue_redraw()
 

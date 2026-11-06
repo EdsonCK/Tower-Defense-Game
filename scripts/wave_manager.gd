@@ -111,9 +111,17 @@ func step(delta: float) -> void:
 		_queue_index += 1
 		_spawn_timer += entry["interval"]
 		var enemy: Enemy = ENEMY_SCENE.instantiate() as Enemy
-		enemy.setup(_board, _apply_nerfs(entry), current_wave)
+		enemy.setup(_board, _apply_nerfs(entry), current_wave, entrance_for(entry))
 		enemy.speed *= enemy_speed_multiplier
 		_add_enemy(enemy)
+
+
+## The entrance a spawn entry uses: its "lane" picks one of the current entrances.
+func entrance_for(entry: Dictionary) -> Vector2i:
+	var entrances: Array[Vector2i] = _board.entrances()
+	if entrances.is_empty():
+		return _board.exit_cell()
+	return entrances[mini(floori(float(entry.get("lane", 0.0)) * entrances.size()), entrances.size() - 1)]
 
 
 func _add_enemy(enemy: Enemy) -> void:
