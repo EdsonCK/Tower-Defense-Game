@@ -11,6 +11,11 @@ signal cell_clicked(cell: Vector2i)
 
 const NO_CELL: Vector2i = Vector2i(-1, -1)
 const HOVER_REFRESH_INTERVAL: float = 0.1
+## Camera: zoom 1.0 is "fit the whole window" (the most zoomed-out view); the player can
+## zoom in up to MAX_ZOOM and pan around while zoomed.
+const MAX_ZOOM: float = 3.0
+const ZOOM_STEP: float = 1.15
+const KEY_PAN_SPEED: float = 900.0  # screen px per second
 
 const MSG_OUTSIDE: String = "Outside the map"
 const MSG_ON_PATH: String = "Towers can't be built on the path"
@@ -37,6 +42,9 @@ var _hover_cell: Vector2i = NO_CELL
 var _hover_valid: bool = false
 var _hover_refresh_left: float = 0.0
 var _fit_area: Vector2 = Vector2(GameConfig.BOARD_WIDTH, GameConfig.BOARD_HEIGHT)
+var zoom: float = 1.0
+var _focus: Vector2 = Vector2.ZERO  # world point at the center of the view
+var _dragging: bool = false
 
 
 func _ready() -> void:
@@ -51,6 +59,8 @@ func setup_map(seed_value: int) -> void:
 	layout = MapLayout.new(seed_value)
 	_blocked.clear()
 	biome_index = 0
+	zoom = 1.0
+	_focus = window_rect_world().get_center()
 	set_half_width(GameConfig.MAP_START_HALF_WIDTH)
 
 
@@ -85,13 +95,56 @@ func window_rect_world() -> Rect2:
 	return Rect2(Vector2(cells.position) * GameConfig.CELL_SIZE, Vector2(cells.size) * GameConfig.CELL_SIZE)
 
 
-## Scales and positions this node so the window fills `area` (centered, aspect kept).
+## Scales and positions this node so the window fills `area` (centered, aspect kept) at
+## zoom 1.0, or shows a zoomed-in, panned part of it.
 func fit_to(area: Vector2) -> void:
 	_fit_area = area
+	_apply_camera()
+
+
+## Scale that shows the whole window (zoom 1.0).
+func fit_scale() -> float:
 	var world: Rect2 = window_rect_world()
-	var s: float = minf(area.x / world.size.x, area.y / world.size.y)
+	return minf(_fit_area.x / world.size.x, _fit_area.y / world.size.y)
+
+
+func set_zoom(new_zoom: float, anchor_screen: Vector2 = Vector2(-1, -1)) -> void:
+	# Keep the world point under `anchor_screen` (board-area pixels) fixed while zooming.
+	var anchor: Vector2 = _fit_area / 2.0 if anchor_screen.x < 0.0 else anchor_screen
+	var world_under: Vector2 = (anchor - position) / scale.x
+	zoom = clampf(new_zoom, 1.0, MAX_ZOOM)
+	var s: float = fit_scale() * zoom
+	_focus = world_under + (_fit_area / 2.0 - anchor) / s
+	_apply_camera()
+
+
+## Moves the view by `screen_delta` board-area pixels (the map follows the drag).
+func pan_by(screen_delta: Vector2) -> void:
+	_focus -= screen_delta / scale.x
+	_apply_camera()
+
+
+func reset_camera() -> void:
+	zoom = 1.0
+	_focus = window_rect_world().get_center()
+	_apply_camera()
+
+
+func view_center() -> Vector2:
+	return _focus
+
+
+func _apply_camera() -> void:
+	var world: Rect2 = window_rect_world()
+	var s: float = fit_scale() * zoom
+	# Clamp so the view never leaves the window; at zoom 1 this centers it exactly.
+	var half_view: Vector2 = _fit_area / (2.0 * s)
+	for axis in 2:
+		var lo: float = world.position[axis] + half_view[axis]
+		var hi: float = world.end[axis] - half_view[axis]
+		_focus[axis] = world.get_center()[axis] if lo >= hi else clampf(_focus[axis], lo, hi)
 	scale = Vector2(s, s)
-	position = area / 2.0 - world.get_center() * s
+	position = _fit_area / 2.0 - _focus * s
 
 
 # --- Coordinates -------------------------------------------------------------
@@ -219,19 +272,86 @@ func set_build_state(active: bool, can_afford: bool, preview_range: float = Game
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	var motion: InputEventMouseMotion = event as InputEventMouseMotion
+	if motion != null:
+		if _dragging:
+			pan_by(motion.relative * _screen_to_area_factor())
+			get_viewport().set_input_as_handled()
+		return
+	var key: InputEventKey = event as InputEventKey
+	if key != null and key.pressed:
+		match key.keycode:
+			KEY_EQUAL, KEY_PLUS, KEY_KP_ADD:
+				set_zoom(zoom * ZOOM_STEP)
+			KEY_MINUS, KEY_KP_SUBTRACT:
+				set_zoom(zoom / ZOOM_STEP)
+			KEY_HOME:
+				reset_camera()
+			_:
+				return
+		get_viewport().set_input_as_handled()
+		return
 	var mouse_event: InputEventMouseButton = event as InputEventMouseButton
-	if mouse_event == null or not mouse_event.pressed or mouse_event.button_index != MOUSE_BUTTON_LEFT:
+	if mouse_event == null:
+		return
+	if mouse_event.button_index == MOUSE_BUTTON_MIDDLE:
+		_dragging = mouse_event.pressed and _event_in_area(mouse_event)
+		if _dragging or not mouse_event.pressed:
+			get_viewport().set_input_as_handled()
+		return
+	if not mouse_event.pressed:
 		return
 	# UI panels consume their own clicks before _unhandled_input. make_input_local applies
 	# the window stretch and this node's zoom, so this works at any size.
 	var local: Vector2 = (make_input_local(mouse_event) as InputEventMouseButton).position
+	if mouse_event.button_index == MOUSE_BUTTON_WHEEL_UP or mouse_event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+		if not _event_in_area(mouse_event):
+			return
+		var factor: float = ZOOM_STEP if mouse_event.button_index == MOUSE_BUTTON_WHEEL_UP else 1.0 / ZOOM_STEP
+		set_zoom(zoom * factor, position + local * scale.x)
+		get_viewport().set_input_as_handled()
+		return
+	if mouse_event.button_index != MOUSE_BUTTON_LEFT:
+		return
 	if not is_inside_window_world(local):
 		return
 	get_viewport().set_input_as_handled()
 	cell_clicked.emit(world_to_cell(local))
 
 
+## Whether a mouse event lands on the board area (not on a panel next to it).
+func _event_in_area(event: InputEventMouse) -> bool:
+	var area_pos: Vector2 = position + (make_input_local(event) as InputEventMouse).position * scale.x
+	return Rect2(Vector2.ZERO, _fit_area).has_point(area_pos)
+
+
+## Converts viewport (window) pixels to board-area pixels, for drag deltas.
+func _screen_to_area_factor() -> float:
+	var parent_item: CanvasItem = get_parent() as CanvasItem
+	if parent_item == null:
+		return 1.0
+	var t: Transform2D = parent_item.get_global_transform_with_canvas()
+	return 1.0 / maxf(0.0001, t.get_scale().x)
+
+
+func _key_pan(delta: float) -> void:
+	if zoom <= 1.0:
+		return
+	var dir: Vector2 = Vector2.ZERO
+	if Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT):
+		dir.x -= 1.0
+	if Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT):
+		dir.x += 1.0
+	if Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP):
+		dir.y -= 1.0
+	if Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN):
+		dir.y += 1.0
+	if dir != Vector2.ZERO:
+		pan_by(-dir.normalized() * KEY_PAN_SPEED * delta)
+
+
 func _process(delta: float) -> void:
+	_key_pan(delta)
 	if not _build_mode:
 		return
 	var local: Vector2 = get_local_mouse_position()

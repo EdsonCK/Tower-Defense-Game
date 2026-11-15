@@ -19,6 +19,9 @@ func get_tests() -> Array[Callable]:
 		test_map_grows_after_each_wave,
 		test_board_fits_the_screen_at_every_size,
 		test_clicks_hit_the_right_cell_at_any_zoom,
+		test_camera_zoom_and_pan,
+		test_real_wheel_and_drag_input,
+		test_every_restart_gets_a_new_map,
 		test_biome_cycle_and_art,
 		test_biome_buffs_apply_to_towers,
 		test_biome_changes_every_ten_waves,
@@ -281,6 +284,112 @@ func test_clicks_hit_the_right_cell_at_any_zoom() -> void:
 		if main.get_tower_at(target) == null:
 			ok = false
 	_check(ok, "a real click on a tile places the tower on exactly that tile at every zoom level")
+
+
+func _view_rect(board: Board) -> Rect2:
+	# The world rect visible in the 1280x768 board area.
+	return Rect2(-board.position / board.scale.x, Vector2(GameConfig.BOARD_WIDTH, GameConfig.BOARD_HEIGHT) / board.scale.x)
+
+
+func test_camera_zoom_and_pan() -> void:
+	var board: Board = _make_board()
+	board.set_half_width(20)
+	var fit: float = board.scale.x
+	board.set_zoom(0.3)
+	_check(board.zoom == 1.0 and is_equal_approx(board.scale.x, fit), "zoom can't go below the fit-the-map view (max zoom out)")
+	var anchor: Vector2 = Vector2(300, 200)
+	var world_before: Vector2 = (anchor - board.position) / board.scale.x
+	board.set_zoom(2.0, anchor)
+	var world_after: Vector2 = (anchor - board.position) / board.scale.x
+	_check(is_equal_approx(board.scale.x, fit * 2.0) and world_before.distance_to(world_after) < 0.5, "zooming in keeps the point under the cursor fixed (%s -> %s)" % [world_before, world_after])
+	board.set_zoom(99.0)
+	_check(board.zoom == Board.MAX_ZOOM, "zoom in is capped at %.1fx" % Board.MAX_ZOOM)
+	var window: Rect2 = board.window_rect_world()
+	var inside: bool = true
+	for delta: Vector2 in [Vector2(5000, 0), Vector2(-9000, 0), Vector2(0, 5000), Vector2(0, -9000), Vector2(123, -45)]:
+		board.pan_by(delta)
+		if not window.grow(0.5).encloses(_view_rect(board)):
+			inside = false
+	_check(inside, "panning never shows anything beyond the map's edge")
+	var before: Vector2 = board.view_center()
+	board.pan_by(Vector2(-100, 0))
+	_check(board.view_center().x > before.x, "dragging the map left moves the view right")
+	board.set_half_width(25)
+	_check(board.window_rect_world().grow(0.5).encloses(_view_rect(board)) and board.zoom == Board.MAX_ZOOM, "growing the map keeps the zoomed view on the map")
+	board.reset_camera()
+	var screen: Rect2 = Rect2(board.position + board.window_rect_world().position * board.scale, board.window_rect_world().size * board.scale)
+	_check(board.zoom == 1.0 and Rect2(0, 0, GameConfig.BOARD_WIDTH, GameConfig.BOARD_HEIGHT).grow(0.5).encloses(screen), "Home resets to the whole map")
+	board.set_zoom(2.0)
+	board.setup_map(77)
+	_check(board.zoom == 1.0, "a new run starts fully zoomed out")
+
+
+func _push_mouse(button: MouseButton, pressed: bool, screen: Vector2) -> void:
+	var click: InputEventMouseButton = InputEventMouseButton.new()
+	click.button_index = button
+	click.pressed = pressed
+	click.position = screen
+	click.global_position = screen
+	root.push_input(click)
+
+
+func test_real_wheel_and_drag_input() -> void:
+	var main: Node2D = _make_main()
+	main.currency = 100000
+	await _wait(2)
+	var board: Board = main.board
+	var to_screen: Callable = func(world: Vector2) -> Vector2:
+		return root.get_final_transform() * (board.get_global_transform_with_canvas() * world)
+	var target: Vector2i = _spot(main, 2)
+	var screen: Vector2 = to_screen.call(Board.cell_to_world(target))
+	for i in 5:
+		_push_mouse(MOUSE_BUTTON_WHEEL_UP, true, screen)
+		_push_mouse(MOUSE_BUTTON_WHEEL_UP, false, screen)
+	await _wait(2)
+	var still_under: Vector2 = to_screen.call(Board.cell_to_world(target))
+	_check(board.zoom > 1.9 and still_under.distance_to(screen) < 2.0, "the mouse wheel zooms in toward the cursor (zoom %.2f)" % board.zoom)
+	var center_before: Vector2 = board.view_center()
+	_push_mouse(MOUSE_BUTTON_MIDDLE, true, screen)
+	var motion: InputEventMouseMotion = InputEventMouseMotion.new()
+	motion.position = screen + Vector2(-20, -10)
+	motion.relative = Vector2(-20, -10)
+	root.push_input(motion)
+	_push_mouse(MOUSE_BUTTON_MIDDLE, false, screen + Vector2(-20, -10))
+	await _wait(2)
+	_check(board.view_center() != center_before, "middle-drag pans the zoomed map")
+	main._on_build_pressed(TowerTypes.BASIC)
+	var aim: Vector2i = _spot(main, 0)
+	for step in 40:
+		if Rect2(Vector2.ZERO, Vector2(GameConfig.BOARD_WIDTH, GameConfig.BOARD_HEIGHT)).has_point(board.position + Board.cell_to_world(aim) * board.scale.x):
+			break
+		aim = _spot(main, step + 1)
+	var aim_screen: Vector2 = to_screen.call(Board.cell_to_world(aim))
+	_push_mouse(MOUSE_BUTTON_LEFT, true, aim_screen)
+	_push_mouse(MOUSE_BUTTON_LEFT, false, aim_screen)
+	await _wait(2)
+	_check(main.get_tower_at(aim) != null, "clicks still hit the right tile while zoomed and panned")
+	for i in 30:
+		_push_mouse(MOUSE_BUTTON_WHEEL_DOWN, true, screen)
+	await _wait(2)
+	_check(board.zoom == 1.0, "scrolling out returns to the whole map and no further")
+
+
+func test_every_restart_gets_a_new_map() -> void:
+	var main: Node2D = _make_main()
+	var starts: Dictionary = {}
+	var shapes: Dictionary = {}
+	var runs: int = 12
+	for i in runs:
+		main.restart_game()
+		var visible_path: Array = []
+		for cell: Vector2i in main.board.layout.parent:
+			if main.board.in_window(cell):
+				visible_path.append(cell)
+		visible_path.sort()
+		starts[visible_path.hash()] = true
+		shapes[main.board.layout.parent.keys().size()] = true
+	_check(starts.size() == runs, "%d restarts gave %d different starting maps" % [runs, starts.size()])
+	_check(shapes.size() >= runs / 2, "the maps differ in size and shape too (%d distinct path lengths)" % shapes.size())
 
 
 func _wait(frames: int) -> void:

@@ -76,9 +76,9 @@ const DEFS: Dictionary = {
 		"min_wave": 11, "weight": 3.0, "pack": [1, 2], "interval": 1.1,
 	},
 	BOSS: {
-		"name": "Colossus", "trait": "Boss every 15th wave: comes alone with enormous shield, armor and health",
+		"name": "Colossus", "trait": "Boss every 15th wave: comes alone with enormous shield, armor and health; costs 10 lives",
 		"shape": "star", "color": Color(0.55, 0.05, 0.1), "radius": 22.0,
-		"speed": 26.0, "health": 750.0, "armor": 450.0, "shield": 300.0, "reward": 250, "regen": 0.0, "lives": 5,
+		"speed": 26.0, "health": 480.0, "armor": 290.0, "shield": 190.0, "reward": 250, "regen": 0.0, "lives": 10,
 		"split_into": "", "split_count": 0,
 		"min_wave": 15, "weight": 0.0, "pack": [1, 1], "interval": 1.0,
 	},

@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/board.gd" id="2_board"]
@@ -7,9 +7,14 @@
 [ext_resource type="Script" path="res://scripts/window_fit.gd" id="5_window"]
 [ext_resource type="PackedScene" path="res://scenes/skill_tree_menu.tscn" id="6_skills"]
 [ext_resource type="Script" path="res://scripts/confirm_dialog.gd" id="7_confirm"]
+[ext_resource type="Script" path="res://scripts/audio.gd" id="8_audio"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_main")
+
+[node name="Audio" type="Node" parent="."]
+process_mode = 3
+script = ExtResource("8_audio")
 
 [node name="WaveManager" type="Node" parent="."]
 script = ExtResource("3_wave")
@@ -115,7 +120,7 @@ size_flags_horizontal = 3
 custom_minimum_size = Vector2(0, 36)
 theme_type_variation = "Caption"
 theme_override_font_sizes/font_size = 12
-text = "Left-click: place / select  |  Right-click or Esc: cancel  |  F11: fullscreen.   Towers go beside the path, never on it. Enemy bars: purple = shield (hit first), white = armor, green = health; only the top bar takes damage."
+text = "Left-click: place / select  |  Right-click or Esc: cancel  |  Wheel or +/-: zoom  |  Middle-drag or WASD: pan  |  Home: whole map  |  F11: fullscreen.   Enemy bars: purple = shield (hit first), white = armor, green = health; only the top bar takes damage."
 autowrap_mode = 3
 max_lines_visible = 2
 text_overrun_behavior = 3
@@ -584,9 +589,33 @@ text = "Seed 0"
 clip_text = true
 text_overrun_behavior = 3
 
+[node name="MusicToggle" type="Button" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/FooterRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(58, 26)
+layout_mode = 2
+focus_mode = 0
+toggle_mode = true
+button_pressed = true
+tooltip_text = "Music on/off"
+theme_override_font_sizes/font_size = 12
+text = "Music"
+clip_text = true
+
+[node name="SoundToggle" type="Button" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/FooterRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(58, 26)
+layout_mode = 2
+focus_mode = 0
+toggle_mode = true
+button_pressed = true
+tooltip_text = "Sound effects on/off"
+theme_override_font_sizes/font_size = 12
+text = "Sound"
+clip_text = true
+
 [node name="RestartButton" type="Button" parent="HUD/UILayout/Root/RightPanel/Scroll/Margin/VBox/FooterRow"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(120, 26)
+custom_minimum_size = Vector2(90, 26)
 layout_mode = 2
 focus_mode = 0
 theme_type_variation = "DangerButton"

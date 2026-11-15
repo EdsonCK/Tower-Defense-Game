@@ -16,6 +16,7 @@ extends RefCounted
 const DIRECTIONS: Array[Vector2i] = [Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT, Vector2i.UP]
 const MAX_ATTEMPTS: int = 40
 const MAX_STEPS: int = 600
+const MAX_STRAIGHT: int = 8  # a branch never runs straighter than this many tiles
 
 var exit: Vector2i = GameConfig.EXIT_CELL
 ## Path cell -> parent cell (one step closer to the exit). The exit maps to itself.
@@ -26,6 +27,10 @@ var children: Dictionary = {}
 var distance: Dictionary = {}
 
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
+# Per-map style, rolled from the seed in generate().
+var _keep_straight_chance: float = 0.8
+var _straight_min: int = 2
+var _straight_max: int = 5
 
 
 func _init(seed_value: int = 0) -> void:
@@ -105,17 +110,25 @@ func generate(seed_value: int) -> void:
 	parent = {exit: exit}
 	children = {}
 	distance = {exit: 0}
-	# Root branches leave the exit heading for opposite sides of the wide map.
-	var base_angle: float = (0.0 if _rng.randf() < 0.5 else PI) + _rng.randf_range(-0.35, 0.35)
-	for i in GameConfig.MAP_ROOT_BRANCHES:
-		_carve_branch(exit, base_angle + TAU * i / GameConfig.MAP_ROOT_BRANCHES)
+	# Every map gets its own character: the angle the main branches leave the gate, how
+	# many forks split off later, and how twisty the paths are all vary with the seed.
+	_keep_straight_chance = _rng.randf_range(0.6, 0.8)
+	_straight_min = _rng.randi_range(1, 3)
+	_straight_max = _straight_min + _rng.randi_range(2, 3)
+	var roots: int = GameConfig.MAP_ROOT_BRANCHES
+	var fork_total: int = GameConfig.MAP_FORK_BRANCHES + _rng.randi_range(-1, 1)
+	# Root branches spread evenly from the exit (with some jitter); the first heads roughly
+	# sideways (the map is wider than tall) but at a different angle every run.
+	var base_angle: float = (0.0 if _rng.randf() < 0.5 else PI) + _rng.randf_range(-0.6, 0.6)
+	for i in roots:
+		_carve_branch(exit, base_angle + TAU * i / roots + _rng.randf_range(-0.25, 0.25))
 	# Fork branches split off existing paths at varied distances (so new entrances and
 	# crossroads keep appearing as the window grows) and head for the emptiest direction.
 	var forks_made: int = 0
 	var tries: int = 0
-	while forks_made < GameConfig.MAP_FORK_BRANCHES and tries < 200:
+	while forks_made < fork_total and tries < 200:
 		tries += 1
-		var lo: float = 0.2 + 0.5 * float(forks_made) / maxf(1.0, GameConfig.MAP_FORK_BRANCHES - 1)
+		var lo: float = 0.2 + 0.5 * float(forks_made) / maxf(1.0, fork_total - 1)
 		var target: float = _emptiest_angle()
 		var start: Vector2i = _pick_fork_cell(lo * max_ring(), (lo + 0.25) * max_ring(), target)
 		if start == Vector2i(-1, -1):
@@ -172,6 +185,11 @@ func _carve_branch(start: Vector2i, angle: float) -> bool:
 		var in_walk: Dictionary = {start: true}
 		var heading: Vector2i = Vector2i.ZERO
 		var straight_left: int = 0
+		# A fork continues a straight stretch of its parent branch; count that stretch so the
+		# junction can't be the middle of an overly long straight line.
+		var run_length: int = _incoming_run(start)
+		if run_length > 0:
+			heading = start - (parent[start] as Vector2i)
 		var ok: bool = false
 		for step in MAX_STEPS:
 			var current: Vector2i = walk[walk.size() - 1]
@@ -182,15 +200,19 @@ func _carve_branch(start: Vector2i, angle: float) -> bool:
 			for d: Vector2i in DIRECTIONS:
 				if _can_step(current, current + d, in_walk):
 					options.append(d)
+			if run_length >= MAX_STRAIGHT and options.size() > 1:
+				options.erase(heading)
 			if options.is_empty():
 				break
 			var chosen: Vector2i
-			if heading in options and straight_left > 0 and _rng.randf() < 0.8:
+			if heading in options and straight_left > 0 and _rng.randf() < _keep_straight_chance:
 				chosen = heading
 			else:
 				chosen = _weighted_direction(options, bias, heading)
 			if chosen != heading:
-				straight_left = _rng.randi_range(2, 5)
+				straight_left = _rng.randi_range(_straight_min, _straight_max)
+				run_length = 0
+			run_length += 1
 			heading = chosen
 			straight_left -= 1
 			var next: Vector2i = current + chosen
@@ -206,6 +228,19 @@ func _carve_branch(start: Vector2i, angle: float) -> bool:
 			return true
 		bias = bias.rotated(_rng.randf_range(-0.6, 0.6))
 	return false
+
+
+## Length of the straight stretch that ends at `cell`, walking toward the exit.
+func _incoming_run(cell: Vector2i) -> int:
+	if cell == exit:
+		return 0
+	var dir: Vector2i = cell - (parent[cell] as Vector2i)
+	var length: int = 0
+	var c: Vector2i = cell
+	while c != exit and c - (parent[c] as Vector2i) == dir:
+		length += 1
+		c = parent[c]
+	return length
 
 
 func _can_step(current: Vector2i, next: Vector2i, in_walk: Dictionary) -> bool:

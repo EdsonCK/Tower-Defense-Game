@@ -74,6 +74,8 @@ const STATE_COLORS: Dictionary = {
 @onready var _mode_label: Label = %ModeLabel
 @onready var _message_label: Label = %MessageLabel
 @onready var _seed_label: Label = %SeedLabel
+@onready var _music_toggle: Button = %MusicToggle
+@onready var _sound_toggle: Button = %SoundToggle
 @onready var _skill_menu: SkillTreeMenu = %SkillTreeMenu
 @onready var _confirm_dialog: ConfirmDialog = %ConfirmDialog
 
@@ -111,6 +113,13 @@ func _ready() -> void:
 	_skill_menu.closed.connect(skill_menu_closed.emit)
 	_skill_menu.reset_requested.connect(progress_reset_requested.emit)
 	_confirm_dialog.answered.connect(confirm_answered.emit)
+	var audio: GameAudio = GameAudio.instance
+	if audio != null:
+		_music_toggle.set_pressed_no_signal(audio.music_enabled)
+		_sound_toggle.set_pressed_no_signal(audio.sfx_enabled)
+		_music_toggle.toggled.connect(audio.set_music_enabled)
+		_sound_toggle.toggled.connect(audio.set_sfx_enabled)
+	_connect_click_sounds(self)
 	hide_selection()
 	if OS.is_debug_build():
 		for panel: Control in [_right_panel, _bottom_panel, _board_area]:
@@ -278,7 +287,16 @@ func show_message(text: String) -> void:
 	_message_label.add_theme_color_override("font_color", UiTheme.TEXT)
 
 
+## Every button in the HUD (and its menus) gives a soft click.
+func _connect_click_sounds(node: Node) -> void:
+	for child: Node in node.get_children():
+		if child is BaseButton and not child is SkillNode:
+			(child as BaseButton).pressed.connect(GameAudio.play.bind("click"))
+		_connect_click_sounds(child)
+
+
 func show_error(text: String) -> void:
+	GameAudio.play("error")
 	_message_label.text = text
 	_message_label.add_theme_color_override("font_color", UiTheme.DANGER.lightened(0.15))
 

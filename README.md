@@ -3,13 +3,15 @@
 As-of-yet unnamed tower defense made in Godot, mostly written with AI. It draws on Rogue Tower and Sir, We Have an Orc Problem. Built for **Godot 4.7.2 stable** in GDScript.
 
 **The game:**
-- **The map:** a winding, fixed path network leads from several entrances, through crossroads, to a single gate at the center. Each run generates a new map from its seed.
+- **The map:** a winding, fixed path network leads from several entrances, through crossroads, to a single gate at the center. Every run (and every Restart) generates a different map.
 - **Towers** go beside the path, never on it.
 - **Growth:** the map grows a little after every wave, revealing more path and new entrances.
 - **Biomes:** every 10 waves the land changes. Each biome has its own colors and decorations, and buffs one tower type in particular.
 - **Enemies** carry stacked shield, armor and health layers, and three tower types each specialize against one layer.
 - **Bosses:** every 15th wave is a lone Colossus with enormous health bars.
 - **Progression:** clearing waves earns **diamonds**, which unlock a permanent 33-skill tree.
+- **Camera:** zoom in and pan around the map; fully zoomed out shows the whole map.
+- **Presentation:** procedurally drawn, animated towers and enemies, and generated sound effects and music (no external assets).
 
 ## Running
 
@@ -60,6 +62,10 @@ When adding UI:
 | Auto-start | **Auto-start waves** toggle: the next wave starts 3 s after the previous one is cleared. The countdown is shown on the toggle and pauses while any menu is open. Wave 1 is always started by you. The setting is saved. |
 | Skill tree | **Skill Tree** button (any time). It also opens after every 5th wave. The game pauses while it's open; **Continue** or **Esc** closes it. |
 | New run | **Restart** asks "Are you sure?" first; **Esc** or **Cancel** backs out. Diamonds and skills are kept. |
+| Zoom | **Mouse wheel** (zooms toward the cursor) or **+ / -**. Fully zoomed out shows the whole map; you can zoom in up to 3×. |
+| Pan | **Middle-mouse drag**, or **WASD / arrow keys** while zoomed in. The view never leaves the map. |
+| Show the whole map | **Home** |
+| Music / sound on/off | **Music** and **Sound** buttons next to Restart. Saved between sessions. |
 | Toggle fullscreen | **F11** |
 
 ## Rules
@@ -77,14 +83,15 @@ Tuning lives in:
 
 ### The map
 
-- **The path network** is generated per run from the run seed (shown in the panel), so every run has a new map.
+- **The path network** is generated per run from the run seed (shown in the panel). Each new run and each Restart picks a fresh random seed, so **the pathing is different every time**.
   - It is a tree of 1-tile-wide, winding paths that all lead to a **single gate** (the exit) at the center.
+  - Each map also rolls its own character: the angle the two main branches leave the gate, how twisty the paths are (how long straight stretches run), and how many side branches split off (4-6). A straight stretch (counting through a crossroads) is cut off after 8 tiles whenever the path has another way to go.
   - Branches run outward to **entrances** (red portals) and split off each other, which creates **crossroads**.
   - Walking toward the gate never takes an enemy back outward, so routes never leave the visible map.
 - **Towers** can be built on any free tile except the path and the gate.
-- **The map grows after every wave.** It starts at 23×13 tiles and gains a ring each wave until it reaches 61×37 (wave 20), zooming out to fit.
+- **The map grows after every wave.** It starts at 23×13 tiles and gains a ring each wave until it reaches 61×37 (wave 20). The fully zoomed-out view always fits the whole map; if you are zoomed in, your zoom level is kept as it grows.
   - Growing reveals more path, so routes get longer.
-  - Branches that split off further out appear as **new entrances**: 2-4 at the start, 7 on the full map.
+  - Branches that split off further out appear as **new entrances**: 2-4 at the start, 6-8 on the full map.
   - Towers keep their tiles as the map grows.
 - **Enemies** are split across the entrances (a pack always shares one entrance) and walk their route to the gate. Single-target towers shoot the enemy in range that is **closest to the gate**.
 - **Placement strategy:** tiles near the gate and just after crossroads see the most traffic; outer branches only see their own entrance's share.
@@ -132,6 +139,14 @@ Enemies have up to three stacked bars above them:
 
 ### Diamonds and the skill tree (permanent)
 
+**The skill tree screen** shows each branch as a tinted lane with a header that counts how many of its skills you own (with a progress line), and a total "N / 33 skills unlocked" bar at the top. Every skill is a card with its own icon, its name and its cost:
+- **owned** skills are filled with the branch color and marked OWNED with a check;
+- skills you **can buy now** pulse with a gold glow;
+- skills whose prerequisites are met but that you **can't afford yet** show their cost and "(need more)";
+- **locked** skills are dimmed with a padlock.
+
+Links between owned skills glow and carry flowing light. Hovering a card lifts it and shows a large icon, the description and what it needs in the info card. Unlocking plays a burst and a chime.
+
 Diamonds and unlocked skills are **saved** (`user://progress.json`) and carry over to every future run and relaunch. **Reset progress** in the skill tree wipes them after an "Are you sure?" dialog. If a future update reorganizes the tree, any saved skill that no longer fits is **refunded** rather than lost.
 
 There are 33 skills in 7 branches. **Costs rise with each tier**, roughly 3-5 → 6-7 → 10 → 15-16 → 22-24 diamonds. The root is the **Tesla Tower (3)**, the only skill available at the start.
@@ -153,7 +168,7 @@ There are 33 skills in 7 branches. **Costs rise with each tier**, roughly 3-5 �
 - **Spawn speed** rises every wave (intervals × 1/(1 + 0.03·(wave-1))). Counts grow faster still, so **later waves still last longer**: about 29 s of spawning at wave 40, 53 s at 60, 83 s at 80.
 - **Enemy health:** every layer grows exponentially, (1 + 0.1·(w-1)) × 1.065^(w-1).
 - **Unlocks:** new types unlock as waves progress.
-- **Bosses:** every **15th wave** (15, 30, 45, ...) is a **boss wave**: a single **Colossus** arrives **alone**, with enormous stacked shield, armor and health bars drawn extra-wide above it. It is slow but costs **5 lives** if it reaches the gate. Its gold reward is a placeholder for now.
+- **Bosses:** every **15th wave** (15, 30, 45, ...) is a **boss wave**: a single **Colossus** arrives **alone**, with enormous stacked shield, armor and health bars drawn extra-wide above it. It is slow but costs **10 lives** if it reaches the gate. Its gold reward is a placeholder for now.
 - **Count cap:** once the enemy count reaches its 320 cap (around wave 80), the spawn rate stops rising, so waves never get shorter.
 
 ### Enemy types
@@ -167,47 +182,72 @@ There are 33 skills in 7 branches. **Costs rise with each tier**, roughly 3-5 �
 | Mender | teal hexagon | 55 | health 70 | 18 | Regenerates 5% health per second | 7 |
 | Splitter | orange ring | 50 | health 80 | 15 | Splits into 3 Swarmlings | 8 |
 | Aegis | blue pentagon | 56 | shield 60 + health 50 | 20 | Energy shield: bring Teslas | 11 |
-| Colossus (boss) | huge dark-red star, extra-wide bars | 26 | shield 300 + armor 450 + health 750 (×wave scaling) | 250 (placeholder) | Arrives alone; costs **5 lives** | every 15th |
+| Colossus (boss) | huge dark-red star, extra-wide bars | 26 | shield 190 + armor 290 + health 480 (×wave scaling) | 250 (placeholder) | Arrives alone; costs **10 lives** | every 15th |
 
-Slowed enemies show a blue ring.
+**Looks and animation.** Every type keeps its silhouette (so you can read a wave at a glance) and adds character:
+- shading, a ground shadow, and a walk cycle (bob and squash) that runs faster for quick enemies;
+- eyes that look where the enemy is walking; Runners point their arrowhead along the path and leave speed streaks;
+- Swarmlings flap their wings; Tanks roll on treads with a glowing visor; Menders pulse a healing aura; Splitters show the brood wiggling inside; the Colossus has horns, glowing eyes, a dark aura and a slowly turning body;
+- **armor** is drawn as white plates around the body, a **shield** as a purple bubble with a travelling shimmer, and a **slow** as orbiting frost specks;
+- hits flash the body white, and kills leave a short burst of shards in the enemy's color (bigger for the boss).
 
 ### Balance targets (checked by `tests/test_balance.gd`)
 
 Balance is tuned against two scripted players in `tests/bots.gd`, on fixed seeds with a fresh save.
 
 **The strategic bot:**
-- scores every path tile by traffic (how many entrance routes cross it);
-- values a tower spot by the traffic-weighted path inside that tower's range;
-- reads the next wave's shield/armor/health mix and tracks how fast the whole defense strips each layer;
-- each time, buys whichever option most shortens that time per gold: any tower type on any spot, or any upgrade on any tower;
+- treats each entrance's route to the gate separately: a tower's value on a route is how many of that route's tiles are in its range (tiles near the gate and after crossroads count for several routes);
+- reads the next wave's shield/armor/health mix and tracks how fast its defense strips each layer **on each route**;
+- each time, buys whichever option most shortens that time per gold: any tower type on any of the best spots, or any upgrade on any tower. A route with little coverage dominates the total, so no entrance is left open;
 - buys skills in a sensible order.
 
-As a result it builds where routes merge, adds Teslas when shields are the bottleneck and Cannons for armor, and switches to upgrades once the best spots are taken.
+As a result it covers every route, builds where routes merge, adds Teslas when shields are the bottleneck and Cannons for armor, and switches to upgrades once the best spots are taken.
 
 | Strategy | Result |
 |---|---|
-| Random Basic towers, no skills or upgrades | defeated on waves 2-6 (test: by wave 10) |
-| Strategic bot (about 510 Basic, 60 Tesla and 50 Cannon towers, ~310 upgrade levels) | defeated on waves 40-44 (test: between 25 and 50) |
+| Random Basic towers, no skills or upgrades | defeated on waves 2-4 (test: by wave 10) |
+| Strategic bot (roughly 430-780 towers of all three types, 140-290 upgrade levels) | defeated on waves 37-46 over 8 seeds (test: between 25 and 50 on two seeds) |
+
+With bosses costing 10 lives, a Colossus that reaches the gate ends a run that has only the starting 10 lives, so boss waves are real checkpoints. The boss's pools were trimmed to match.
 
 Permanent skills from earlier runs push a real player further. Run `tests/balance_report.gd` to print these numbers after tuning.
+
+### Sound and music
+
+All audio is synthesized by `tools/gen_audio.py` (Python + numpy) into `audio/*.wav`: no samples or downloaded assets. Re-run it after changing a sound.
+- **Effects:** a shot sound per tower (Basic "pew", Tesla zap, Cannon boom), enemy pop, boss death, escape warning, wave-start horn, wave-clear chime, boss-arrival gong, build, upgrade, sell, error, skill unlock, defeat, and a soft click for every HUD button.
+- **No noise wall:** each effect has a few voices and a minimum gap, so 200 towers firing at once still sound like a handful of shots.
+- **Music:** a calm 30 s loop plays during a run. Boss waves crossfade to a driving boss loop, and the calm theme returns once the boss wave is cleared. Defeat stops the music.
+- **Settings:** the **Music** and **Sound** buttons switch each off separately; the choice is saved to `user://progress_settings.json`.
+
+### Tower animation
+
+- **Basic** turrets turn to track their target, kick back when they fire, and send a tracer with a muzzle flash and an impact spark.
+- **Tesla** coils glow brighter as they recharge, crackle when charged, and discharge flickering bolts into every enemy in range.
+- **Cannons** swing their barrel onto the target, recoil hard, puff smoke and lob a shell that bursts on impact (with the shrapnel ring when upgraded).
+- Animation is cheap: the turret is drawn once and only rotated or nudged for aiming and recoil, and the Tesla glow is only scaled and faded. Only the short shot effects redraw while they play.
 
 ### Performance
 
 - **Game logic:** in a full real-time run to wave 33 (310 towers, 7 entrances), it averaged 7 ms per frame (p99 7 ms), measured headless. The occasional longer frames were the test bot's own planning, which doesn't exist in the real game.
 - **Board redraw:** the board redraws only when it changes, such as placing a tower, the map growing or a new biome. A full-map redraw with 520 towers costs about 4 ms.
+- **Animated art:** with 250 towers on the full map during wave 40, script processing (including the animations) takes about 3 ms per frame, measured headless. Enemy body animation redraws at 20 fps; movement itself stays smooth.
 
 ## Project layout
 
 ```text
 project.godot             main scene, 1600x900 window, canvas_items stretch, Compatibility renderer
-scenes/main.tscn          Main → WaveManager, WindowFit, HUD/UILayout/Root(LeftColumn(BoardArea/Board(Towers, Enemies), BottomPanel), RightPanel)
+scenes/main.tscn          Main → Audio, WaveManager, WindowFit, HUD/UILayout/Root(LeftColumn(BoardArea/Board(Towers, Enemies), BottomPanel), RightPanel)
 scenes/enemy.tscn         Node2D + enemy.gd (drawn in code)
 scenes/tower.tscn         Node2D + tower.gd (drawn in code)
 scenes/skill_tree_menu.tscn  Control + skill_tree_menu.gd (full-screen modal)
 scripts/game_config.gd    tuning constants only (class_name GameConfig)
 scripts/tower_types.gd    tower type definitions: Basic, Tesla, Cannon (damage per layer)
 scripts/skill_tree.gd     skill definitions, prerequisites, unlocked state and summed effects
-scripts/skill_tree_menu.gd  modal skill tree UI built from the skill data
+scripts/skill_tree_menu.gd  modal skill tree UI built from the skill data (lanes, headers, animated links)
+scripts/skill_node.gd     one drawn skill card (icon, state, glow, hover, unlock burst)
+scripts/icons.gd          procedural icon glyphs (no image assets)
+scripts/audio.gd          GameAudio: pooled, throttled sound effects, music crossfade, mute settings
 scripts/confirm_dialog.gd "Are you sure?" modal (Restart, Reset progress)
 scripts/ui_theme.gd       shared visual theme: colors, card/button/label styles
 scripts/progress_store.gd permanent progress + settings saved as JSON (user://progress.json)
@@ -216,9 +256,12 @@ scripts/wave_generator.gd seeded endless wave generation and scaling formulas
 scripts/main.gd           currency, lives, game state, purchases, upgrades, sales, selection, defeat, restart
 scripts/map_layout.gd     seeded path-network generator (tree to one exit, 1 tile wide, windy) and queries
 scripts/biomes.gd         biome definitions: ground palette, decorations, tower buffs
-scripts/board.gd          visible window and growth, fit-to-screen zoom, placement rules, clicks, map/biome drawing
-scripts/enemy.gd          walks its route to the gate, layered pools, regen/split/slow, died/reached_exit (once each)
-scripts/tower.gd          targeting, cooldown, immediate-hit attack, upgrade path/levels, sell value
+scripts/board.gd          visible window and growth, camera (fit, zoom, pan), placement rules, clicks, map/biome drawing
+scripts/enemy.gd          walks its route to the gate, layered pools, regen/split/slow, died/reached_exit (once each), animated art
+scripts/death_fx.gd       short burst left where an enemy dies
+scripts/tower.gd          targeting, cooldown, immediate-hit attack, upgrade path/levels, sell value, turret animation
+audio/                    generated sound effects and music (WAV)
+tools/gen_audio.py        synthesizes everything in audio/
 scripts/wave_manager.gd   wave queue, spawn timer, unresolved-enemy count (incl. split children), completion
 scripts/hud.gd            labels, buttons → intent signals, next-wave preview, selection panel, messages
 scripts/window_fit.gd     fits/centers the OS window on its screen, re-centers after resize, F11 fullscreen
@@ -228,6 +271,7 @@ tests/test_gameplay.gd    wave generator, enemy types and traits, endless flow, 
 tests/test_stability.gd   randomized fuzzing and long-run simulations
 tests/test_layout.gd      HUD layout guard: nothing may cover the board or leave the view
 tests/test_skills.gd      diamonds, skill tree, persistence, Tesla, gated/unique upgrades, auto-start
+tests/test_presentation.gd  sounds per event, music switching, mute/persist, tower and enemy animation, icons
 tests/test_balance.gd     balance guard using scripted bots
 tests/bots.gd             scripted players (strategic / random) used by balance checks
 tests/balance_report.gd   tuning tool: prints how far each strategy gets
@@ -239,7 +283,7 @@ tests/run_all.sh          runs everything; fails on any test failure OR any scri
 Run everything from the project root with one command (pass your Godot executable; on Windows use Git Bash or WSL, or run the individual commands below):
 
 ```sh
-tests/run_all.sh path/to/godot      # ~2 min
+tests/run_all.sh path/to/godot      # ~3 min
 ```
 
 `run_all.sh` imports the project, runs a 180-frame startup check, then every suite. It fails if any check fails **or if any script error appears in the output**, so errors inside signal handlers can't slip through. Individual commands:
@@ -251,6 +295,7 @@ godot --headless --path . --script res://tests/test_map.gd
 godot --headless --path . --script res://tests/test_gameplay.gd
 godot --headless --path . --script res://tests/test_skills.gd
 godot --headless --path . --script res://tests/test_layout.gd
+godot --headless --path . --script res://tests/test_presentation.gd
 godot --headless --path . --script res://tests/test_stability.gd
 godot --headless --path . --script res://tests/test_balance.gd
 godot --headless --path . --script res://tests/balance_report.gd   # tuning report, not pass/fail
@@ -264,15 +309,17 @@ Tests never touch your real save file.
   - **placement:** not on the path, the gate, outside the map or on an occupied tile;
   - **movement:** enemies from every entrance follow their route cardinally to the gate, never teleporting or backtracking;
   - **growth and zoom:** the map grows one ring per wave to 61×37 while towers keep their tiles; the map is centered and fully visible at every size; real clicks land on the right tile at every zoom;
+  - **camera:** zoom never goes below the whole-map view or above 3×; zooming keeps the point under the cursor fixed; panning never shows past the map's edge; real mouse-wheel and middle-drag input works and clicks still hit the right tile while zoomed and panned; Home and a new run reset the view;
+  - **new map every time:** 12 consecutive restarts give 12 different starting maps (and different path lengths);
   - **biomes:** 6 biomes with distinct art; changes every 10 waves and cycles; small global buff plus a stronger favored-tower buff, applied to towers and shown in the HUD;
   - **run flow and window:** defeat → restart gives a new seed, map and size; window-fit sizing.
 - **test_gameplay:**
-  - **generator:** reproducible per seed, varies between seeds; 300 waves × 3 seeds have valid sizes, unlocked types, finite stats and rising difficulty; every 15th wave is exactly one boss with an enormous pool, and no other wave has one;
+  - **generator:** reproducible per seed, varies between seeds; 300 waves × 3 seeds have valid sizes, unlocked types, finite stats and rising difficulty; every 15th wave is exactly one boss with an enormous pool (20+ Grunts' worth), and no other wave has one;
   - **late waves:** past wave 30 they get much bigger and spawn faster, yet never get shorter (even at the 320-enemy cap);
   - **enemy types and layers:** distinct looks and stats; only the top layer takes damage and nothing spills over; the boss peels shield → armor → health; every trait;
   - **flow:** 30 consecutive waves with exact gold accounting and the 5-wave skill popup;
   - **towers:** upgrade rules, 50% refunds, selection UI;
-  - **bosses:** an escaped boss costs 5 lives; bosses are drawn much larger.
+  - **bosses:** an escaped boss costs 10 lives; bosses are drawn much larger.
 - **test_skills:**
   - **skill data:** complete, every skill reachable, unique menu positions;
   - **unlocks:** Tesla is the only first skill and costs 3; 1 diamond per wave; the popup after waves 5 and 10; the menu pauses the game and swallows board clicks and Esc; menu buttons unlock skills; prerequisite and cost rules;
@@ -287,6 +334,14 @@ Tests never touch your real save file.
   - panels scroll when overloaded;
   - full-screen modals (skill tree, confirmations) are the only allowed overlays;
   - **no HUD button or label moves or resizes** across 14 states (selecting each tower type, upgrading, build mode, waves, auto-start countdown, huge numbers, long messages, defeat, restart).
+- **test_presentation:**
+  - all 16 sound effects and both music loops exist and load;
+  - building, upgrading, selling, errors, wave start and clear, shots, kills and escapes each play their sound;
+  - a boss wave sounds the gong and switches to the boss theme; the calm theme returns after it; defeat stops the music; restart brings it back;
+  - 50 simultaneous shots play once; muting works from code and from the HUD buttons; settings persist across launches;
+  - turrets turn to face their target and their shot animation plays out and stops; the Tesla glow tracks its recharge;
+  - hits flash enemies; kills leave a burst on the board (not counted as an enemy) that frees itself; enemies turn to face along the path;
+  - every procedural icon draws, and every skill has one.
 - **test_stability:**
   - 6,000 randomized steps (all tower types on random tiles including the path, sells, every upgrade path, skill unlocks, opening and closing the skill tree, auto-start toggling, waves), checking every game invariant every 5 steps (no tower on the path, every enemy on the path and heading toward the gate, counters, gold, lives);
   - a 20-wave run by the strategic bot with invariant checks;

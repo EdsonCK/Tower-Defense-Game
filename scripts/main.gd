@@ -149,6 +149,7 @@ func restart_game(seed_value: int = -1) -> void:
 	_apply_skill_modifiers()
 	_set_build_mode(false)
 	hud.show_message("Build towers beside the path, then press Start Wave. The map grows after every wave - survive as long as you can.")
+	GameAudio.set_music("main")
 	_refresh_hud()
 
 
@@ -191,6 +192,7 @@ func try_buy_tower(cell: Vector2i, type_id: String = "") -> bool:
 	board.towers.add_child(tower)
 	_towers_by_cell[cell] = tower
 	currency -= cost
+	GameAudio.play("build")
 	if build_mode and currency < TowerTypes.cost(build_type):
 		_set_build_mode(false)
 		hud.show_message("%s built. Not enough currency for another; build mode ended." % TowerTypes.display_name(type_id))
@@ -231,6 +233,7 @@ func try_upgrade_tower(tower: Tower, path: Tower.UpgradePath) -> bool:
 		return false
 	currency -= cost
 	tower.apply_upgrade(path)
+	GameAudio.play("upgrade")
 	hud.show_message("%s upgraded to level %d (-%d)." % [Tower.PATH_NAMES[path], tower.upgrade_level, cost])
 	_refresh_hud()
 	return true
@@ -252,6 +255,7 @@ func try_sell_tower(cell: Vector2i) -> bool:
 	board.towers.remove_child(tower)
 	tower.queue_free()
 	currency += refund
+	GameAudio.play("sell")
 	hud.show_message("Tower sold (+%d)." % refund)
 	_refresh_hud()
 	return true
@@ -315,6 +319,7 @@ func try_unlock_skill(skill_id: String) -> bool:
 		lives += bonus_lives
 	_apply_skill_modifiers()
 	_save_progress()
+	GameAudio.play("unlock")
 	hud.show_message("Unlocked %s." % SkillTree.SKILLS[skill_id]["name"])
 	hud.refresh_skill_menu(diamonds, skills)
 	_refresh_hud()
@@ -483,6 +488,8 @@ func _end_game(message: String) -> void:
 	_select_tower(null)
 	_set_build_mode(false)
 	hud.show_message(message)
+	GameAudio.set_music("")
+	GameAudio.play("defeat")
 	_refresh_hud()
 
 
@@ -560,6 +567,11 @@ func _on_wave_started(wave_number: int) -> void:
 	_auto_start_left = -1.0
 	var boss_note: String = "  BOSS: the Colossus approaches alone!" if WaveGenerator.is_boss_wave(wave_number) else ""
 	hud.show_message("Wave %d started!%s" % [wave_number, boss_note])
+	if boss_note != "":
+		GameAudio.play("boss_spawn")
+		GameAudio.set_music("boss")
+	else:
+		GameAudio.play("wave_start")
 	_refresh_hud()
 
 
@@ -569,11 +581,13 @@ func _on_enemy_spawned(_enemy: Enemy) -> void:
 
 func _on_enemy_killed(enemy: Enemy) -> void:
 	currency += roundi(enemy.reward * (1.0 + skills.total("kill_reward")))
+	GameAudio.play("boss_die" if enemy.type_id == EnemyTypes.BOSS else "enemy_die")
 	_hud_dirty = true
 
 
 func _on_enemy_escaped(enemy: Enemy) -> void:
 	lives = maxi(lives - enemy.lives_cost, 0)
+	GameAudio.play("escape")
 	if lives == 0 and not is_game_over():
 		_end_game("DEFEAT on wave %d - the base has fallen. Your diamonds and skills are kept. Press Restart to try again." % wave_manager.current_wave)
 		return
@@ -589,6 +603,8 @@ func _on_wave_completed(wave_number: int) -> void:
 	diamonds += earned
 	_save_progress()
 	state = GameState.BETWEEN_WAVES
+	GameAudio.play("wave_clear")
+	GameAudio.set_music("main")
 	var note: String = _advance_map(wave_number)
 	hud.show_message("Wave %d cleared!  +%d gold, +%d diamond%s.%s" % [wave_number, bonus, earned, "" if earned == 1 else "s", note])
 	_schedule_auto_start()

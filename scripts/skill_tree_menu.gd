@@ -10,11 +10,24 @@ signal closed
 signal reset_requested
 
 const PANEL_SIZE: Vector2 = Vector2(1520, 800)
-const NODE_SIZE: Vector2 = Vector2(184, 58)
+const NODE_SIZE: Vector2 = Vector2(188, 60)
 const COLUMN_WIDTH: float = 204.0
-const ROW_HEIGHT: float = 84.0
-const HEADER_Y: float = 66.0       # column chips sit between the root and row 1
-const FIRST_ROW_Y: float = 100.0
+const ROW_HEIGHT: float = 82.0
+const HEADER_Y: float = 70.0       # column headers sit between the root and row 1
+const FIRST_ROW_Y: float = 112.0
+const CHIP_SIZE: Vector2 = Vector2(150, 30)
+## Glyph (see Icons) shown on each skill's card.
+const SKILL_ICONS: Dictionary = {
+	"tesla": "bolt",
+	"basic_upgrades": "chevrons", "basic_pierce": "arrow", "basic_veteran": "star", "basic_mastery": "crown",
+	"tesla_upgrades": "chevrons", "tesla_static": "bolt", "tesla_capacitor": "battery", "tesla_mastery": "crown",
+	"cannon": "cannon", "cannon_upgrades": "chevrons", "cannon_shrapnel": "burst", "cannon_mastery": "crown",
+	"bounty_1": "coin", "war_chest": "chest", "bounty_2": "coin", "salvage": "gear", "head_start": "flag",
+	"hollow_point": "crosshair", "armor_breaker": "arrow", "shield_breaker": "shield", "focus_fire": "crosshair", "annihilator": "burst",
+	"weaken_1": "skull", "cripple": "drop", "weaken_2": "skull", "rust": "drop", "dampen": "wave",
+	"fortify": "heart", "sharpen": "arrow", "overclock": "clock", "fortify_2": "shield", "diamond_mine": "diamond",
+}
+const COLUMN_ICONS: Array[String] = ["arrow", "bolt", "cannon", "coin", "crosshair", "skull", "heart"]
 const BRANCH_COLORS: Array[Color] = [
 	Color(0.33, 0.62, 1.0),   # Basic
 	Color(0.68, 0.45, 1.0),   # Tesla
@@ -26,8 +39,14 @@ const BRANCH_COLORS: Array[Color] = [
 ]
 const ROOT_COLOR: Color = Color(0.68, 0.45, 1.0)
 
-var _buttons: Dictionary = {}  # skill id -> Button
+var _buttons: Dictionary = {}  # skill id -> SkillNode
 var _tree_area: Control
+var _progress_label: Label
+var _progress_bar: ProgressBar
+var _info_icon: Control
+var _info_icon_kind: String = "diamond"
+var _info_icon_color: Color = UiTheme.DIAMOND
+var _time: float = 0.0
 var _title_label: Label
 var _diamonds_label: Label
 var _info_name: Label
@@ -81,6 +100,25 @@ func _build() -> void:
 	_title_label.theme_type_variation = &"Caption"
 	_title_label.add_theme_font_size_override("font_size", 14)
 	titles.add_child(_title_label)
+	var progress_box: VBoxContainer = VBoxContainer.new()
+	progress_box.custom_minimum_size = Vector2(320, 0)
+	progress_box.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	progress_box.add_theme_constant_override("separation", 4)
+	header.add_child(progress_box)
+	_progress_label = Label.new()
+	_progress_label.theme_type_variation = &"Caption"
+	_progress_label.add_theme_font_size_override("font_size", 13)
+	_progress_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	progress_box.add_child(_progress_label)
+	_progress_bar = ProgressBar.new()
+	_progress_bar.show_percentage = false
+	_progress_bar.custom_minimum_size = Vector2(320, 10)
+	_progress_bar.add_theme_stylebox_override("background", UiTheme.box(Color(0.05, 0.06, 0.08), UiTheme.CARD_BORDER, 1, 5, 0, 0))
+	_progress_bar.add_theme_stylebox_override("fill", UiTheme.box(UiTheme.DIAMOND.darkened(0.15), UiTheme.DIAMOND, 1, 5, 0, 0))
+	progress_box.add_child(_progress_bar)
+	var spacer: Control = Control.new()
+	spacer.custom_minimum_size = Vector2(24, 0)
+	header.add_child(spacer)
 	var pill: PanelContainer = PanelContainer.new()
 	pill.add_theme_stylebox_override("panel", UiTheme.box(UiTheme.DIAMOND.darkened(0.7), UiTheme.DIAMOND, 2, 18, 18, 6))
 	pill.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -97,37 +135,33 @@ func _build() -> void:
 	_tree_area.mouse_filter = Control.MOUSE_FILTER_PASS
 	_tree_area.draw.connect(_draw_links)
 	column.add_child(_tree_area)
-	for i in SkillTree.COLUMNS.size():
-		var chip: Label = Label.new()
-		chip.text = SkillTree.COLUMNS[i].to_upper()
-		chip.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		chip.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		chip.add_theme_font_size_override("font_size", 11)
-		chip.add_theme_color_override("font_color", BRANCH_COLORS[i].lightened(0.25))
-		chip.add_theme_stylebox_override("normal", UiTheme.box(BRANCH_COLORS[i].darkened(0.78), BRANCH_COLORS[i].darkened(0.2), 1, 10, 8, 2))
-		chip.size = Vector2(124, 22)
-		chip.position = Vector2(COLUMN_WIDTH * i + (COLUMN_WIDTH - 124.0) / 2.0, HEADER_Y)
-		_tree_area.add_child(chip)
 	for id: String in SkillTree.SKILLS:
-		var button: Button = Button.new()
-		button.custom_minimum_size = NODE_SIZE
-		button.size = NODE_SIZE
-		button.position = _node_position(id)
-		button.focus_mode = Control.FOCUS_NONE
-		button.clip_text = true
-		button.add_theme_font_size_override("font_size", 13)
-		button.pressed.connect(_on_skill_pressed.bind(id))
-		button.mouse_entered.connect(_show_description.bind(id))
-		_tree_area.add_child(button)
-		_buttons[id] = button
+		var node: SkillNode = SkillNode.new()
+		node.custom_minimum_size = NODE_SIZE
+		node.size = NODE_SIZE
+		node.position = _node_position(id)
+		node.setup(id, SkillTree.SKILLS[id], _branch_color(id), SKILL_ICONS.get(id, "star"))
+		node.pressed.connect(_on_skill_pressed.bind(id))
+		node.mouse_entered.connect(_show_description.bind(id))
+		_tree_area.add_child(node)
+		_buttons[id] = node
 
 	var info: PanelContainer = PanelContainer.new()
 	info.theme_type_variation = &"Card"
 	info.custom_minimum_size = Vector2(0, 92)
 	column.add_child(info)
+	var info_row: HBoxContainer = HBoxContainer.new()
+	info_row.add_theme_constant_override("separation", 14)
+	info.add_child(info_row)
+	_info_icon = Control.new()
+	_info_icon.custom_minimum_size = Vector2(64, 64)
+	_info_icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_info_icon.draw.connect(_draw_info_icon)
+	info_row.add_child(_info_icon)
 	var info_box: VBoxContainer = VBoxContainer.new()
 	info_box.add_theme_constant_override("separation", 2)
-	info.add_child(info_box)
+	info_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	info_row.add_child(info_box)
 	var info_head: HBoxContainer = HBoxContainer.new()
 	info_box.add_child(info_head)
 	_info_name = Label.new()
@@ -190,7 +224,10 @@ func open(subtitle: String, diamonds: int, skills: SkillTree) -> void:
 	refresh(diamonds, skills)
 	_info_name.text = "Spend diamonds on permanent upgrades"
 	_info_status.text = "1 diamond per cleared wave"
-	_info_desc.text = "Hover a skill to see what it does. Gold border = affordable now. Deeper tiers cost more."
+	_info_desc.text = "Hover a skill to see what it does. Glowing gold cards are affordable now; deeper tiers cost more."
+	_info_icon_kind = "diamond"
+	_info_icon_color = UiTheme.DIAMOND
+	_info_icon.queue_redraw()
 	visible = true
 
 
@@ -209,49 +246,38 @@ func refresh(diamonds: int, skills: SkillTree) -> void:
 	_diamonds = diamonds
 	_skills = skills
 	_diamonds_label.text = "%d  diamonds" % diamonds
+	var owned: int = 0
 	for id: String in _buttons:
-		var button: Button = _buttons[id]
-		var skill: Dictionary = SkillTree.SKILLS[id]
-		var branch: Color = _branch_color(id)
-		var bg: Color = UiTheme.CARD
-		var border: Color
-		var text_color: Color
-		var border_width: int = 1
+		var node: SkillNode = _buttons[id]
 		if skills.is_unlocked(id):
-			button.text = "%s\nOWNED" % skill["name"]
-			button.disabled = true
-			bg = branch.darkened(0.62)
-			border = branch
-			text_color = branch.lightened(0.45)
-			border_width = 2
+			node.set_state(SkillNode.State.OWNED)
+			owned += 1
 		elif skills.can_unlock(id, diamonds):
-			button.text = "%s\n%d diamonds" % [skill["name"], skill["cost"]]
-			button.disabled = false
-			border = UiTheme.GOLD
-			text_color = UiTheme.TEXT
-			border_width = 2
+			node.set_state(SkillNode.State.AVAILABLE)
 		elif skills.prerequisites_met(id):
-			button.text = "%s\nneeds %d diamonds" % [skill["name"], skill["cost"]]
-			button.disabled = true
-			border = branch.darkened(0.35)
-			text_color = UiTheme.MUTED.lightened(0.15)
+			node.set_state(SkillNode.State.WAITING)
 		else:
-			button.text = "%s\n%d diamonds" % [skill["name"], skill["cost"]]
-			button.disabled = true
-			bg = Color(0.1, 0.11, 0.14)
-			border = Color(0.2, 0.22, 0.27)
-			text_color = Color(0.4, 0.43, 0.5)
-		for state: String in ["font_color", "font_disabled_color", "font_hover_color", "font_pressed_color"]:
-			button.add_theme_color_override(state, text_color)
-		button.add_theme_stylebox_override("normal", UiTheme.box(bg, border, border_width, 9, 8, 4))
-		button.add_theme_stylebox_override("disabled", UiTheme.box(bg, border, border_width, 9, 8, 4))
-		button.add_theme_stylebox_override("hover", UiTheme.box(bg.lightened(0.1), border.lightened(0.2), border_width + 1, 9, 8, 4))
-		button.add_theme_stylebox_override("pressed", UiTheme.box(bg.darkened(0.1), border, border_width + 1, 9, 8, 4))
+			node.set_state(SkillNode.State.LOCKED)
+	_progress_label.text = "%d / %d skills unlocked" % [owned, _buttons.size()]
+	_progress_bar.max_value = _buttons.size()
+	_progress_bar.value = owned
 	_tree_area.queue_redraw()
 
 
-func get_skill_button(id: String) -> Button:
+func _process(delta: float) -> void:
+	if not visible:
+		return
+	_time += delta
+	_tree_area.queue_redraw()  # flowing light along owned links
+
+
+func get_skill_button(id: String) -> SkillNode:
 	return _buttons[id]
+
+
+## "owned", "available", "waiting" (prerequisites met, not enough diamonds) or "locked".
+func get_skill_state(id: String) -> String:
+	return (_buttons[id] as SkillNode).state_name()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -284,17 +310,91 @@ func _show_description(id: String) -> void:
 	_info_name.add_theme_color_override("font_color", _branch_color(id).lightened(0.3))
 	_info_status.text = status
 	_info_desc.text = skill["desc"]
+	_info_icon_kind = SKILL_ICONS.get(id, "star")
+	_info_icon_color = _branch_color(id)
+	_info_icon.queue_redraw()
 
 
-## Elbow connectors (down, across, down) drawn behind the nodes and column chips.
+func _draw_info_icon() -> void:
+	var c: Vector2 = _info_icon.size / 2.0
+	_info_icon.draw_circle(c, 30.0, _info_icon_color.darkened(0.65))
+	_info_icon.draw_arc(c, 30.0, 0.0, TAU, 40, _info_icon_color, 2.0, true)
+	Icons.draw(_info_icon, _info_icon_kind, c, 17.0, _info_icon_color.lightened(0.3))
+
+
+## Column lanes, branch headers with progress, and elbow connectors (down, across, down)
+## drawn behind the skill cards. Owned links glow and carry flowing light.
 func _draw_links() -> void:
+	var font: Font = get_theme_font("font", "Label")
+	var height: float = _tree_area.size.y
+	for i in SkillTree.COLUMNS.size():
+		var color: Color = BRANCH_COLORS[i]
+		var lane: Rect2 = Rect2(COLUMN_WIDTH * i + 4.0, HEADER_Y - 6.0, COLUMN_WIDTH - 8.0, height - HEADER_Y + 6.0)
+		_tree_area.draw_style_box(UiTheme.box(Color(color, 0.045), Color(color, 0.12), 1, 14), lane)
 	for id: String in SkillTree.SKILLS:
 		for required: String in SkillTree.SKILLS[id]["requires"]:
 			var from: Vector2 = _node_position(required) + Vector2(NODE_SIZE.x / 2.0, NODE_SIZE.y)
 			var to: Vector2 = _node_position(id) + Vector2(NODE_SIZE.x / 2.0, 0.0)
-			var lit: bool = _skills != null and _skills.is_unlocked(id)
-			var color: Color = _branch_color(id) if lit else Color(0.27, 0.3, 0.37)
-			var width: float = 3.0 if lit else 2.0
-			# Branches leave the root along a bus just above the column chips.
+			# Branches leave the root along a bus just above the column headers.
 			var mid_y: float = (from.y + HEADER_Y) / 2.0 if from.x != to.x else to.y
-			_tree_area.draw_polyline(PackedVector2Array([from, Vector2(from.x, mid_y), Vector2(to.x, mid_y), to]), color, width, true)
+			var points: PackedVector2Array = PackedVector2Array([from, Vector2(from.x, mid_y), Vector2(to.x, mid_y), to])
+			var owned: bool = _skills != null and _skills.is_unlocked(id)
+			var reachable: bool = _skills != null and _skills.is_unlocked(required)
+			var branch: Color = _branch_color(id)
+			if owned:
+				_tree_area.draw_polyline(points, Color(branch, 0.22), 9.0, true)
+				_tree_area.draw_polyline(points, branch, 3.0, true)
+				_draw_flow(points, branch.lightened(0.6))
+			elif reachable:
+				_tree_area.draw_polyline(points, Color(branch, 0.55), 2.0, true)
+			else:
+				_tree_area.draw_polyline(points, Color(0.24, 0.27, 0.33), 2.0, true)
+	for i in SkillTree.COLUMNS.size():
+		_draw_column_header(i, font)
+
+
+func _draw_column_header(i: int, font: Font) -> void:
+	var color: Color = BRANCH_COLORS[i]
+	var rect: Rect2 = Rect2(Vector2(COLUMN_WIDTH * i + (COLUMN_WIDTH - CHIP_SIZE.x) / 2.0, HEADER_Y), CHIP_SIZE)
+	_tree_area.draw_style_box(UiTheme.box(color.darkened(0.78), color.darkened(0.15), 1, 15), rect)
+	Icons.draw(_tree_area, COLUMN_ICONS[i], rect.position + Vector2(17, 15), 8.0, color.lightened(0.2))
+	_tree_area.draw_string(font, rect.position + Vector2(30, 20), SkillTree.COLUMNS[i].to_upper(), HORIZONTAL_ALIGNMENT_LEFT, 82, 11, color.lightened(0.3))
+	var owned: int = 0
+	var total: int = 0
+	for id: String in SkillTree.SKILLS:
+		var pos: Vector2i = SkillTree.SKILLS[id]["pos"]
+		if pos.y > 0 and pos.x == i:
+			total += 1
+			if _skills != null and _skills.is_unlocked(id):
+				owned += 1
+	_tree_area.draw_string(font, rect.position + Vector2(CHIP_SIZE.x - 34, 20), "%d/%d" % [owned, total], HORIZONTAL_ALIGNMENT_RIGHT, 26, 11, color.lightened(0.1) if owned < total else UiTheme.GOLD)
+	# Thin progress line under the chip.
+	var bar: Rect2 = Rect2(rect.position + Vector2(14, CHIP_SIZE.y - 4), Vector2(CHIP_SIZE.x - 28, 2))
+	_tree_area.draw_rect(bar, Color(color, 0.2))
+	if total > 0 and owned > 0:
+		_tree_area.draw_rect(Rect2(bar.position, Vector2(bar.size.x * owned / total, bar.size.y)), color)
+
+
+## Bright dots travelling along an owned link.
+func _draw_flow(points: PackedVector2Array, color: Color) -> void:
+	var length: float = 0.0
+	for k in range(1, points.size()):
+		length += points[k - 1].distance_to(points[k])
+	if length <= 0.0:
+		return
+	var spacing: float = 34.0
+	var offset: float = fmod(_time * 40.0, spacing)
+	var d: float = offset
+	while d < length:
+		_tree_area.draw_circle(_point_along(points, d), 2.2, color)
+		d += spacing
+
+
+func _point_along(points: PackedVector2Array, distance: float) -> Vector2:
+	var left: float = distance
+	for k in range(1, points.size()):
+		var seg: float = points[k - 1].distance_to(points[k])
+		if left <= seg:
+			return points[k - 1].lerp(points[k], left / maxf(seg, 0.001))
+		left -= seg
+	return points[points.size() - 1]

@@ -136,7 +136,7 @@ func test_skill_menu_buttons_unlock_skills() -> void:
 	_check(menu.get_skill_button("fortify").disabled, "skills behind the root are disabled")
 	menu.get_skill_button("tesla").pressed.emit()
 	_check(main.skills.is_unlocked("tesla") and main.diamonds == 0, "pressing the Tesla button unlocks it for 3 diamonds")
-	_check(menu.get_skill_button("tesla").disabled and menu.get_skill_button("tesla").text.contains("OWNED"), "button now shows OWNED")
+	_check(menu.get_skill_button("tesla").disabled and menu.get_skill_state("tesla") == "owned", "button now shows OWNED")
 	_check(menu.get_skill_button("fortify").disabled, "next skills visible but unaffordable with 0 diamonds")
 	main.diamonds = 3
 	main.hud.refresh_skill_menu(main.diamonds, main.skills)

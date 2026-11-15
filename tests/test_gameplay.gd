@@ -113,7 +113,7 @@ func test_generator_boss_waves() -> void:
 	var boss: Dictionary = gen.generate(30)[0]
 	var grunt: Dictionary = WaveGenerator.make_entry(EnemyTypes.GRUNT, 30)
 	var boss_pool: float = boss["health"] + boss["armor"] + boss["shield"]
-	_check(boss_pool >= grunt["health"] * 25.0, "the boss has an enormous health pool (%d vs a Grunt's %d)" % [boss_pool, grunt["health"]])
+	_check(boss_pool >= grunt["health"] * 20.0, "the boss has an enormous health pool (%d vs a Grunt's %d)" % [boss_pool, grunt["health"]])
 	_check(boss["shield"] > 0.0 and boss["armor"] > 0.0, "the boss has all three layers")
 
 
