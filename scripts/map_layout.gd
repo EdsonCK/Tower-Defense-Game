@@ -12,11 +12,16 @@ extends RefCounted
 ##   "ring" metric), so a branch crosses every window border exactly once. That means
 ##   enemies entering a window never leave it again on their way to the exit;
 ## - branches turn often (they are deliberately windy).
+## After the path, a few lakes ("features": water, lava, ice or bog depending on the
+## biome's look) are placed well away from every path cell, so they shape the land
+## without ever blocking the best tower spots.
 
 const DIRECTIONS: Array[Vector2i] = [Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT, Vector2i.UP]
 const MAX_ATTEMPTS: int = 40
 const MAX_STEPS: int = 600
 const MAX_STRAIGHT: int = 8  # a branch never runs straighter than this many tiles
+const FEATURE_MIN_PATH_GAP: int = 3  # lake tiles are at least this many steps from any path
+const FEATURE_LAKES: Vector2i = Vector2i(6, 10)  # lakes per map (min, max)
 
 var exit: Vector2i = GameConfig.EXIT_CELL
 ## Path cell -> parent cell (one step closer to the exit). The exit maps to itself.
@@ -25,6 +30,8 @@ var parent: Dictionary = {}
 var children: Dictionary = {}
 ## Path cell -> number of steps to the exit.
 var distance: Dictionary = {}
+## Lake cell -> true. Never on or near the path; towers can't be built there.
+var features: Dictionary = {}
 
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 # Per-map style, rolled from the seed in generate().
@@ -135,6 +142,78 @@ func generate(seed_value: int) -> void:
 			continue
 		if _carve_branch(start, target + _rng.randf_range(-0.3, 0.3)):
 			forks_made += 1
+	_place_features()
+
+
+func is_feature(cell: Vector2i) -> bool:
+	return features.has(cell)
+
+
+## Steps (4-neighbour) from every grid cell to the nearest path cell.
+func path_gap_field() -> Dictionary:
+	var gap: Dictionary = {}
+	var frontier: Array[Vector2i] = []
+	for cell: Vector2i in parent:
+		gap[cell] = 0
+		frontier.append(cell)
+	var head: int = 0
+	while head < frontier.size():
+		var cell: Vector2i = frontier[head]
+		head += 1
+		for d: Vector2i in DIRECTIONS:
+			var next: Vector2i = cell + d
+			if in_grid(next) and not gap.has(next):
+				gap[next] = int(gap[cell]) + 1
+				frontier.append(next)
+	return gap
+
+
+## Scatters a handful of irregular lakes over open land, keeping clear of the path.
+func _place_features() -> void:
+	features = {}
+	var gap: Dictionary = path_gap_field()
+	var candidates: Array[Vector2i] = []
+	for cell: Vector2i in gap:
+		if int(gap[cell]) >= FEATURE_MIN_PATH_GAP + 1 and cell.distance_to(exit) > 4.0:
+			candidates.append(cell)
+	if candidates.is_empty():
+		return
+	var lakes: int = _rng.randi_range(FEATURE_LAKES.x, FEATURE_LAKES.y)
+	for i in lakes:
+		var center: Vector2i = candidates[_rng.randi_range(0, candidates.size() - 1)]
+		# A lake is two or three overlapping ellipses, for an irregular shoreline.
+		for blob in _rng.randi_range(2, 3):
+			var offset: Vector2 = Vector2(_rng.randf_range(-1.2, 1.2), _rng.randf_range(-1.0, 1.0))
+			var radii: Vector2 = Vector2(_rng.randf_range(1.0, 2.4), _rng.randf_range(0.8, 1.8))
+			for dy in range(-3, 4):
+				for dx in range(-4, 5):
+					var cell: Vector2i = center + Vector2i(dx, dy)
+					var rel: Vector2 = (Vector2(dx, dy) - offset) / radii
+					if rel.length_squared() <= 1.0 and int(gap.get(cell, 0)) >= FEATURE_MIN_PATH_GAP:
+						features[cell] = true
+	# Round the shorelines: drop spurs, fill notches (a couple of cellular-automaton passes).
+	for pass_index in 2:
+		var changes: Dictionary = {}
+		var region: Dictionary = {}
+		for cell: Vector2i in features:
+			for dy in range(-1, 2):
+				for dx in range(-1, 2):
+					region[cell + Vector2i(dx, dy)] = true
+		for cell: Vector2i in region:
+			var around: int = 0
+			for dy in range(-1, 2):
+				for dx in range(-1, 2):
+					if (dx != 0 or dy != 0) and features.has(cell + Vector2i(dx, dy)):
+						around += 1
+			if features.has(cell) and around < 3:
+				changes[cell] = false
+			elif not features.has(cell) and around >= 5 and int(gap.get(cell, 0)) >= FEATURE_MIN_PATH_GAP:
+				changes[cell] = true
+		for cell: Vector2i in changes:
+			if changes[cell]:
+				features[cell] = true
+			else:
+				features.erase(cell)
 
 
 ## Direction from the exit (aspect-normalized) farthest from every existing branch end.

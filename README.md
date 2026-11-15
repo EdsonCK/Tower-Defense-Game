@@ -3,15 +3,15 @@
 As-of-yet unnamed tower defense made in Godot, mostly written with AI. It draws on Rogue Tower and Sir, We Have an Orc Problem. Built for **Godot 4.7.2 stable** in GDScript.
 
 **The game:**
-- **The map:** a winding, fixed path network leads from several entrances, through crossroads, to a single gate at the center. Every run (and every Restart) generates a different map.
+- **The map:** a winding, fixed path network leads from several entrances, through crossroads, to a single gate at the center, past lakes and scenery. Every run (and every Restart) generates a different map.
 - **Towers** go beside the path, never on it.
 - **Growth:** the map grows a little after every wave, revealing more path and new entrances.
-- **Biomes:** every 10 waves the land changes. Each biome has its own colors and decorations, and buffs one tower type in particular.
+- **Biomes:** every 10 waves the land changes. Each biome has its own textured ground, lakes (water, oasis, ice, lava or bog), scenery and ambient particles, and buffs one tower type in particular.
 - **Enemies** carry stacked shield, armor and health layers, and three tower types each specialize against one layer.
 - **Bosses:** every 15th wave is a lone Colossus with enormous health bars.
 - **Progression:** clearing waves earns **diamonds**, which unlock a permanent 33-skill tree.
 - **Camera:** zoom in and pan around the map; fully zoomed out shows the whole map.
-- **Presentation:** procedurally drawn, animated towers and enemies, and generated sound effects and music (no external assets).
+- **Presentation:** a procedural terrain shader, procedurally drawn and animated scenery, towers and enemies, and generated sound effects and music (no external assets).
 
 ## Running
 
@@ -54,7 +54,7 @@ When adding UI:
 | Action | Control |
 |---|---|
 | Enter build mode | **Basic Tower / Tesla Tower / Cannon** buttons in the BUILD card. Locked towers say "(Skill Tree)". The active build button is highlighted gold. |
-| Place tower | **Left-click** a free tile beside the path (green = valid, red = invalid; the path and the gate are never valid). Build mode stays on until you cancel or can't afford another tower. |
+| Place tower | **Left-click** a free tile beside the path. In build mode a tile grid fades in; the hovered tile is green when valid and red when not (the path, the gate and lakes are never valid), and a dashed circle shows the new tower's range. Build mode stays on until you cancel or can't afford another tower. |
 | Select a tower | **Left-click** a tower (outside build mode). The SELECTED TOWER card shows its damage per layer and its upgrades. |
 | Upgrade / sell | The four upgrade buttons and **Sell** in the SELECTED TOWER card |
 | Cancel build mode / deselect | **Right-click**, **Esc**, **Cancel build**, or click empty ground |
@@ -86,11 +86,13 @@ Tuning lives in:
 - **The path network** is generated per run from the run seed (shown in the panel). Each new run and each Restart picks a fresh random seed, so **the pathing is different every time**.
   - It is a tree of 1-tile-wide, winding paths that all lead to a **single gate** (the exit) at the center.
   - Each map also rolls its own character: the angle the two main branches leave the gate, how twisty the paths are (how long straight stretches run), and how many side branches split off (4-6). A straight stretch (counting through a crossroads) is cut off after 8 tiles whenever the path has another way to go.
-  - Branches run outward to **entrances** (red portals) and split off each other, which creates **crossroads**.
+  - Branches run outward to **entrances** (swirling rifts in rings of standing stones) and split off each other, which creates **crossroads**.
+  - **Lakes:** 6-10 irregular lakes are scattered over open land, always at least 3 steps from any path tile, so they shape the land without taking the best tower spots. Their look follows the biome (pond, oasis, frozen lake, lava pool, bog). **Towers can't be built in a lake.**
+  - **The gate** is a small stone keep on a round cobbled plaza, and the road is cobbled for the last few tiles before it.
   - Walking toward the gate never takes an enemy back outward, so routes never leave the visible map.
-- **Towers** can be built on any free tile except the path and the gate.
+- **Towers** can be built on any free tile except the path, the gate and lakes.
 - **The map grows after every wave.** It starts at 23×13 tiles and gains a ring each wave until it reaches 61×37 (wave 20). The fully zoomed-out view always fits the whole map; if you are zoomed in, your zoom level is kept as it grows.
-  - Growing reveals more path, so routes get longer.
+  - Growing reveals more path, so routes get longer. The fog over the unexplored land rolls back smoothly to reveal the new ring.
   - Branches that split off further out appear as **new entrances**: 2-4 at the start, 6-8 on the full map.
   - Towers keep their tiles as the map grows.
 - **Enemies** are split across the entrances (a pack always shares one entrance) and walk their route to the gate. Single-target towers shoot the enemy in range that is **closest to the gate**.
@@ -98,16 +100,26 @@ Tuning lives in:
 
 ### Biomes
 
-The biome changes every 10 waves (after waves 10, 20, ...) and cycles after the sixth. Every biome uses the same art style (flat shapes, dark outline, soft shadow) and **the same path palette**; only the ground colors and decorations change. Each gives every tower a small buff and its **favored tower** a stronger one.
+The biome changes every 10 waves (after waves 10, 20, ...) and cycles after the sixth. Every biome uses the same art style (soft-shaded shapes lit from the top left, soft shadows) and **the same path palette**; the ground, lakes, scenery and ambient particles change. When a biome changes, the land cross-fades into the new palette. Each gives every tower a small buff and its **favored tower** a stronger one.
 
 | Waves | Biome | Look | All towers | Favored tower (total) |
 |---|---|---|---|---|
-| 1-10 | Meadow | green grass, round trees, bushes, flowers | +10% range | **Basic** +25% range |
-| 11-20 | Desert | sand, cacti, rocks, dunes, bones | +5% hit speed | **Cannon** +20% hit speed |
-| 21-30 | Tundra | snow, snowy pines, ice shards, snowy rocks | +5% damage | **Tesla** +25% damage |
-| 31-40 | Volcanic | basalt, glowing lava cracks, stumps, obsidian | +5% damage | **Cannon** +25% damage |
-| 41-50 | Swamp | murky green, reeds, ponds with lilies, mushrooms | +10% range | **Tesla** +30% range |
-| 51-60 | Autumn Forest | golden ground, orange trees, fallen leaves, pumpkins | +5% hit speed | **Basic** +20% hit speed |
+| 1-10 | Meadow | grass rippling in the wind, tiny flowers, trees, bushes, flower clumps, grass tufts; blue ponds with lily pads and cattails; pollen and butterflies | +10% range | **Basic** +25% range |
+| 11-20 | Desert | wind-rippled sand and gravel flats, cacti, tumbleweeds, bones; turquoise oases ringed by palms; blowing dust | +5% hit speed | **Cannon** +20% hit speed |
+| 21-30 | Tundra | twinkling snow with blue drifts, snowy pines, ice crystals; frozen lakes with cracked, glinting ice; falling snow | +5% damage | **Tesla** +25% damage |
+| 31-40 | Volcanic | basalt plates with pulsing lava cracks, vents, charred stumps, obsidian; churning lava pools with cooling crust; rising embers | +5% damage | **Cannon** +25% damage |
+| 41-50 | Swamp | wet mud with a slow sheen and moss, reeds, mushrooms, mossy logs; murky bogs with scum and bubbles; fireflies | +10% range | **Tesla** +30% range |
+| 51-60 | Autumn Forest | leaf-littered earth, orange and red trees, leaf piles, pumpkins; dark ponds; falling leaves | +5% hit speed | **Basic** +20% hit speed |
+
+**How the map is drawn:**
+- **One terrain shader** (`shaders/terrain.gdshader`) paints the ground, path, plaza, lakes, cloud shadows, build grid and fog in a single pass. All its texture is procedural (noise, fbm, voronoi), so there are no image assets and the detail stays sharp at any zoom. It reads a tiny one-pixel-per-tile map of the path, lakes and cobbles, sampled smoothly so path corners and shorelines come out rounded and organic.
+- **The path** is packed dirt with wheel ruts, pebbles and a darker, sunken rim; the grass beside it is shaded by the bank.
+- **Water** ripples and glints, **lava** churns under cooling crust, **ice** shows cracks and a sliding sheen, and **bogs** swirl and bubble. Lava pools light up the rocks around them.
+- **Cloud shadows** drift slowly across the map (lava glows through them).
+- **Beyond the map's edge** the unexplored land is dimmed and covered by drifting fog, with a soft vignette inside the edge.
+- **Scenery** (trees, rocks, cacti, reeds and so on) is drawn on its own layer from stable per-tile hashes, so it never flickers. It never sits on the path, beside it, on a tower or in a lake; lakeshores get shore plants. Placing a tower clears the scenery under it.
+- **Ambient particles** drift over the map (see the table), more of them on a bigger map, up to 90.
+- **Build mode** fades in a tile grid over open ground, highlights the hovered tile and shows the new tower's range as a dashed circle.
 
 The current biome and its buff are shown in the wave card. Buffs apply immediately to every tower, including ones you already built.
 
@@ -232,6 +244,7 @@ All audio is synthesized by `tools/gen_audio.py` (Python + numpy) into `audio/*.
 - **Game logic:** in a full real-time run to wave 33 (310 towers, 7 entrances), it averaged 7 ms per frame (p99 7 ms), measured headless. The occasional longer frames were the test bot's own planning, which doesn't exist in the real game.
 - **Board redraw:** the board redraws only when it changes, such as placing a tower, the map growing or a new biome. A full-map redraw with 520 towers costs about 4 ms.
 - **Animated art:** with 250 towers on the full map during wave 40, script processing (including the animations) takes about 3 ms per frame, measured headless. Enemy body animation redraws at 20 fps; movement itself stays smooth.
+- **Terrain:** the ground, path, lakes, clouds and fog are one full-screen shader pass on the GPU. Animation (water, lava, clouds, particles, portals) costs no redraws on the CPU side except the small particle and portal layers. The scenery layer redraws only when the map, the biome or the towers change. It has only been tested here with a software renderer, so GPU cost on low-end integrated graphics is unmeasured.
 
 ## Project layout
 
@@ -254,9 +267,14 @@ scripts/progress_store.gd permanent progress + settings saved as JSON (user://pr
 scripts/enemy_types.gd    enemy type definitions: stats, looks, traits, unlock wave
 scripts/wave_generator.gd seeded endless wave generation and scaling formulas
 scripts/main.gd           currency, lives, game state, purchases, upgrades, sales, selection, defeat, restart
-scripts/map_layout.gd     seeded path-network generator (tree to one exit, 1 tile wide, windy) and queries
+scripts/map_layout.gd     seeded path-network generator (tree to one exit, 1 tile wide, windy), lakes, and queries
 scripts/biomes.gd         biome definitions: ground palette, decorations, tower buffs
-scripts/board.gd          visible window and growth, camera (fit, zoom, pan), placement rules, clicks, map/biome drawing
+scripts/board.gd          visible window and growth, camera (fit, zoom, pan), placement rules, clicks, art layer stack
+scripts/terrain.gd        feeds the terrain shader: per-tile map texture, biome palette cross-fades, grid, fog reveal
+shaders/terrain.gdshader  ground, path, plaza, lakes, clouds, grid and fog in one procedural pass
+scripts/decor_layer.gd    scenery placement rules and drawing (trees, rocks, cacti, reeds, lily pads, ...)
+scripts/map_markers.gd    the gate keep and the animated entrance portals
+scripts/atmosphere.gd     ambient particles per biome
 scripts/enemy.gd          walks its route to the gate, layered pools, regen/split/slow, died/reached_exit (once each), animated art
 scripts/death_fx.gd       short burst left where an enemy dies
 scripts/tower.gd          targeting, cooldown, immediate-hit attack, upgrade path/levels, sell value, turret animation
@@ -267,6 +285,7 @@ scripts/hud.gd            labels, buttons → intent signals, next-wave preview,
 scripts/window_fit.gd     fits/centers the OS window on its screen, re-centers after resize, F11 fullscreen
 tests/test_base.gd        shared headless test harness and game-invariant checker
 tests/test_map.gd         map generation rules, placement, path following, growth, zoom, clicks, biomes, run flow
+tests/test_map_art.gd     lakes, terrain shader inputs, art layers, scenery rules, cross-fades, grid, particles, fog reveal
 tests/test_gameplay.gd    wave generator, enemy types and traits, endless flow, upgrades, selling, selection
 tests/test_stability.gd   randomized fuzzing and long-run simulations
 tests/test_layout.gd      HUD layout guard: nothing may cover the board or leave the view
@@ -283,7 +302,7 @@ tests/run_all.sh          runs everything; fails on any test failure OR any scri
 Run everything from the project root with one command (pass your Godot executable; on Windows use Git Bash or WSL, or run the individual commands below):
 
 ```sh
-tests/run_all.sh path/to/godot      # ~3 min
+tests/run_all.sh path/to/godot      # ~3-4 min
 ```
 
 `run_all.sh` imports the project, runs a 180-frame startup check, then every suite. It fails if any check fails **or if any script error appears in the output**, so errors inside signal handlers can't slip through. Individual commands:
@@ -292,6 +311,7 @@ tests/run_all.sh path/to/godot      # ~3 min
 godot --headless --editor --path . --quit          # import once (builds the global class cache)
 godot --headless --path . --quit-after 180         # runtime smoke test
 godot --headless --path . --script res://tests/test_map.gd
+godot --headless --path . --script res://tests/test_map_art.gd
 godot --headless --path . --script res://tests/test_gameplay.gd
 godot --headless --path . --script res://tests/test_skills.gd
 godot --headless --path . --script res://tests/test_layout.gd
@@ -313,6 +333,12 @@ Tests never touch your real save file.
   - **new map every time:** 12 consecutive restarts give 12 different starting maps (and different path lengths);
   - **biomes:** 6 biomes with distinct art; changes every 10 waves and cycles; small global buff plus a stronger favored-tower buff, applied to towers and shown in the HUD;
   - **run flow and window:** defeat → restart gives a new seed, map and size; window-fit sizing.
+- **test_map_art:**
+  - lakes on every map, always 3+ steps from every path tile, under 10% of the land, reproducible per seed; towers can't be built in them and the message names the biome's lakes;
+  - the art layers stack in order (Terrain, Decor, Markers, Overlay, Towers, Enemies, Atmosphere) and the terrain is a single shader pass whose inputs (path only inside the window, every lake, cobbles by the gate, the window rectangle) are correct, also after the map grows;
+  - scenery never sits on the path, beside it, on a tower, in a lake or off the map; it is stable between redraws, a new tower clears it, and each biome brings its own;
+  - biome changes cross-fade the palette, while a new run snaps straight back to the Meadow; the build grid fades in and out with build mode; every biome has its own particles, the count scales with the map, and particles stay over the map;
+  - the fog rolls back smoothly when the map grows, and the shader exposes every uniform the game sets.
 - **test_gameplay:**
   - **generator:** reproducible per seed, varies between seeds; 300 waves × 3 seeds have valid sizes, unlocked types, finite stats and rising difficulty; every 15th wave is exactly one boss with an enormous pool (20+ Grunts' worth), and no other wave has one;
   - **late waves:** past wave 30 they get much bigger and spawn faster, yet never get shorter (even at the 320-enemy cap);

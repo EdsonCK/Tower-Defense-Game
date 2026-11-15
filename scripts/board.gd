@@ -6,6 +6,11 @@ extends Node2D
 ## the current biome. Towers and enemies are children and use world coordinates
 ## (CELL_SIZE px per cell); this node is scaled and positioned so the window fills its
 ## BoardArea.
+##
+## Art is split into child layers, back to front: Terrain (ground, path, lakes, fog;
+## one shader pass), DecorLayer (scenery), MapMarkers (gate and entrance portals),
+## Overlay (build hover and range preview), then Towers and Enemies, then Atmosphere
+## (ambient particles). The board itself draws nothing.
 
 signal cell_clicked(cell: Vector2i)
 
@@ -21,11 +26,10 @@ const MSG_OUTSIDE: String = "Outside the map"
 const MSG_ON_PATH: String = "Towers can't be built on the path"
 const MSG_GATE: String = "Can't build on the gate"
 const MSG_OCCUPIED: String = "Occupied tile"
+const MSG_FEATURE: String = "Can't build on the "  # + the biome's lake name ("pond", "lava pool"...)
 
 const COLOR_HOVER_VALID: Color = Color(0.3, 1.0, 0.4, 0.40)
 const COLOR_HOVER_INVALID: Color = Color(1.0, 0.25, 0.2, 0.40)
-const COLOR_ENTRANCE: Color = Color(0.85, 0.25, 0.25)
-const COLOR_GATE: Color = Color(0.55, 0.58, 0.66)
 
 var layout: MapLayout = MapLayout.new(0)
 var half_width: int = GameConfig.MAP_START_HALF_WIDTH
@@ -45,13 +49,64 @@ var _fit_area: Vector2 = Vector2(GameConfig.BOARD_WIDTH, GameConfig.BOARD_HEIGHT
 var zoom: float = 1.0
 var _focus: Vector2 = Vector2.ZERO  # world point at the center of the view
 var _dragging: bool = false
+var terrain: Terrain
+var decor: DecorLayer
+var markers: MapMarkers
+var overlay: Node2D
+var atmosphere: Atmosphere
 
 
 func _ready() -> void:
 	towers = get_node_or_null("Towers") as Node2D
 	enemies = get_node_or_null("Enemies") as Node2D
+	_ensure_layers()
 	_entrances = layout.entrances(half_width)
 	fit_to(_fit_area)
+	_refresh_map_art()
+	_refresh_biome_art(false)
+
+
+## Creates the art layers once (see the class comment for their order).
+func _ensure_layers() -> void:
+	if terrain != null:
+		return
+	terrain = Terrain.new()
+	terrain.name = "Terrain"
+	decor = DecorLayer.new()
+	decor.name = "Decor"
+	decor.board = self
+	markers = MapMarkers.new()
+	markers.name = "Markers"
+	markers.board = self
+	overlay = Node2D.new()
+	overlay.name = "Overlay"
+	overlay.draw.connect(_draw_overlay)
+	var layers: Array[Node2D] = [terrain, decor, markers, overlay]
+	for i in layers.size():
+		add_child(layers[i])
+		move_child(layers[i], i)
+	atmosphere = Atmosphere.new()
+	atmosphere.name = "Atmosphere"
+	add_child(atmosphere)
+
+
+func _refresh_map_art() -> void:
+	if terrain == null:
+		return
+	terrain.update_map(layout, half_width, window_rect_world())
+	decor.queue_redraw()
+	markers.queue_redraw()
+	overlay.queue_redraw()
+	atmosphere.configure(atmosphere.kind, window_rect_world())
+
+
+func _refresh_biome_art(animate: bool) -> void:
+	if terrain == null:
+		return
+	var def: Dictionary = Biomes.get_def(maxi(biome_index, 0))
+	terrain.apply_biome(biome_index, animate)
+	decor.queue_redraw()
+	atmosphere.configure(def["particles"], window_rect_world())
 
 
 ## New run: generates the path network from `seed_value`, resets the window and towers.
@@ -62,6 +117,7 @@ func setup_map(seed_value: int) -> void:
 	zoom = 1.0
 	_focus = window_rect_world().get_center()
 	set_half_width(GameConfig.MAP_START_HALF_WIDTH)
+	_refresh_biome_art(false)
 
 
 func set_half_width(new_half_width: int) -> void:
@@ -69,14 +125,23 @@ func set_half_width(new_half_width: int) -> void:
 	_entrances = layout.entrances(half_width)
 	_hover_refresh_left = 0.0
 	fit_to(_fit_area)
-	queue_redraw()
+	_refresh_map_art()
 
 
 func set_biome(index: int) -> void:
 	if index == biome_index:
 		return
 	biome_index = index
-	queue_redraw()
+	_refresh_biome_art(true)
+
+
+## Name of the current biome's lakes ("pond", "lava pool", ...).
+func feature_name() -> String:
+	return Biomes.get_def(maxi(biome_index, 0))["feature"]
+
+
+func is_feature(cell: Vector2i) -> bool:
+	return layout.is_feature(cell)
 
 
 func half_height() -> int:
@@ -204,6 +269,8 @@ func placement_rejection(cell: Vector2i) -> String:
 		return MSG_GATE
 	if layout.is_path(cell):
 		return MSG_ON_PATH
+	if layout.is_feature(cell):
+		return MSG_FEATURE + feature_name()
 	if _blocked.has(cell):
 		return MSG_OCCUPIED
 	return ""
@@ -219,18 +286,23 @@ func try_block_cell(cell: Vector2i) -> String:
 	if reason != "":
 		return reason
 	_blocked[cell] = true
-	queue_redraw()
+	_redraw_decor()
 	return ""
 
 
 func unblock_cell(cell: Vector2i) -> void:
 	if _blocked.erase(cell):
-		queue_redraw()
+		_redraw_decor()
 
 
 func clear_blocked_cells() -> void:
 	_blocked.clear()
-	queue_redraw()
+	_redraw_decor()
+
+
+func _redraw_decor() -> void:
+	if decor != null:
+		decor.queue_redraw()  # scenery is hidden under towers
 
 
 func is_blocked(cell: Vector2i) -> bool:
@@ -268,7 +340,9 @@ func set_build_state(active: bool, can_afford: bool, preview_range: float = Game
 	_hover_refresh_left = 0.0
 	if not active:
 		_hover_cell = NO_CELL
-	queue_redraw()
+	if terrain != null:
+		terrain.set_grid_visible(active)
+		overlay.queue_redraw()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -362,233 +436,25 @@ func _process(delta: float) -> void:
 	_hover_cell = cell
 	_hover_refresh_left = HOVER_REFRESH_INTERVAL
 	_hover_valid = cell != NO_CELL and _can_afford and is_buildable(cell)
-	queue_redraw()
+	if overlay != null:
+		overlay.queue_redraw()
 
 
 # --- Rendering -------------------------------------------------------------------
 
-func _draw() -> void:
-	var biome: Dictionary = Biomes.get_def(biome_index)
-	var cs: float = GameConfig.CELL_SIZE
-	var rect: Rect2i = window_rect_cells()
-	var world: Rect2 = window_rect_world()
-	# Fog of unexplored land around the window.
-	draw_rect(world.grow(cs * 40.0), (biome["ground"] as Color).darkened(0.72))
-	draw_rect(world.grow(cs * 0.25), (biome["ground"] as Color).darkened(0.5))
-	for y in range(rect.position.y, rect.end.y):
-		for x in range(rect.position.x, rect.end.x):
-			var cell: Vector2i = Vector2i(x, y)
-			var shade: float = _hash01(cell, 11)
-			var ground: Color = (biome["ground_alt"] if (x + y) % 2 == 0 else biome["ground"]) as Color
-			draw_rect(_cell_rect(cell), ground.lerp(ground.darkened(0.08), shade))
-	for x in range(rect.position.x, rect.end.x + 1):
-		draw_line(Vector2(x * cs, world.position.y), Vector2(x * cs, world.end.y), biome["grid"], 1.0)
-	for y in range(rect.position.y, rect.end.y + 1):
-		draw_line(Vector2(world.position.x, y * cs), Vector2(world.end.x, y * cs), biome["grid"], 1.0)
-	# Decorations on free ground (never on the path or under towers).
-	for y in range(rect.position.y, rect.end.y):
-		for x in range(rect.position.x, rect.end.x):
-			var cell: Vector2i = Vector2i(x, y)
-			if not layout.is_path(cell) and not _blocked.has(cell) and not _next_to_path(cell) and _hash01(cell, biome_index * 7 + 3) < biome["deco_density"]:
-				_draw_decoration(cell, biome)
-	# Path (same palette in every biome).
-	for cell: Vector2i in layout.parent:
-		if in_window(cell):
-			_draw_path_cell(cell)
-	for cell: Vector2i in _entrances:
-		_draw_entrance(cell)
-	_draw_gate(layout.exit)
-	if _build_mode and _hover_cell != NO_CELL:
-		var color: Color = COLOR_HOVER_VALID if _hover_valid else COLOR_HOVER_INVALID
-		draw_rect(_cell_rect(_hover_cell), color)
-		draw_rect(_cell_rect(_hover_cell), Color(color, 0.9), false, 2.0)
-		if _hover_valid:
-			draw_arc(cell_to_world(_hover_cell), _preview_range, 0.0, TAU, 48, Color(1, 1, 1, 0.45), 1.5)
-
-
-func _next_to_path(cell: Vector2i) -> bool:
-	for d: Vector2i in MapLayout.DIRECTIONS:
-		if layout.is_path(cell + d):
-			return true
-	return false
-
-
-func _draw_path_cell(cell: Vector2i) -> void:
-	var cs: float = GameConfig.CELL_SIZE
-	var center: Vector2 = cell_to_world(cell)
-	var linked: Array[Vector2i] = []
-	if cell != layout.exit:
-		linked.append(layout.parent[cell])
-	for kid: Vector2i in layout.children.get(cell, []):
-		linked.append(kid)
-	# Dark edge, then the dirt fill, each a center square plus connectors to linked cells.
-	for pass_index in 2:
-		var inset: float = 2.0 if pass_index == 0 else 5.0
-		var color: Color = Biomes.PATH_EDGE if pass_index == 0 else Biomes.PATH_COLOR
-		var core: Rect2 = Rect2(center - Vector2(cs / 2.0 - inset, cs / 2.0 - inset), Vector2(cs - 2.0 * inset, cs - 2.0 * inset))
-		draw_rect(core, color)
-		for other: Vector2i in linked:
-			var d: Vector2 = Vector2(other - cell)
-			var half_len: float = cs / 2.0
-			var width: float = cs - 2.0 * inset
-			var connector: Rect2
-			if d.x != 0.0:
-				connector = Rect2(center + Vector2(minf(0.0, d.x) * half_len, -width / 2.0), Vector2(half_len, width))
-			else:
-				connector = Rect2(center + Vector2(-width / 2.0, minf(0.0, d.y) * half_len), Vector2(width, half_len))
-			draw_rect(connector, color)
-	for i in 2:
-		var offset: Vector2 = Vector2(_hash01(cell, 20 + i) - 0.5, _hash01(cell, 30 + i) - 0.5) * (cs * 0.5)
-		draw_circle(center + offset, 1.6, Biomes.PATH_PEBBLE)
-
-
-func _draw_entrance(cell: Vector2i) -> void:
-	var center: Vector2 = cell_to_world(cell)
-	draw_circle(center + Vector2(1.5, 2.5), 13.0, Color(0, 0, 0, 0.3))
-	draw_circle(center, 13.0, COLOR_ENTRANCE.darkened(0.45))
-	draw_arc(center, 13.0, 0.0, TAU, 24, COLOR_ENTRANCE, 3.0)
-	draw_circle(center, 6.0, Color(1.0, 0.6, 0.5, 0.9))
-
-
-func _draw_gate(cell: Vector2i) -> void:
-	var center: Vector2 = cell_to_world(cell)
-	var body: Rect2 = Rect2(center - Vector2(15, 13), Vector2(30, 26))
-	draw_rect(body.grow(1.0).abs(), Biomes.OUTLINE)
-	draw_rect(Rect2(body.position + Vector2(2, 3), body.size), Color(0, 0, 0, 0.3))
-	draw_rect(body, COLOR_GATE)
-	for i in 4:
-		draw_rect(Rect2(body.position + Vector2(1 + i * 8, -6), Vector2(5, 6)), COLOR_GATE.darkened(0.1))
-	draw_rect(Rect2(center + Vector2(-6, -2), Vector2(12, 15)), Color(0.18, 0.12, 0.1))
-	draw_line(center + Vector2(9, -13), center + Vector2(9, -26), Biomes.OUTLINE, 2.0)
-	draw_colored_polygon(PackedVector2Array([center + Vector2(10, -26), center + Vector2(22, -22), center + Vector2(10, -18)]), Color(0.3, 0.55, 1.0))
-
-
-## Draws one biome decoration. All share the style: flat fill, dark outline, soft shadow.
-func _draw_decoration(cell: Vector2i, biome: Dictionary) -> void:
-	var c: Dictionary = biome["deco_colors"]
-	var kind: String = _pick_decoration(cell, biome["decorations"])
-	var center: Vector2 = cell_to_world(cell) + Vector2(_hash01(cell, 41) - 0.5, _hash01(cell, 43) - 0.5) * 8.0
-	var size: float = 0.8 + 0.4 * _hash01(cell, 47)
-	var shadow: Color = Color(0, 0, 0, 0.22)
-	match kind:
-		"tree", "autumn_tree":
-			draw_circle(center + Vector2(3, 6), 10.0 * size, shadow)
-			draw_rect(Rect2(center + Vector2(-2, 2), Vector2(4, 9)), c["trunk"])
-			draw_circle(center, 10.0 * size + 1.0, Biomes.OUTLINE)
-			draw_circle(center, 10.0 * size, c["leaf"])
-			draw_circle(center + Vector2(-3, -3) * size, 5.0 * size, c["leaf_light"])
-		"bush":
-			draw_circle(center + Vector2(2, 4), 7.0 * size, shadow)
-			for o: Vector2 in [Vector2(-4, 1), Vector2(4, 1), Vector2(0, -3)]:
-				draw_circle(center + o * size, 5.0 * size + 1.0, Biomes.OUTLINE)
-			for o: Vector2 in [Vector2(-4, 1), Vector2(4, 1), Vector2(0, -3)]:
-				draw_circle(center + o * size, 5.0 * size, c["leaf_light"])
-		"flowers":
-			for i in 3:
-				var p: Vector2 = center + Vector2(_hash01(cell, 50 + i) - 0.5, _hash01(cell, 60 + i) - 0.5) * 18.0
-				draw_line(p, p + Vector2(0, 5), c["leaf"], 1.5)
-				draw_circle(p, 2.5, c["flower_a"] if i % 2 == 0 else c["flower_b"])
-		"rock", "snow_rock":
-			var rock: PackedVector2Array = PackedVector2Array([center + Vector2(-8, 4) * size, center + Vector2(-5, -5) * size,
-				center + Vector2(4, -6) * size, center + Vector2(9, 2) * size, center + Vector2(4, 6) * size])
-			draw_colored_polygon(_offset(rock, Vector2(2, 3)), shadow)
-			draw_colored_polygon(rock, c["rock"])
-			rock.append(rock[0])
-			draw_polyline(rock, Biomes.OUTLINE, 1.5)
-			if kind == "snow_rock":
-				draw_colored_polygon(PackedVector2Array([center + Vector2(-5, -5) * size, center + Vector2(4, -6) * size, center + Vector2(1, -2) * size]), c["snow"])
-		"cactus":
-			draw_rect(Rect2(center + Vector2(-2, 6), Vector2(8, 3)), shadow)
-			for part: Rect2 in [Rect2(-3, -10, 6, 18), Rect2(-9, -4, 4, 8), Rect2(5, -7, 4, 7)]:
-				var r: Rect2 = Rect2(center + part.position * size, part.size * size)
-				draw_rect(r.grow(1.0), Biomes.OUTLINE)
-				draw_rect(r, c["cactus"])
-			draw_line(center + Vector2(0, -9) * size, center + Vector2(0, 6) * size, c["cactus_light"], 1.0)
-		"dune":
-			draw_arc(center + Vector2(0, 6), 10.0 * size, PI * 1.1, PI * 1.9, 12, c["dune"], 3.0)
-			draw_arc(center + Vector2(6, 0), 7.0 * size, PI * 1.1, PI * 1.9, 12, c["dune"], 2.0)
-		"bones":
-			draw_line(center + Vector2(-6, -2), center + Vector2(6, 2), c["bones"], 2.5)
-			draw_circle(center + Vector2(-6, -2), 2.5, c["bones"])
-			draw_circle(center + Vector2(6, 2), 2.5, c["bones"])
-		"pine":
-			draw_circle(center + Vector2(3, 8), 8.0 * size, shadow)
-			draw_rect(Rect2(center + Vector2(-2, 5), Vector2(4, 5)), c["trunk"])
-			var tri: PackedVector2Array = PackedVector2Array([center + Vector2(0, -13) * size, center + Vector2(9, 6) * size, center + Vector2(-9, 6) * size])
-			draw_colored_polygon(tri, c["pine"])
-			tri.append(tri[0])
-			draw_polyline(tri, Biomes.OUTLINE, 1.5)
-			draw_colored_polygon(PackedVector2Array([center + Vector2(0, -13) * size, center + Vector2(4, -5) * size, center + Vector2(-4, -5) * size]), c["snow"])
-		"ice":
-			var shard: PackedVector2Array = PackedVector2Array([center + Vector2(0, -10) * size, center + Vector2(5, 0), center + Vector2(0, 8) * size, center + Vector2(-5, 0)])
-			draw_colored_polygon(_offset(shard, Vector2(2, 3)), shadow)
-			draw_colored_polygon(shard, c["ice"])
-			shard.append(shard[0])
-			draw_polyline(shard, Biomes.OUTLINE, 1.2)
-		"lava":
-			var crack: PackedVector2Array = PackedVector2Array([center + Vector2(-10, -3), center + Vector2(-3, 1), center + Vector2(2, -4), center + Vector2(10, 3)])
-			draw_polyline(crack, c["lava_glow"], 4.0)
-			draw_polyline(crack, c["lava"], 2.0)
-		"stump":
-			draw_circle(center + Vector2(2, 3), 6.0 * size, shadow)
-			draw_circle(center, 6.0 * size + 1.0, Biomes.OUTLINE)
-			draw_circle(center, 6.0 * size, c["stump"])
-			draw_arc(center, 3.0 * size, 0.0, TAU, 12, c["stump"].lightened(0.25), 1.0)
-		"obsidian":
-			var spike: PackedVector2Array = PackedVector2Array([center + Vector2(-6, 6), center + Vector2(-2, -10) * size, center + Vector2(3, -4), center + Vector2(7, 6)])
-			draw_colored_polygon(_offset(spike, Vector2(2, 3)), shadow)
-			draw_colored_polygon(spike, c["obsidian"])
-			draw_line(center + Vector2(-2, -10) * size, center + Vector2(0, 4), c["obsidian_light"], 1.2)
-		"reeds":
-			for i in 4:
-				var base: Vector2 = center + Vector2(-6 + i * 4, 7)
-				var tip: Vector2 = base + Vector2((_hash01(cell, 70 + i) - 0.5) * 6.0, -12.0 * size)
-				draw_line(base, tip, c["reed"], 1.5)
-				draw_rect(Rect2(tip - Vector2(1.2, 0), Vector2(2.4, 4)), c["reed_top"])
-		"pond":
-			draw_circle(center, 11.0 * size + 1.0, Biomes.OUTLINE)
-			draw_circle(center, 11.0 * size, c["water"])
-			draw_circle(center + Vector2(-3, 2), 3.5, c["lily"])
-			draw_circle(center + Vector2(4, -3), 2.5, c["lily"])
-		"mushroom":
-			draw_rect(Rect2(center + Vector2(-1.5, -1), Vector2(3, 7)), c["stem"])
-			draw_circle(center + Vector2(0, -1), 5.0 * size + 1.0, Biomes.OUTLINE)
-			draw_circle(center + Vector2(0, -1), 5.0 * size, c["cap"])
-			draw_circle(center + Vector2(-2, -3), 1.2, c["stem"])
-		"leaves":
-			for i in 4:
-				var p: Vector2 = center + Vector2(_hash01(cell, 80 + i) - 0.5, _hash01(cell, 90 + i) - 0.5) * 20.0
-				draw_circle(p, 2.5, c["leaves"] if i % 2 == 0 else c["leaf_light"])
-		"pumpkin":
-			draw_circle(center + Vector2(2, 3), 7.0, shadow)
-			draw_circle(center, 7.0, Biomes.OUTLINE)
-			draw_circle(center, 6.0, c["pumpkin"])
-			draw_line(center + Vector2(0, -6), center + Vector2(1, -9), Color(0.3, 0.45, 0.2), 2.0)
-
-
-func _pick_decoration(cell: Vector2i, options: Array) -> String:
-	var total: float = 0.0
-	for option: Array in options:
-		total += float(option[1])
-	var roll: float = _hash01(cell, 97) * total
-	for option: Array in options:
-		roll -= float(option[1])
-		if roll <= 0.0:
-			return option[0]
-	return options[options.size() - 1][0]
-
-
-static func _offset(points: PackedVector2Array, by: Vector2) -> PackedVector2Array:
-	var moved: PackedVector2Array = PackedVector2Array()
-	for p: Vector2 in points:
-		moved.append(p + by)
-	return moved
-
-
-## Stable pseudo-random value in [0, 1) for a cell (so decorations never flicker).
-func _hash01(cell: Vector2i, salt: int) -> float:
-	return float(absi(hash([cell.x, cell.y, salt])) % 10007) / 10007.0
-
-
-func _cell_rect(cell: Vector2i) -> Rect2:
-	return Rect2(cell.x * GameConfig.CELL_SIZE, cell.y * GameConfig.CELL_SIZE, GameConfig.CELL_SIZE, GameConfig.CELL_SIZE)
+## Build-mode hover: the tile highlight and, on a valid tile, the range the new tower
+## would cover.
+func _draw_overlay() -> void:
+	if not _build_mode or _hover_cell == NO_CELL:
+		return
+	var rect: Rect2 = Rect2(Vector2(_hover_cell) * GameConfig.CELL_SIZE, Vector2.ONE * GameConfig.CELL_SIZE)
+	var color: Color = COLOR_HOVER_VALID if _hover_valid else COLOR_HOVER_INVALID
+	overlay.draw_rect(rect.grow(-1.0), Color(color, 0.25))
+	overlay.draw_rect(rect.grow(-1.0), Color(color, 0.95), false, 2.0)
+	if _hover_valid:
+		var center: Vector2 = cell_to_world(_hover_cell)
+		overlay.draw_circle(center, _preview_range, Color(1, 1, 1, 0.08))
+		var segments: int = 48
+		for i in segments:
+			if i % 2 == 0:
+				overlay.draw_arc(center, _preview_range, TAU * i / segments, TAU * (i + 1) / segments, 4, Color(1, 1, 1, 0.75), 1.5)
